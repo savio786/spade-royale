@@ -5,6 +5,7 @@ import { Mode, prizeFor } from '../../shared/engine';
 import { net, NetStatus } from '../lib/net';
 import type { TableSummary } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
+import { store } from '../lib/payments';
 import { CreateTableModal, StartRequest } from './modals';
 
 interface Row { id: string; live: boolean; mode: Mode; bet: number; minPoints: number; maxPoints: number; seated: number; avatars: string[] }
@@ -47,7 +48,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
   };
 
   const join = (row: Row) => {
-    if (p.coins < row.bet) return;
+    if (p.coins < row.bet) { store.open({ tab: 'coins', need: row.bet }); return; }
     sfx.click();
     const base = { mode: row.mode, bet: row.bet, minPoints: row.minPoints, maxPoints: row.maxPoints };
     if (row.live && status === 'online') onStart({ ...base, via: 'table', tableId: row.id });
@@ -89,7 +90,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
         {rows.map((r) => {
           const poor = p.coins < r.bet;
           return (
-            <button key={r.id} className={`table-tile ${poor ? 'poor' : ''}`} onClick={() => join(r)} disabled={poor} aria-label={`${cityForBet(r.bet)} table, bet ${fmt(r.bet)}`}>
+            <button key={r.id} className={`table-tile ${poor ? 'poor' : ''}`} onClick={() => join(r)} aria-label={`${cityForBet(r.bet)} table, bet ${fmt(r.bet)}`}>
               {r.live && <span className="live-tag">LIVE</span>}
               <span className="tt-city">{cityForBet(r.bet)}</span>
               <span className="tt-felt">

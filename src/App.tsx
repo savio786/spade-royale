@@ -4,7 +4,8 @@ import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
-import { StartRequest } from './screens/modals';
+import { StartRequest, StoreModal } from './screens/modals';
+import { afterCheckoutReturn, loadPaymentConfig, store, syncPurchases, useStoreRequest } from './lib/payments';
 import { LocalController, RemoteController, TableController } from './lib/controller';
 import { cityForBet, profile, useProfile } from './lib/profile';
 import { net } from './lib/net';
@@ -42,12 +43,20 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', h);
   }, []);
   useEffect(() => { if (inApp && p.provider) net.connect(); }, [inApp, p.provider]);
-  useEffect(() => { if (p.provider && net.status === 'online') net.hello(); }, [p.name, p.avatar, p.provider]);
+  useEffect(() => { if (p.provider && net.status === 'online') net.hello(); }, [p.name, p.avatar, p.provider, p.chatUntil, p.vip]);
+  useEffect(() => {
+    if (!inApp) return;
+    loadPaymentConfig().then(() => { afterCheckoutReturn(); syncPurchases(); });
+    const onFocus = () => syncPurchases();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [inApp]);
+  const storeReq = useStoreRequest();
 
   const installPrompt = bip ? () => { bip.prompt(); setBip(null); } : null;
 
   const start = useCallback((r: StartRequest) => {
-    if (r.via !== 'joinPrivate' && profile.get().coins < r.bet) { toast('Not enough coins for that table', 'error'); return; }
+    if (r.via !== 'joinPrivate' && profile.get().coins < r.bet) { store.open({ tab: 'coins', need: r.bet }); return; }
     const settings: TableSettings = { mode: r.mode, bet: r.bet, minPoints: r.minPoints, maxPoints: r.maxPoints, city: cityForBet(r.bet), isPrivate: r.via === 'createPrivate' || (r.via === 'local' && !!r.code) };
     let c: TableController;
     const online = net.status === 'online';
@@ -75,7 +84,7 @@ export default function App() {
 
   return (
     <>
-      {inApp ? <Stage>{body}</Stage> : body}
+      {inApp ? <Stage>{body}{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : body}
       {inApp && <RotateHint />}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}

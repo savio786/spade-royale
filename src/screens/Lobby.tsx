@@ -4,8 +4,9 @@ import { fmt, levelFromXp, suggestedBet, useProfile, profile } from '../lib/prof
 import type { OnlineCounts } from '../../shared/protocol';
 import { net, NetStatus } from '../lib/net';
 import { sfx } from '../lib/sound';
+import { store } from '../lib/payments';
 import {
-  AdModal, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, StoreModal, TrophyModal, VipModal,
+  AdModal, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
 } from './modals';
 
 type ModalKey = null | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private';
@@ -39,9 +40,9 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button className="me-avatar" onClick={() => setModal('settings')} aria-label="Profile and settings"><Avatar k={p.avatar} size={84} vip={p.vip} name={p.name} /></button>
         <div className="coins-pill">
           <Coin size={36} /><span className="coins-num">{fmt(p.coins)}</span>
-          <button className="plus-btn" aria-label="Get coins" onClick={() => { sfx.click(); setModal('store'); }}><Icon name="plus" size={20} /></button>
+          <button className="plus-btn" aria-label="Get coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}><Icon name="plus" size={20} /></button>
         </div>
-        <button className="buy-coins" onClick={() => { sfx.click(); setModal('store'); }}>BUY COINS</button>
+        <button className="buy-coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}>BUY COINS</button>
         <div className="level-pill"><span className="level-star"><Icon name="star" size={34} /></span> LEVEL {lvl}</div>
         <span className={`net-dot ${status}`} title={`Server ${status}`} aria-label={`Multiplayer ${status}`} />
         <button className="gear" onClick={() => { sfx.click(); setModal('settings'); }} aria-label="Settings"><Icon name="gear" size={34} /></button>
@@ -70,6 +71,13 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         </div>
       </main>
 
+      {p.coins < 1000 && (
+        <div className="low-coins" role="status">
+          <Coin size={26} /><span>Running low on coins — top up to keep playing.</span>
+          {giftReady && <button className="pill gold small-pill" onClick={() => { sfx.click(); setModal('gifts'); }}>Free daily gift</button>}
+          <button className="pill green small-pill" onClick={() => { sfx.click(); store.open({ tab: 'coins', need: 1000 }); }}>Buy coins</button>
+        </div>
+      )}
       <nav className="bottom-nav" aria-label="Main">
         <button onClick={() => { sfx.click(); setModal('leaders'); }}><Icon name="podium" size={40} /><span>LEADERS</span></button>
         <button onClick={() => { sfx.click(); setModal('trophy'); }}><Icon name="trophy" size={40} /><span>TROPHY</span></button>
@@ -80,7 +88,6 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span></button>
       </nav>
 
-      {modal === 'store' && <StoreModal onClose={close} />}
       {modal === 'vip' && <VipModal onClose={close} />}
       {modal === 'ad' && <AdModal onClose={close} />}
       {modal === 'spin' && <SpinModal onClose={close} />}
@@ -95,7 +102,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
           close();
           const last = profile.get().lastTable;
           const bet = Math.min(suggestedBet(p.coins), p.coins);
-          if (p.coins < 100) { setModal('store'); return; }
+          if (p.coins < 100) { store.open({ tab: 'coins' }); return; }
           onStart({ mode, bet: Math.max(100, bet), minPoints: last?.minPoints ?? -100, maxPoints: last?.maxPoints ?? 100, via: status === 'online' ? 'quick' : 'local' });
         }} />
       )}

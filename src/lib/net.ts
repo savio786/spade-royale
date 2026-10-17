@@ -2,6 +2,7 @@
 // and upgrades to live tables when the server is reachable.
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
 import { profile, levelFromXp } from './profile';
+import { canChat } from './payments';
 
 export type NetStatus = 'offline' | 'connecting' | 'online';
 
@@ -49,7 +50,7 @@ class Net {
 
   hello() {
     const p = profile.get();
-    this.send({ t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp) } });
+    this.send({ t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p) } });
   }
 
   send(m: ClientMsg) {

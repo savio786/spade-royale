@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AVATAR_KEYS, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
+import { buy, chatPassLabel, isTestMode, store } from '../lib/payments';
+import { PRODUCTS, priceLabel } from '../../shared/products';
 import type { OnlineCounts } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { toast } from '../lib/toast';
@@ -125,30 +127,42 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ---------------- Store ----------------
-const PACKS = [
-  { coins: 25_000, price: '$0.99' }, { coins: 150_000, price: '$4.99', tag: 'Popular' }, { coins: 400_000, price: '$9.99' },
-  { coins: 1_000_000, price: '$19.99', tag: 'Best value' }, { coins: 3_000_000, price: '$49.99' }, { coins: 8_000_000, price: '$99.99' },
-];
-export function StoreModal({ onClose }: { onClose: () => void }) {
+// ---------------- Store (coins + Chat Pass) ----------------
+export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClose: () => void; tab?: 'coins' | 'chat'; need?: number }) {
   const p = useProfile();
+  const [tab, setTab] = useState<'coins' | 'chat'>(initialTab);
+  const [busy, setBusy] = useState<string | null>(null);
+  const shortBy = need && need > p.coins ? need - p.coins : 0;
+  const pass = chatPassLabel(p);
+  const purchase = async (id: string) => { setBusy(id); await buy(id); setBusy(null); };
+  const items = PRODUCTS.filter((x) => x.kind === tab);
   return (
-    <Modal title="Buy coins" onClose={onClose} wide>
-      <p className="note">Test store: purchases are simulated. Connect Google Play Billing / Apple In-App Purchase before release (README → “Payments”).</p>
-      <div className="packs">
-        {PACKS.map((k) => {
-          const bonus = p.vip ? Math.round(k.coins * 0.2) : 0;
+    <Modal title="Store" onClose={onClose} wide className="store-modal">
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === 'coins'} className={`tab ${tab === 'coins' ? 'on' : ''}`} onClick={() => setTab('coins')}>Coins</button>
+        <button role="tab" aria-selected={tab === 'chat'} className={`tab ${tab === 'chat' ? 'on' : ''}`} onClick={() => setTab('chat')}>Chat Pass</button>
+      </div>
+      {tab === 'coins' && shortBy > 0 && <p className="need-banner"><Coin size={22} /> You need <b>{fmt(shortBy)}</b> more coins for that table. Any pack below covers it{shortBy > 25_000 ? ' except the smallest' : ''}.</p>}
+      {tab === 'chat' && <p className="need-banner chat"><Icon name="chat" size={22} /> {pass ? <>You have a <b>{pass}</b>. Buying more adds to it.</> : <>Chatting at tables needs a Chat Pass. Everyone can still read the chat and send gifts.</>}</p>}
+      <div className={`packs ${tab === 'chat' ? 'three' : ''}`}>
+        {items.map((k) => {
+          const bonus = k.kind === 'coins' && p.vip ? Math.round(k.coins! * 0.2) : 0;
+          const covers = shortBy > 0 && k.kind === 'coins' && k.coins! + bonus >= shortBy;
           return (
-            <div key={k.coins} className="pack">
+            <div key={k.id} className={`pack ${covers ? 'covers' : ''}`}>
               {k.tag && <span className="pack-tag">{k.tag}</span>}
-              <div className="pack-coins"><Coin size={40} /></div>
-              <div className="pack-amt">{fmt(k.coins)}</div>
+              <div className="pack-coins">{k.kind === 'coins' ? <Coin size={40} /> : <Icon name="chat" size={40} />}</div>
+              <div className="pack-amt">{k.kind === 'coins' ? fmt(k.coins!) : k.chatDays === 0 ? 'Lifetime' : `${k.chatDays} day${k.chatDays === 1 ? '' : 's'}`}</div>
               {bonus > 0 && <div className="pack-bonus">+{fmt(bonus)} VIP bonus</div>}
-              <Pill color="green" onClick={() => { profile.addCoins(k.coins + bonus); sfx.coins(); toast(`+${fmt(k.coins + bonus)} coins`, 'coins'); }}>{k.price}</Pill>
+              {k.kind === 'chat' && <div className="pack-bonus">{k.chatDays === 0 ? 'Chat forever' : 'Unlimited messages'}</div>}
+              <Pill color="green" disabled={busy !== null} onClick={() => purchase(k.id)}>{busy === k.id ? 'Opening…' : priceLabel(k.priceCents)}</Pill>
             </div>
           );
         })}
       </div>
+      <p className="muted small center store-foot">{isTestMode()
+        ? 'Test mode: purchases are free and instant. Add your Stripe keys to the server to take real payments (README → Payments).'
+        : 'Secure checkout by Stripe. Purchases are added to your account as soon as payment completes.'}</p>
     </Modal>
   );
 }
@@ -420,11 +434,12 @@ export function CreateTableModal({ mode, onClose, onCreate, title = 'Create', pr
             <button className="round-btn" aria-label="Raise maximum" onClick={() => setXi(Math.min(MAX_STEPS.length - 1, xi + 1))}><Icon name="plus" /></button></span>
         </div>
       </div>
-      <Pill color="green" className="play-now-btn" disabled={p.coins < bet} onClick={() => {
+      {p.coins < bet ? <Pill color="gold" className="play-now-btn" onClick={() => store.open({ tab: 'coins', need: bet })}>BUY COINS</Pill> :
+      <Pill color="green" className="play-now-btn" onClick={() => {
         const s = { bet, minPoints: MIN_STEPS[mi], maxPoints: MAX_STEPS[xi] };
         profile.set({ lastTable: s });
         onCreate(s);
-      }}>{p.coins < bet ? 'Not enough coins' : 'PLAY NOW'}</Pill>
+      }}>PLAY NOW</Pill>}
     </Modal>
   );
 }

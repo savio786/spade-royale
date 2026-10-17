@@ -20,6 +20,7 @@ export interface Profile {
   claimed: string[];            // achievement ids
   settings: { sound: boolean; fast: boolean; vibrate: boolean };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
+  chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
 }
 
 // v2: every player starts over with a brand-new account (old v1 data is ignored and removed)
@@ -50,6 +51,7 @@ function fresh(): Profile {
     lastDaily: null, lastSpin: 0, lastAd: 0, claimed: [],
     settings: { sound: true, fast: false, vibrate: true },
     lastTable: null,
+    chatUntil: 0,
   };
 }
 

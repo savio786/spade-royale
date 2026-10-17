@@ -8,6 +8,7 @@ import { TableRuntime } from '../shared/runtime';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
 import { board, credit } from './leaderboard';
+import { claim, createCheckout, handleWebhook, hasChatPass, paymentsEnabled } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
@@ -96,7 +97,7 @@ function leave(c: Client, notify = true) {
 function handle(c: Client, m: ClientMsg) {
   switch (m.t) {
     case 'hello':
-      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: String(m.player.avatar || 'a1'), level: Number(m.player.level) || 1 };
+      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: String(m.player.avatar || 'a1'), level: Number(m.player.level) || 1, chat: !!m.player.chat };
       return send(c, { t: 'welcome', online: onlineCounts() });
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
@@ -129,8 +130,13 @@ function handle(c: Client, m: ClientMsg) {
       if (err) send(c, { t: 'error', message: err });
       return;
     }
-    case 'chat':
+    case 'chat': {
       if (!c.room || !c.player) return;
+      const isGift = String(m.text).startsWith('🎁:');
+      // sending messages needs a Chat Pass (verified purchases when Stripe is on, otherwise the device's test-mode pass)
+      const allowed = isGift || (paymentsEnabled() ? hasChatPass(c.player.id) : !!c.player.chat);
+      if (!allowed) return send(c, { t: 'error', message: 'Get a Chat Pass to send messages' });
+    }
       return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
     case 'leave':
       return leave(c);
@@ -148,6 +154,22 @@ function json(res: import('http').ServerResponse, code: number, body: unknown) {
 function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
+  if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled() });
+  if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
+  if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook')) {
+    let raw = '';
+    req.on('data', (d) => { raw += d; if (raw.length > 200_000) req.destroy(); });
+    req.on('end', async () => {
+      if (url.pathname === '/api/stripe-webhook') { const code = handleWebhook(raw, req.headers['stripe-signature'] as string | undefined); return json(res, code, { received: code === 200 }); }
+      if (!paymentsEnabled()) return json(res, 503, { error: 'Payments are not set up yet' });
+      try {
+        const b = JSON.parse(raw);
+        const checkoutUrl = await createCheckout(String(b.productId), String(b.playerId).slice(0, 64), String(b.returnUrl || ''));
+        return json(res, 200, { url: checkoutUrl });
+      } catch (e) { return json(res, 400, { error: (e as Error).message }); }
+    });
+    return;
+  }
   if (req.method === 'GET' && url.pathname === '/api/leaderboard') return json(res, 200, board(url.searchParams.get('id') || undefined));
   if (req.method === 'POST' && url.pathname === '/api/report') {
     // results of games played against bots in the browser (online games are credited by the server itself)

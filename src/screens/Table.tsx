@@ -7,7 +7,8 @@ import { fmt, levelFromXp, profile, short, useProfile } from '../lib/profile';
 import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
-import { StoreModal, VipModal } from './modals';
+import { VipModal } from './modals';
+import { canChat, chatPassLabel, store } from '../lib/payments';
 
 const POS = ['bottom', 'left', 'top', 'right'] as const;
 const QUICK = ['Good luck!', 'Nice play partner!', 'Well played', 'Hurry up please', 'Oops 😅', 'Thanks!', 'Good game!', 'Cover my nil!'];
@@ -21,7 +22,6 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
-  const [store, setStore] = useState(false);
   const [vip, setVip] = useState(false);
   const [giftFor, setGiftFor] = useState<number | null>(null);
   const [flying, setFlying] = useState<{ id: number; e: string; to: string }[]>([]);
@@ -112,7 +112,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   return (
     <div className="screen table-screen felt-bg">
       <div className="tbl-top-left">
-        <button className="buy-coins small" onClick={() => setStore(true)}>BUY COINS</button>
+        <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>BUY COINS</button>
         <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">VIP</span><small>CLUB</small></button>
       </div>
       <div className="tbl-top-right">
@@ -181,7 +181,6 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         </Modal>
       )}
       {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
-      {store && <StoreModal onClose={() => setStore(false)} />}
       {vip && <VipModal onClose={() => setVip(false)} />}
       {giftFor !== null && (
         <Modal title={`Send a gift to ${st.seats[giftFor]?.name ?? 'the table'}`} onClose={() => setGiftFor(null)}>
@@ -362,7 +361,9 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
         <p className="muted small">+{40 + (won ? 80 : 0)} XP · Level {levelFromXp(profile.get().xp)}</p>
         <div className="btn-row">
           <Pill color="blue" onClick={onLobby}>Lobby</Pill>
-          <Pill color="green" onClick={onAgain} disabled={profile.get().coins < st.settings.bet}>Play again</Pill>
+          {profile.get().coins < st.settings.bet
+            ? <Pill color="gold" onClick={() => store.open({ tab: 'coins', need: st.settings.bet })}>Buy coins to play again</Pill>
+            : <Pill color="green" onClick={onAgain}>Play again</Pill>}
         </div>
       </div>
     </div>
@@ -374,7 +375,10 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   const listRef = useRef<HTMLDivElement>(null);
   const msgs = view.snap?.chat ?? [];
   useEffect(() => { listRef.current?.scrollTo(0, 1e9); }, [msgs.length]);
-  const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); } };
+  const p = useProfile();
+  const unlocked = canChat(p);
+  const pass = chatPassLabel(p);
+  const send = (t: string) => { if (unlocked && t.trim()) { onSend(t); sfx.click(); } };
   return (
     <aside className="chat-panel" aria-label="Table chat">
       <header><b>Table chat</b><button className="icon-btn" onClick={onClose} aria-label="Close chat"><Icon name="close" size={20} /></button></header>
@@ -388,8 +392,16 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
             <div key={m.id} className={`chat-msg ${m.seat === me ? 'mine' : ''}`}><span className="chat-name">{m.name}</span><span>{m.text}</span></div>
           );
         })}
-        {msgs.length === 0 && <div className="chat-sys">Say hi to the table 👋</div>}
+        {msgs.length === 0 && <div className="chat-sys">{unlocked ? 'Say hi to the table 👋' : 'Messages from the table appear here.'}</div>}
       </div>
+      {!unlocked ? (
+        <div className="chat-locked">
+          <Icon name="lock" size={30} />
+          <div><b>Chat is a paid feature</b><p>Get a Chat Pass to send messages, quick phrases and emoji. Reading chat and sending gifts stay free.</p></div>
+          <Pill color="gold" onClick={() => store.open({ tab: 'chat' })}>Get Chat Pass — from $0.99</Pill>
+        </div>
+      ) : <>
+      {pass && <div className="chat-pass-line"><Icon name="chat" size={14} /> {pass}</div>}
       <div className="quick-row">{QUICK.map((q) => <button key={q} onClick={() => send(q)}>{q}</button>)}</div>
       <div className="emoji-row">{EMOJI.map((e) => <button key={e} onClick={() => send(e)} aria-label={`Send ${e}`}>{e}</button>)}</div>
       <form onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }} className="chat-form">
@@ -397,6 +409,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
         <input id="chat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type a message…" autoComplete="off" />
         <button type="submit" className="send-btn" aria-label="Send"><Icon name="send" size={20} /></button>
       </form>
+      </>}
     </aside>
   );
 }

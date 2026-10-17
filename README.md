@@ -95,12 +95,35 @@ npm run cap:ios                 # builds, syncs and opens Xcode
 
 Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 
+## Payments (coins and Chat Pass)
+
+What players can buy is listed in `shared/products.ts`:
+
+| Product | Price |
+|---|---|
+| 25,000 / 150,000 / 400,000 / 1M / 3M / 8M coins | $0.99 / $4.99 / $9.99 / $19.99 / $49.99 / $99.99 |
+| Chat Pass: 1 day / 30 days / lifetime | $0.99 / $2.99 / $9.99 |
+
+- **Chat is paid.** Without a Chat Pass, players can read table chat and send gifts, but can't send messages, quick phrases or emoji. VIP members get chat included. The server checks this too, not just the app.
+- **Buying coins when short.** Whenever a player picks a table they can't afford, the store opens and says how many coins they're missing. It also shows a "Running low on coins" bar in the lobby and a "Buy coins to play again" button after a game.
+
+**Taking real payments on the website (Stripe)**
+
+1. Create a Stripe account at https://dashboard.stripe.com.
+2. In Stripe go to *Developers → Webhooks → Add endpoint*. Use the URL `https://YOUR-SITE/api/stripe-webhook` and select the event `checkout.session.completed`.
+3. On your server (for example Render → *Environment*), set:
+   - `STRIPE_SECRET_KEY` = your secret key (`sk_live_…`, or `sk_test_…` to try it with test cards)
+   - `STRIPE_WEBHOOK_SECRET` = the signing secret of the webhook from step 2 (`whsec_…`)
+4. Redeploy. The store switches from test mode to Stripe Checkout automatically. After paying, players return to the game and their coins or Chat Pass are added within seconds. Every payment is verified with Stripe's signature, and each one is delivered only once.
+
+Purchases are stored in `DATA_DIR/purchases.json` next to the leaderboard, so keep the Render disk from `render.yaml`.
+
 ## Turning the demo hooks into production features
 
 These are wired up in the UI but use placeholders until you add your own accounts and keys:
 
 - **Sign-in**: the Facebook and Google Play Games buttons create a local profile. For real accounts, add Firebase Authentication (web) or `@capacitor-firebase/authentication` (native), then send the verified user id in the server `hello` message.
-- **Payments**: the coin store is in test mode. Use Google Play Billing and StoreKit, for example through RevenueCat (`@revenuecat/purchases-capacitor`), and grant coins on the server after the purchase is verified.
+- **Payments in the phone apps**: Apple and Google require their own billing for coins and Chat Passes inside apps. Use Google Play Billing and StoreKit, for example through RevenueCat (`@revenuecat/purchases-capacitor`). Until then the apps' store runs in test mode.
 - **Rewarded ads**: the “+100 coins AD” slot is a 5-second placeholder. Use `@capacitor-community/admob` on mobile.
 - **Wallet security**: coins, XP and stats are stored on the device (`src/lib/profile.ts`). Before launch, move the wallet and leaderboard into a database on the server (for example Postgres or Firestore), and settle bets and prizes there. That way players can't edit their own balance.
 - **Store policy**: coins are virtual and can't be cashed out. Google Play and Apple treat purchasable coins for card games as “simulated gambling”, so you'll need the matching age rating (17+ on iOS, an IARC rating on Play). Real-money tournaments like Skillz's need gambling licenses and a different integration.
