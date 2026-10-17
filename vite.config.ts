@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 // The multiplayer server runs on :8787 (npm run server). In dev/preview the
 // websocket is proxied so the client can always use same-origin "/ws".
-const proxy = { '/ws': { target: 'ws://localhost:8787', ws: true } };
+const proxy = { '/ws': { target: 'ws://localhost:8787', ws: true }, '/api': { target: 'http://localhost:8787' } };
 
 export default defineConfig({
   plugins: [react()],

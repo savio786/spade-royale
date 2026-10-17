@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
 import { fmt, levelFromXp, suggestedBet, useProfile, profile } from '../lib/profile';
-import { Mode } from '../../shared/engine';
+import type { OnlineCounts } from '../../shared/protocol';
 import { net, NetStatus } from '../lib/net';
 import { sfx } from '../lib/sound';
 import {
@@ -21,7 +21,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
   const [modal, setModal] = useState<ModalKey>(null);
   const [slide, setSlide] = useState(0);
   const [status, setStatus] = useState<NetStatus>(net.status);
-  const [online, setOnline] = useState<Record<Mode, number>>({ solo: 89, partners: 182 });
+  const [online, setOnline] = useState<OnlineCounts | null>(null);
   const lvl = levelFromXp(p.xp);
   const spinReady = Date.now() - p.lastSpin > 4 * 3600e3;
   const giftReady = p.lastDaily !== new Date().toISOString().slice(0, 10);
@@ -91,7 +91,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
       {modal === 'settings' && <SettingsModal onClose={close} installPrompt={installPrompt} />}
       {modal === 'private' && <PrivateGameModal status={status} onClose={close} onStart={(r) => { close(); onStart(r); }} />}
       {modal === 'roomtype' && (
-        <RoomTypeModal online={online} onClose={close} onPick={(mode) => {
+        <RoomTypeModal online={status === 'online' ? online : null} onClose={close} onPick={(mode) => {
           close();
           const last = profile.get().lastTable;
           const bet = Math.min(suggestedBet(p.coins), p.coins);

@@ -6,6 +6,7 @@ import type { CtlView, TableController } from '../lib/controller';
 import { fmt, levelFromXp, profile, short, useProfile } from '../lib/profile';
 import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
+import { reportWin } from '../lib/api';
 import { StoreModal, VipModal } from './modals';
 
 const POS = ['bottom', 'left', 'top', 'right'] as const;
@@ -71,6 +72,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         },
       }));
       won ? (sfx.win(), sfx.coins()) : sfx.lose();
+      // games vs computer are reported to the server leaderboard; online games are credited by the server itself
+      if (won && !view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize }); }
     }
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
@@ -268,7 +271,7 @@ function SeatView({ st, seat, pos, me, deadline, now, bubble, onGift, myVip }: {
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
         {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}
       </div>
-      {s && <div className="seat-name">{s.name}{s.bot && !s.name.includes('(bot)') ? '' : ''} <small>Lv {s.level}</small></div>}
+      {s && <div className="seat-name">{s.name} {s.bot ? <small className="cpu-tag">CPU</small> : <small>Lv {s.level}</small>}</div>}
       {s && st.phase !== 'waiting' && (
         <div className="seat-bid">{st.bids[seat] === null ? (active && st.phase === 'bidding' ? '…' : '–') : st.bids[seat] === 0 ? `NIL · ${st.tricks[seat]}` : `${st.tricks[seat]}/${st.bids[seat]}`}</div>
       )}

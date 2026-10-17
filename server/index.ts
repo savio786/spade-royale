@@ -6,7 +6,8 @@ import { readFileSync, existsSync, statSync } from 'fs';
 import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
-import type { Mode, TableSettings } from '../shared/engine';
+import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
+import { board, credit } from './leaderboard';
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
@@ -22,12 +23,11 @@ let roomSeq = 0;
 
 const send = (c: Client, m: ServerMsg) => { if (c.ws.readyState === WebSocket.OPEN) c.ws.send(JSON.stringify(m)); };
 
-function onlineCounts(): Record<Mode, number> {
-  const o = { solo: 0, partners: 0 } as Record<Mode, number>;
+function onlineCounts(): Record<Mode, number> & { total: number } {
+  // real people only: seated humans per mode, plus everyone connected
+  const o = { solo: 0, partners: 0, total: 0 };
   for (const r of rooms.values()) o[r.rt.g.settings.mode] += r.rt.humanCount();
-  // a lively baseline so the lobby never looks empty (bots playing elsewhere)
-  o.solo += 60 + (new Date().getMinutes() % 30);
-  o.partners += 140 + (new Date().getMinutes() % 45);
+  for (const c of clients) if (c.player) o.total++;
   return o;
 }
 
@@ -57,7 +57,15 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   const rt = new TableRuntime({ ...settings, isPrivate }, { fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS });
   const room: Room = { id, code: isPrivate ? makeCode() : null, hostId, rt, clients: new Set(), createdAt: Date.now() };
   rooms.set(id, room);
-  rt.onGameOver = () => setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);
+  rt.onGameOver = (g) => {
+    // credit real winners on the weekly leaderboard (server-authoritative for online games)
+    const prize = prizeFor(g.settings);
+    for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
+      const s = g.seats[seat];
+      if (s && !s.bot) credit(s, prize);
+    }
+    setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);
+  };
   return room;
 }
 
@@ -131,8 +139,43 @@ function handle(c: Client, m: ClientMsg) {
 
 // ---- static hosting of the built app (optional, for one-box deployment) ----
 const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
+// ---- leaderboard API ----
+const lastReport = new Map<string, number>();
+function json(res: import('http').ServerResponse, code: number, body: unknown) {
+  res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' });
+  res.end(JSON.stringify(body));
+}
+function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
+  const url = new URL(req.url || '/', 'http://x');
+  if (req.method === 'OPTIONS') return json(res, 204, null);
+  if (req.method === 'GET' && url.pathname === '/api/leaderboard') return json(res, 200, board(url.searchParams.get('id') || undefined));
+  if (req.method === 'POST' && url.pathname === '/api/report') {
+    // results of games played against bots in the browser (online games are credited by the server itself)
+    let raw = '';
+    req.on('data', (d) => { raw += d; if (raw.length > 2000) req.destroy(); });
+    req.on('end', () => {
+      try {
+        const b = JSON.parse(raw);
+        const id = String(b.id || '').slice(0, 64);
+        const bet = Number(b.bet), prize = Number(b.prize);
+        const mode: Mode = b.mode === 'solo' ? 'solo' : 'partners';
+        const max = prizeFor({ mode, bet }) * 1.1 + 1;
+        const now = Date.now();
+        if (!id || !(bet >= 100 && bet <= 5_000_000) || !(prize > 0 && prize <= max)) return json(res, 400, { error: 'invalid result' });
+        if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
+        lastReport.set(id, now);
+        credit({ id, name: String(b.name || 'Player'), avatar: String(b.avatar || 'a1') }, prize);
+        return json(res, 200, { ok: true });
+      } catch { return json(res, 400, { error: 'bad json' }); }
+    });
+    return;
+  }
+  return json(res, 404, { error: 'not found' });
+}
+
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200); return res.end('ok'); }
+  if (req.url?.startsWith('/api/')) return api(req, res);
   if (!existsSync(DIST)) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('Spade Royale server running. Build the client (npm run build) to serve it here.'); }
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   let file = normalize(join(DIST, urlPath));

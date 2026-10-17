@@ -32,10 +32,10 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
     const sim: Row[] = BET_STEPS.slice(0, 12).flatMap((bet, i) => Array.from({ length: i < 6 ? 2 : 1 }, (_, j) => ({
       id: `sim-${bet}-${j}`, live: false, mode, bet,
       minPoints: MIN_STEPS[Math.floor(r() * 3)], maxPoints: MAX_STEPS[Math.floor(r() * 5)],
-      seated: 1 + Math.floor(r() * 3), avatars: Array.from({ length: 3 }, () => `a${1 + Math.floor(r() * 12)}`),
+      seated: 0, avatars: [],
     })));
     const liveRows: Row[] = live.filter((t) => t.phase === 'waiting' && t.settings.mode === mode).map((t) => ({
-      id: t.id, live: true, mode: t.settings.mode, bet: t.settings.bet, minPoints: t.settings.minPoints, maxPoints: t.settings.maxPoints, seated: t.players, avatars: ['a2', 'a5', 'a9'],
+      id: t.id, live: true, mode: t.settings.mode, bet: t.settings.bet, minPoints: t.settings.minPoints, maxPoints: t.settings.maxPoints, seated: t.players, avatars: ['a2'],
     }));
     return [...liveRows, ...sim].filter((x) => (minF === null || x.minPoints === minF) && (maxF === null || x.maxPoints === maxF));
   }, [mode, live, minF, maxF, tick]);
@@ -94,11 +94,11 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
               <span className="tt-city">{cityForBet(r.bet)}</span>
               <span className="tt-felt">
                 {[0, 1, 2, 3].map((i) => (
-                  <span key={i} className={`tt-seat s${i}`}>{i < r.seated ? <Avatar k={r.avatars[i % 3]} size={34} /> : <span className="tt-empty">+</span>}</span>
+                  <span key={i} className={`tt-seat s${i}`}>{i < r.seated ? <Avatar k={r.avatars[i % r.avatars.length] ?? 'a1'} size={34} /> : <span className="tt-empty">+</span>}</span>
                 ))}
                 <span className="tt-bet"><Coin size={18} /> {short(r.bet)}</span>
               </span>
-              <span className="tt-meta">Prize {short(prizeFor({ mode: r.mode, bet: r.bet }))} · {r.minPoints}/{r.maxPoints}</span>
+              <span className="tt-meta">{r.live ? `${r.seated}/4 seated` : 'vs computer'} · Prize {short(prizeFor({ mode: r.mode, bet: r.bet }))} · {r.minPoints}/{r.maxPoints}</span>
             </button>
           );
         })}

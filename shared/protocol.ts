@@ -1,6 +1,8 @@
 import type { Action, Mode, TableSettings } from './engine';
 import type { Snapshot } from './runtime';
 
+export type OnlineCounts = Record<Mode, number> & { total: number };
+
 export interface PlayerHello { id: string; name: string; avatar: string; level: number }
 
 export interface TableSummary {
@@ -24,8 +26,8 @@ export type ClientMsg =
   | { t: 'leave' };
 
 export type ServerMsg =
-  | { t: 'welcome'; online: Record<Mode, number> }
-  | { t: 'tables'; tables: TableSummary[]; online: Record<Mode, number> }
+  | { t: 'welcome'; online: OnlineCounts }
+  | { t: 'tables'; tables: TableSummary[]; online: OnlineCounts }
   | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings }
   | { t: 'snap'; snap: Snapshot }
   | { t: 'error'; message: string }

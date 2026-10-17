@@ -11,8 +11,7 @@ export interface Profile {
   vip: boolean;
   weekKey: string;
   weekEarnings: number;
-  lastWeekRank: number | null;
-  lastWeekClaimed: boolean;
+  claimedWeeks: string[];       // weeks whose leaderboard reward was collected
   stats: { played: number; won: number; soloWins: number; partnersWins: number; nilsMade: number; biggestWin: number; bagsPenalties: number };
   friends: Friend[];
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
@@ -23,7 +22,9 @@ export interface Profile {
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
 }
 
-const KEY = 'spade-royale-profile-v1';
+// v2: every player starts over with a brand-new account (old v1 data is ignored and removed)
+const KEY = 'spade-royale-profile-v2';
+try { localStorage.removeItem('spade-royale-profile-v1'); } catch { /* storage unavailable */ }
 
 export function weekKey(d = new Date()) {
   const start = new Date(d);
@@ -43,13 +44,9 @@ const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(
 function fresh(): Profile {
   return {
     id: rid(), name: '', avatar: 'a1', provider: null, coins: 50_000, xp: 0, vip: false,
-    weekKey: weekKey(), weekEarnings: 0, lastWeekRank: null, lastWeekClaimed: true,
+    weekKey: weekKey(), weekEarnings: 0, claimedWeeks: [],
     stats: { played: 0, won: 0, soloWins: 0, partnersWins: 0, nilsMade: 0, biggestWin: 0, bagsPenalties: 0 },
-    friends: [
-      { id: 'f1', name: 'NilQueen', avatar: 'a4', level: 41, online: true },
-      { id: 'f2', name: 'Big Joker', avatar: 'a7', level: 18, online: false },
-      { id: 'f3', name: 'Amara', avatar: 'a10', level: 27, online: true },
-    ],
+    friends: [],
     lastDaily: null, lastSpin: 0, lastAd: 0, claimed: [],
     settings: { sound: true, fast: false, vibrate: true },
     lastTable: null,
@@ -63,8 +60,6 @@ function load(): Profile {
       const p = { ...fresh(), ...JSON.parse(raw) } as Profile;
       // weekly rollover
       if (p.weekKey !== weekKey()) {
-        p.lastWeekRank = p.weekEarnings > 0 ? estimateRank(p.weekEarnings) : null;
-        p.lastWeekClaimed = p.lastWeekRank === null;
         p.weekEarnings = 0;
         p.weekKey = weekKey();
       }
@@ -99,31 +94,14 @@ export function useProfile() {
 export const levelFromXp = (xp: number) => Math.floor(Math.sqrt(xp / 60)) + 1;
 export const xpForLevel = (lvl: number) => (lvl - 1) * (lvl - 1) * 60;
 
-// ---- leaderboard (synthetic global field, deterministic per week) ----
+// ---- small deterministic RNG (used for bot-table variety in the online lobby) ----
 export function seeded(seed: string) {
   let h = 2166136261;
   for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 100000) / 100000; };
 }
-const LB_NAMES = ['InductiveConqueror', 'Fazia K', 'Linda', 'RUKiddingMe', 'Michael', 'SpadeSensei', 'Queen of Books', 'Tobias', 'Marisol', 'TrumpCardTina', 'Yusuf', 'DeltaDealer', 'Ingrid', 'SetTheTable', 'KwameK', 'Bagless Betty', 'Hiroshi', 'NightOwlNil', 'Carmen', 'LuckySeven', 'Olumide', 'Petra', 'BlindNilBob', 'Ravi', 'Chloe', 'MoonShooter', 'Gustavo', 'Hana', 'Felix', 'Ana Lucia'];
-export interface LbRow { name: string; avatar: string; earnings: number; me?: boolean; move: -1 | 0 | 1 }
-export function globalBoard(key = weekKey()): LbRow[] {
-  const r = seeded(key);
-  const elapsed = Math.min(1, Math.max(0.08, 1 - (weekEndsAt() - Date.now()) / (7 * 864e5)));
-  return LB_NAMES.map((name, i) => ({
-    name,
-    avatar: `a${(i % 12) + 1}`,
-    earnings: Math.round((16_000_000 * Math.pow(0.86, i) * (0.85 + r() * 0.3) * elapsed) / 25_000) * 25_000,
-    move: (r() < 0.33 ? -1 : r() < 0.5 ? 0 : 1) as -1 | 0 | 1,
-  })).sort((a, b) => b.earnings - a.earnings);
-}
-export function estimateRank(earnings: number) {
-  const b = globalBoard();
-  const above = b.filter((x) => x.earnings > earnings).length;
-  if (above < b.length) return above + 1;
-  // below the visible field: extrapolate
-  return Math.min(9999, b.length + Math.round(Math.log(b[b.length - 1].earnings / Math.max(1, earnings)) * 120));
-}
+
+// ---- weekly leaderboard rewards (the board itself lives on the server: src/lib/api.ts) ----
 export function rewardForRank(rank: number | null) {
   if (!rank) return 0;
   if (rank === 1) return 50_000; if (rank === 2) return 25_000; if (rank === 3) return 10_000;

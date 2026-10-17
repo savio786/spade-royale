@@ -5,3 +5,10 @@ services:
     runtime: docker
     plan: starter
     healthCheckPath: /health
+    envVars:
+      - key: DATA_DIR
+        value: /data
+    disk:            # keeps the leaderboard and Wall of Fame across restarts and deploys
+      name: spade-royale-data
+      mountPath: /data
+      sizeGB: 1

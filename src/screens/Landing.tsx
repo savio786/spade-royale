@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Logo } from '../components/ui';
 import { RulesModal } from './Table';
-import { globalBoard, fmt } from '../lib/profile';
+import { fmt } from '../lib/profile';
+import { BoardRow, fetchBoard } from '../lib/api';
 
 const STORE_LINKS = {
   play: (import.meta.env.VITE_PLAY_STORE_URL as string) || '#download',
@@ -26,7 +27,8 @@ const PLATFORMS = [
 
 export function Landing({ onPlay, installPrompt }: { onPlay: () => void; installPrompt: null | (() => void) }) {
   const [rules, setRules] = useState(false);
-  const top = globalBoard().slice(0, 5);
+  const [top, setTop] = useState<BoardRow[]>([]);
+  useEffect(() => { fetchBoard().then((b) => b && setTop(b.rows.slice(0, 5))); }, []);
   return (
     <div className="landing">
       <nav className="land-nav">
@@ -107,14 +109,14 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
         </div>
       </section>
 
-      <section className="land-section lb-teaser">
+      {top.length > 0 && <section className="land-section lb-teaser">
         <h2 className="sec-title">This week's leaders</h2>
         <ol className="teaser-list">
           {top.map((r, i) => (
             <li key={r.name}><span className="t-rank">{i + 1}</span><Avatar k={r.avatar} size={40} /><span className="grow">{r.name}</span><span className="t-earn"><Coin size={20} /> {fmt(r.earnings)}</span></li>
           ))}
         </ol>
-      </section>
+      </section>}
 
       <section className="land-section" id="download">
         <h2 className="sec-title">Play on every screen</h2>

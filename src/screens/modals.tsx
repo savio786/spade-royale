@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AVATAR_KEYS, Coin, Icon, Modal, Pill } from '../components/ui';
-import { BET_STEPS, cityForBet, fmt, globalBoard, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, seeded, short, useProfile, weekEndsAt, xpForLevel, estimateRank } from '../lib/profile';
+import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
+import { Board, BoardRow, fetchBoard } from '../lib/api';
+import type { OnlineCounts } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
@@ -21,33 +23,29 @@ function useCountdown(to: number) {
   return (d ? `${d}d ` : '') + `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
 
-// ---------------- Leaderboard ----------------
+// ---------------- Leaderboard (real players only, from the game server) ----------------
 export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
   const [tab, setTab] = useState<'global' | 'friends' | 'fame'>('global');
   const [showLast, setShowLast] = useState(false);
-  const ends = useCountdown(weekEndsAt());
-  const rows = useMemo(() => {
-    const base = globalBoard().map((r) => ({ ...r }));
-    if (tab === 'friends') {
-      const r = seeded(p.weekKey + 'f');
-      return [...p.friends.map((f) => ({ name: f.name, avatar: f.avatar, earnings: Math.round(r() * 3_000_000 / 1000) * 1000, move: 0 as const })),
-        { name: p.name, avatar: p.avatar, earnings: p.weekEarnings, me: true, move: 0 as const }].sort((a, b) => b.earnings - a.earnings);
-    }
-    const all = [...base, { name: p.name, avatar: p.avatar, earnings: p.weekEarnings, me: true, move: 0 as const }].sort((a, b) => b.earnings - a.earnings);
-    return all;
-  }, [tab, p.weekEarnings, p.name, p.avatar, p.friends, p.weekKey]);
-  const myRank = estimateRank(p.weekEarnings);
+  const [data, setData] = useState<Board | null | 'loading'>('loading');
+  useEffect(() => { let live = true; fetchBoard(p.id).then((b) => live && setData(b)); return () => { live = false; }; }, [p.id]);
+  const b = data === 'loading' ? null : data;
+  const ends = useCountdown(b?.endsAt ?? weekEndsAt());
 
-  const fame = useMemo(() => {
-    const out: { week: string; name: string; avatar: string; earnings: number }[] = [];
-    for (let i = 1; i <= 8; i++) {
-      const d = new Date(weekEndsAt() - (i + 1) * 7 * 864e5);
-      const b = globalBoard(d.toISOString().slice(0, 10));
-      out.push({ week: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), name: b[0].name, avatar: b[0].avatar, earnings: Math.round(b[0].earnings / (1 - 0.0)) });
+  const rows: BoardRow[] = useMemo(() => {
+    if (!b) return p.weekEarnings > 0 ? [{ name: p.name, avatar: p.avatar, earnings: p.weekEarnings, me: true }] : [];
+    if (tab === 'friends') {
+      const names = new Set(p.friends.map((f) => f.name.toLowerCase()));
+      return b.rows.filter((r) => r.me || names.has(r.name.toLowerCase()));
     }
-    return out;
-  }, []);
+    return b.rows;
+  }, [b, tab, p.friends, p.name, p.avatar, p.weekEarnings]);
+
+  const lastRank = b?.lastWeek?.rank ?? null;
+  const lastWeekKey = b?.lastWeek?.week ?? '';
+  const claimed = !!lastWeekKey && p.claimedWeeks.includes(lastWeekKey);
+  const empty = (text: string) => <div className="lb-empty"><Icon name="trophy" size={44} /><p>{text}</p></div>;
 
   return (
     <Modal onClose={onClose} wide className="lb-modal">
@@ -61,35 +59,42 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
-          {tab !== 'fame' ? (
-            <>
-              <div className="lb-head"><span>Rank</span><span>Player</span><span>Earnings</span></div>
+          {data === 'loading' ? empty('Loading this week’s results…') : tab !== 'fame' ? (
+            rows.length === 0 ? empty(
+              !b ? 'The leaderboard is shown when the game server is running. Your wins this week still count on this device.'
+                : tab === 'friends' ? 'None of your friends have won a game this week yet. Add friends by their player name.'
+                : 'No wins yet this week. Win a game to take the #1 spot.'
+            ) : (
+              <>
+                <div className="lb-head"><span>Rank</span><span>Player</span><span>Earnings</span></div>
+                <ol className="lb-list">
+                  {rows.slice(0, 100).map((r, i) => (
+                    <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''}`}>
+                      <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
+                      <Avatar k={r.avatar} size={44} />
+                      <span className="lb-name">{r.name}{r.me ? ' (you)' : ''}</span>
+                      <span className="lb-earn"><Coin size={24} />{fmt(r.earnings)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )
+          ) : (
+            !b || b.fame.length === 0 ? empty('Each week’s champion is added here when the week ends. The first one is still to be decided.') : (
               <ol className="lb-list">
-                {rows.slice(0, 50).map((r, i) => (
-                  <li key={r.name + i} className={`lb-row ${'me' in r && r.me ? 'me' : ''}`}>
-                    <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
-                    <span className={`lb-move ${r.move > 0 ? 'up' : r.move < 0 ? 'down' : ''}`} aria-hidden="true">{r.move > 0 ? '▲' : r.move < 0 ? '▼' : '='}</span>
-                    <Avatar k={r.avatar} size={44} />
-                    <span className="lb-name">{r.name}{'me' in r && r.me ? ' (you)' : ''}</span>
-                    <span className="lb-earn"><Coin size={24} />{fmt(r.earnings)}</span>
+                {b.fame.map((f) => (
+                  <li key={f.week} className="lb-row">
+                    <span className="lb-rank"><span className="medal m1">I</span></span>
+                    <span className="lb-week">Week of {new Date(f.week + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
+                    <Avatar k={f.avatar} size={44} />
+                    <span className="lb-name">{f.name}</span>
+                    <span className="lb-earn"><Coin size={24} />{fmt(f.earnings)}</span>
                   </li>
                 ))}
               </ol>
-              {tab === 'global' && <div className="lb-me">Your rank: <b>#{myRank}</b> · {fmt(p.weekEarnings)} won this week</div>}
-            </>
-          ) : (
-            <ol className="lb-list">
-              {fame.map((f) => (
-                <li key={f.week} className="lb-row">
-                  <span className="lb-rank"><span className="medal m1">I</span></span>
-                  <span className="lb-week">Week of {f.week}</span>
-                  <Avatar k={f.avatar} size={44} />
-                  <span className="lb-name">{f.name}</span>
-                  <span className="lb-earn"><Coin size={24} />{fmt(f.earnings)}</span>
-                </li>
-              ))}
-            </ol>
+            )
           )}
+          {tab === 'global' && b && <div className="lb-me">Your rank: <b>{b.me.rank ? `#${b.me.rank}` : 'not ranked yet'}</b> · {fmt(b.me.earnings)} won this week</div>}
         </div>
         <aside className="lb-side">
           <div className="rewards">
@@ -104,16 +109,16 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
       </div>
       {showLast && (
         <Modal title="Last week" onClose={() => setShowLast(false)}>
-          {p.lastWeekRank ? (
+          {lastRank ? (
             <div className="center-col">
-              <p>You finished <b>#{p.lastWeekRank}</b>.</p>
-              {rewardForRank(p.lastWeekRank) > 0 && !p.lastWeekClaimed ? (
-                <Pill color="gold" onClick={() => { profile.set((x) => ({ coins: x.coins + rewardForRank(x.lastWeekRank), lastWeekClaimed: true })); sfx.coins(); toast(`+${fmt(rewardForRank(p.lastWeekRank))} coins`, 'coins'); setShowLast(false); }}>
-                  Claim <Coin size={18} /> {fmt(rewardForRank(p.lastWeekRank))}
+              <p>You finished <b>#{lastRank}</b>.</p>
+              {rewardForRank(lastRank) > 0 && !claimed ? (
+                <Pill color="gold" onClick={() => { profile.set((x) => ({ coins: x.coins + rewardForRank(lastRank), claimedWeeks: [...x.claimedWeeks, lastWeekKey].slice(-20) })); sfx.coins(); toast(`+${fmt(rewardForRank(lastRank))} coins`, 'coins'); setShowLast(false); }}>
+                  Claim <Coin size={18} /> {fmt(rewardForRank(lastRank))}
                 </Pill>
-              ) : <p className="muted">{rewardForRank(p.lastWeekRank) ? 'Reward claimed.' : 'Finish in the top 100 to earn a reward.'}</p>}
+              ) : <p className="muted">{rewardForRank(lastRank) ? 'Reward claimed.' : 'Finish in the top 100 to earn a reward.'}</p>}
             </div>
-          ) : <p className="muted">No results yet — win games this week to climb the board.</p>}
+          ) : <p className="muted">No results from last week. Win games this week to climb the board.</p>}
         </Modal>
       )}
     </Modal>
@@ -242,13 +247,6 @@ export function GiftsModal({ onClose }: { onClose: () => void }) {
         <div><b>Daily free gift</b><p className="muted">2,000 coins every day</p></div>
         <Pill color="gold" disabled={!can} onClick={() => { profile.set((x) => ({ coins: x.coins + 2000, lastDaily: today })); sfx.coins(); toast('+2,000 coins', 'coins'); }}>{can ? 'Collect' : 'Collected'}</Pill>
       </div>
-      <h3 className="sub-h">Send coins to friends</h3>
-      <ul className="friend-list">
-        {p.friends.map((f) => (
-          <li key={f.id}><Avatar k={f.avatar} size={40} /><span className="grow">{f.name}</span>
-            <Pill color="blue" onClick={() => { toast(`Sent 500 coins to ${f.name} (free daily gift)`); }}>Send 500</Pill></li>
-        ))}
-      </ul>
     </Modal>
   );
 }
@@ -263,18 +261,19 @@ export function FriendsModal({ onClose, onInvite }: { onClose: () => void; onInv
         e.preventDefault();
         const n = name.trim();
         if (!n) return;
-        profile.set((x) => ({ friends: [...x.friends, { id: Math.random().toString(36).slice(2), name: n.slice(0, 18), avatar: AVATAR_KEYS[Math.floor(Math.random() * 12)], level: 1 + Math.floor(Math.random() * 40), online: Math.random() < 0.5 }] }));
-        setName(''); toast(`Friend request sent to ${n}`);
+        profile.set((x) => ({ friends: [...x.friends, { id: Math.random().toString(36).slice(2), name: n.slice(0, 18), avatar: AVATAR_KEYS[Math.floor(Math.random() * 12)], level: 0, online: false }] }));
+        setName(''); toast(`${n} added to your friends`);
       }}>
         <label className="sr-only" htmlFor="fr-name">Player name</label>
         <input id="fr-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add friend by player name" />
         <Pill type="submit" color="green"><Icon name="plus" size={16} /> Add</Pill>
       </form>
+      {p.friends.length === 0 && <p className="muted center">No friends yet. Add a player by their name, then invite them to a private table.</p>}
       <ul className="friend-list">
         {p.friends.map((f) => (
           <li key={f.id}>
             <Avatar k={f.avatar} size={44} />
-            <span className="grow"><b>{f.name}</b><small className={f.online ? 'online' : 'muted'}>{f.online ? '● Online' : 'Offline'} · Lvl {f.level}</small></span>
+            <span className="grow"><b>{f.name}</b><small className="muted">Invite them with a private-table code</small></span>
             <Pill color="purple" onClick={onInvite}>Invite</Pill>
             <button className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => profile.set((x) => ({ friends: x.friends.filter((y) => y.id !== f.id) }))}><Icon name="close" size={16} /></button>
           </li>
@@ -361,7 +360,8 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
 }
 
 // ---------------- Room type (Solo / Partners) ----------------
-export function RoomTypeModal({ onPick, onClose, online }: { onPick: (m: Mode) => void; onClose: () => void; online: Record<Mode, number> }) {
+export function RoomTypeModal({ onPick, onClose, online }: { onPick: (m: Mode) => void; onClose: () => void; online: OnlineCounts | null }) {
+  const count = (m: Mode) => (online ? `${online[m]} playing now` : 'Play vs computer');
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="roomtype" role="dialog" aria-modal="true" aria-label="Choose room type">
@@ -369,13 +369,13 @@ export function RoomTypeModal({ onPick, onClose, online }: { onPick: (m: Mode) =
           <span className="mode-title">SOLO</span>
           <span className="mode-sub">Play against all other players</span>
           <span className="mode-art solo"><Icon name="spade" size={84} /><span className="laurel" /></span>
-          <span className="mode-count"><Icon name="users" size={16} /> {online.solo} players</span>
+          <span className="mode-count"><Icon name="users" size={16} /> {count('solo')}</span>
         </button>
         <button className="mode-card" onClick={() => { sfx.click(); onPick('partners'); }}>
           <span className="mode-title">PARTNERS</span>
           <span className="mode-sub">Play classic spades</span>
           <span className="mode-art partners"><Icon name="spade" size={70} /><Icon name="spade" size={70} /></span>
-          <span className="mode-count"><Icon name="users" size={16} /> {online.partners} players</span>
+          <span className="mode-count"><Icon name="users" size={16} /> {count('partners')}</span>
         </button>
         <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="close" size={20} /></button>
       </div>
