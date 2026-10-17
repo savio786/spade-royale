@@ -1,0 +1,8 @@
+node_modules
+dist
+*.log
+.env
+android/app/build
+android/.gradle
+ios/App/Pods
+dist-web

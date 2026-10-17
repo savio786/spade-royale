@@ -1,0 +1,7 @@
+# Render blueprint: New + > Blueprint > pick this repo. Serves the site and the multiplayer server together.
+services:
+  - type: web
+    name: spade-royale
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health

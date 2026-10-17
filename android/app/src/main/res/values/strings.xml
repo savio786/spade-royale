@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Spade Royale</string>
+    <string name="title_activity_main">Spade Royale</string>
+    <string name="package_name">com.spaderoyale.app</string>
+    <string name="custom_url_scheme">com.spaderoyale.app</string>
+</resources>
