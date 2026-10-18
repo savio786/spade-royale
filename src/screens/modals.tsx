@@ -351,8 +351,22 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
   const toggle = (k: keyof typeof p.settings) => profile.set((x) => ({ settings: { ...x.settings, [k]: !x.settings[k] } }));
   return (
     <Modal title="Settings" onClose={onClose}>
-      <label className="field"><span>Player name</span>
-        <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && profile.set({ name: name.trim() })} /></label>
+      {p.provider === 'guest' ? (
+        <div className="field"><span>Guest name</span>
+          <div className="locked-name"><Icon name="lock" size={18} /><b>{p.name}</b></div>
+          <small className="muted">Guest names can't be changed. Your progress is saved automatically.</small>
+          {p.guestCode && (
+            <div className="guest-code">
+              <span>Your guest code</span>
+              <button className="code" onClick={() => { navigator.clipboard?.writeText(p.guestCode!).then(() => toast('Guest code copied'), () => toast(`Guest code: ${p.guestCode}`)); }} aria-label={`Copy guest code ${p.guestCode}`}>{p.guestCode} <Icon name="copy" size={16} /></button>
+              <small className="muted">Keep it private. Enter it on another phone or computer ("Have a guest code?") to continue as {p.name}.</small>
+            </div>
+          )}
+        </div>
+      ) : (
+        <label className="field"><span>Player name</span>
+          <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && profile.set({ name: name.trim() })} /></label>
+      )}
       <div className="field"><span>Avatar</span>
         <AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
       <div className="toggles">
@@ -363,7 +377,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
       <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b> · Signed in: {p.provider}</p>
       <div className="btn-row">
         {installPrompt && <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill>}
-        <Pill color="red" onClick={() => { if (confirmOut) { profile.reset(); onClose(); } else setConfirmOut(true); }}><Icon name="exit" size={16} /> {confirmOut ? 'Tap again to reset profile' : 'Sign out'}</Pill>
+        <Pill color="red" onClick={() => { if (confirmOut) { profile.reset(); onClose(); } else setConfirmOut(true); }}><Icon name="exit" size={16} /> {confirmOut ? (p.provider === 'guest' ? `Tap again (you'll stay saved as ${p.name})` : 'Tap again to reset profile') : 'Sign out'}</Pill>
       </div>
     </Modal>
   );

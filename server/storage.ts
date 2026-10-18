@@ -56,3 +56,31 @@ export function saveJSON(name: string, get: () => unknown) {
     } catch (e) { console.error(`could not save ${name}`, e); }
   }, 400));
 }
+
+/** Reads one record; null when it doesn't exist. Throws if storage is unreachable. */
+export async function getRecord<T>(name: string): Promise<T | null> {
+  if (storageKind === 'upstash') {
+    const v = await redis(['GET', `spade-royale:${name}`]);
+    return typeof v === 'string' ? (JSON.parse(v) as T) : null;
+  }
+  const f = join(DIR, `${name}.json`);
+  return existsSync(f) ? (JSON.parse(readFileSync(f, 'utf8')) as T) : null;
+}
+
+/** Writes one record immediately. */
+export async function putRecord(name: string, data: unknown) {
+  const s = JSON.stringify(data);
+  if (storageKind === 'upstash') { await redis(['SET', `spade-royale:${name}`, s]); return; }
+  mkdirSync(DIR, { recursive: true });
+  const f = join(DIR, `${name}.json`);
+  writeFileSync(f + '.tmp', s);
+  renameSync(f + '.tmp', f);
+}
+
+/** Atomic counter (unique guest numbers). */
+export async function nextNumber(name: string): Promise<number> {
+  if (storageKind === 'upstash') return Number(await redis(['INCR', `spade-royale:${name}`]));
+  const cur = (await getRecord<{ n: number }>(name))?.n ?? 0;
+  await putRecord(name, { n: cur + 1 });
+  return cur + 1;
+}

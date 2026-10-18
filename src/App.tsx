@@ -13,6 +13,9 @@ import { useToasts, toast } from './lib/toast';
 import { Coin } from './components/ui';
 import { HelpBot } from './components/HelpBot';
 import { helpBot } from './lib/helpbot';
+import { pullGuestProgress, startGuestSync } from './lib/guest';
+
+startGuestSync();
 import { Capacitor } from '@capacitor/core';
 import type { TableSettings } from '../shared/engine';
 
@@ -45,6 +48,7 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', h);
   }, []);
   useEffect(() => { if (inApp && p.provider) net.connect(); }, [inApp, p.provider]);
+  useEffect(() => { if (inApp) void pullGuestProgress(); }, [inApp]);
   useEffect(() => { if (p.provider && net.status === 'online') net.hello(); }, [p.name, p.avatar, p.provider, p.chatUntil, p.vip]);
   useEffect(() => {
     if (!inApp) return;

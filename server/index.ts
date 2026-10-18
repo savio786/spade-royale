@@ -9,6 +9,7 @@ import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/
 import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
 import { board, credit, initLeaderboard } from './leaderboard';
 import { storageKind } from './storage';
+import { createGuest, guestName, loadAccount, restoreByCode, saveProgress } from './accounts';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentsEnabled } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -99,6 +100,7 @@ function handle(c: Client, m: ClientMsg) {
   switch (m.t) {
     case 'hello':
       c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: String(m.player.avatar || 'a1'), level: Number(m.player.level) || 1, chat: !!m.player.chat };
+      guestName(c.player.id).then((n) => { if (n && c.player) c.player.name = n; });
       return send(c, { t: 'welcome', online: onlineCounts() });
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
@@ -149,12 +151,13 @@ const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javasc
 // ---- leaderboard API ----
 const lastReport = new Map<string, number>();
 function json(res: import('http').ServerResponse, code: number, body: unknown) {
-  res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' });
+  res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, PUT, OPTIONS', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 }
 function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
+  if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled() });
   if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
   if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook')) {
@@ -187,13 +190,57 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         if (!id || !(bet >= 100 && bet <= 5_000_000) || !(prize > 0 && prize <= max)) return json(res, 400, { error: 'invalid result' });
         if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
         lastReport.set(id, now);
-        credit({ id, name: String(b.name || 'Player'), avatar: String(b.avatar || 'a1') }, prize);
+        guestName(id).then((gn) => credit({ id, name: gn || String(b.name || 'Player'), avatar: String(b.avatar || 'a1') }, prize));
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });
     return;
   }
   return json(res, 404, { error: 'not found' });
+}
+
+// ---- guest accounts ----
+const restoreTries = new Map<string, { n: number; t: number }>();
+function readBody(req: import('http').IncomingMessage, max = 40_000): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (d) => { raw += d; if (raw.length > max) { req.destroy(); reject(new Error('too large')); } });
+    req.on('end', () => resolve(raw));
+    req.on('error', reject);
+  });
+}
+async function guestApi(req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) {
+  try {
+    if (req.method === 'POST' && url.pathname === '/api/guest') {
+      const b = JSON.parse((await readBody(req)) || '{}');
+      const adopt = b.adoptId ? { id: String(b.adoptId).slice(0, 64), name: String(b.name || '') } : undefined;
+      const a = await createGuest(adopt);
+      return a ? json(res, 200, a) : json(res, 409, { error: 'This player is already registered' });
+    }
+    if (req.method === 'GET' && url.pathname === '/api/guest') {
+      const a = await loadAccount(String(url.searchParams.get('id') || ''), String(url.searchParams.get('key') || ''));
+      return a ? json(res, 200, a) : json(res, 404, { error: 'Guest account not found' });
+    }
+    if (req.method === 'PUT' && url.pathname === '/api/guest') {
+      const b = JSON.parse(await readBody(req));
+      const r = await saveProgress(String(b.id), String(b.key), b.profile || {}, Number(b.updatedAt) || 0);
+      return json(res, r.status, r.ok ? { ok: true } : { error: r.status === 409 ? 'newer progress on server' : 'not allowed', account: 'account' in r ? r.account : undefined });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/guest/restore') {
+      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0];
+      const t = restoreTries.get(ip);
+      const now = Date.now();
+      if (t && now - t.t < 60_000 && t.n >= 10) return json(res, 429, { error: 'Too many tries. Wait a minute and try again.' });
+      restoreTries.set(ip, t && now - t.t < 60_000 ? { n: t.n + 1, t: t.t } : { n: 1, t: now });
+      const b = JSON.parse(await readBody(req));
+      const a = await restoreByCode(String(b.code || ''));
+      return a ? json(res, 200, a) : json(res, 404, { error: 'No guest account with that code' });
+    }
+    return json(res, 404, { error: 'not found' });
+  } catch (e) {
+    console.error('guest api', e);
+    return json(res, 500, { error: 'Guest accounts are unavailable right now' });
+  }
 }
 
 const http = createServer((req, res) => {

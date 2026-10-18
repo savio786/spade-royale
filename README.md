@@ -104,6 +104,15 @@ npm run cap:ios                 # builds, syncs and opens Xcode
 
 Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 
+## Guest accounts
+
+"Continue as guest" gives each new guest an automatic, permanent name such as **Guest48213**. Guest names can't be changed.
+
+- The guest is remembered on that device, even after "Sign out". The sign-in screen then shows **Continue as Guest48213**, and coins, level, stats and trophies are all still there.
+- Progress is saved to the server automatically (in Upstash), a few seconds after each change.
+- Settings shows a **guest code** (like `K7QM-4XPT`). Entering it under "Have a guest code?" on another phone or computer continues the same guest there.
+- Leaderboard entries and table seats always use the guest's permanent name.
+
 ## Spade Bot (help chat)
 
 A free, built-in help bot answers players' questions about rules, bidding, Nil, bags, scoring, private tables, coins, the Chat Pass, gifts, VIP, the leaderboard, accounts and installing the app. Players open it from the **?** button in the lobby, the **Ask Spade Bot** button in the table menu, or the "Questions? Ask Spade Bot" button on the landing page. Some answers include buttons that open the store or the full rules.

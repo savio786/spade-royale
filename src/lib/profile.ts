@@ -21,6 +21,9 @@ export interface Profile {
   settings: { sound: boolean; fast: boolean; vibrate: boolean };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
   chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
+  guestKey: string | null;      // guest account secret (server-side saved progress)
+  guestCode: string | null;     // guest restore code shown to the player, e.g. K7QM-4XPT
+  updatedAt: number;            // last local change (ms), used to sync with the server
 }
 
 // v2: every player starts over with a brand-new account (old v1 data is ignored and removed)
@@ -52,6 +55,9 @@ function fresh(): Profile {
     settings: { sound: true, fast: false, vibrate: true },
     lastTable: null,
     chatUntil: 0,
+    guestKey: null,
+    guestCode: null,
+    updatedAt: 0,
   };
 }
 
@@ -73,18 +79,22 @@ function load(): Profile {
 
 let state: Profile = load();
 const subs = new Set<() => void>();
+const beforeReset = new Set<(p: Profile) => void>();
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ } }
 
 export const profile = {
   get: () => state,
   set(patch: Partial<Profile> | ((p: Profile) => Partial<Profile>)) {
     const p = typeof patch === 'function' ? patch(state) : patch;
-    state = { ...state, ...p };
+    state = { ...state, ...p, updatedAt: Date.now() };
     persist();
     subs.forEach((f) => f());
   },
   addCoins(n: number) { profile.set((p) => ({ coins: Math.max(0, p.coins + n) })); },
-  reset() { state = fresh(); persist(); subs.forEach((f) => f()); },
+  /** Replace the whole profile (e.g. progress loaded from the server). */
+  replace(p: Profile) { state = { ...fresh(), ...p }; persist(); subs.forEach((f) => f()); },
+  reset() { beforeReset.forEach((f) => f(state)); state = fresh(); persist(); subs.forEach((f) => f()); },
+  onBeforeReset(f: (p: Profile) => void) { beforeReset.add(f); },
   subscribe(f: () => void) { subs.add(f); return () => subs.delete(f); },
 };
 
