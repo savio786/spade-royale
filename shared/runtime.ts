@@ -83,10 +83,7 @@ export class TableRuntime {
     seats[seat] = { ...p, bot: false };
     this.g = { ...this.g, seats };
     this.system(`${p.name} joined the table`);
-    if (this.opts.fillBotsAfterMs !== null && !this.fillTimer) {
-      this.fillAt = Date.now() + this.opts.fillBotsAfterMs;
-      this.fillTimer = setTimeout(() => this.fillWithBots(), this.opts.fillBotsAfterMs);
-    }
+    this.armSeatTimer(); // a fresh countdown for the next empty seat
     this.changed();
     return seat;
   }
@@ -102,7 +99,32 @@ export class TableRuntime {
     this.missed[idx] = 0;
     this.g = { ...this.g, seats };
     this.system(`${name} left the table`);
+    if (this.g.phase === 'waiting') { if (this.humanCount() > 0) this.armSeatTimer(); else this.clearSeatTimer(); }
     this.changed();
+  }
+
+  /** Each empty seat gets its own countdown: if no real player takes it in time, one computer player sits down and the next seat's countdown starts. */
+  private armSeatTimer() {
+    this.clearSeatTimer();
+    const ms = this.opts.fillBotsAfterMs;
+    if (ms === null || this.destroyed || this.g.phase !== 'waiting' || !this.g.seats.some((s) => !s)) return;
+    this.fillAt = Date.now() + ms;
+    this.fillTimer = setTimeout(() => {
+      this.fillTimer = null; this.fillAt = null;
+      if (this.destroyed || this.g.phase !== 'waiting') return;
+      const free = this.g.seats.findIndex((s) => !s);
+      if (free < 0) return;
+      const seats = this.g.seats.slice();
+      seats[free] = makeBot(seats.filter(Boolean).map((s) => s!.name));
+      this.g = { ...this.g, seats };
+      if (Math.random() < 0.5) setTimeout(() => this.say(free, pick(BOT_LINES.greet)), 600 + Math.random() * 1500);
+      this.armSeatTimer();
+      this.changed();
+    }, ms);
+  }
+  private clearSeatTimer() {
+    if (this.fillTimer) { clearTimeout(this.fillTimer); this.fillTimer = null; }
+    this.fillAt = null;
   }
 
   humanCount() { return this.g.seats.filter((s) => s && !s.bot).length; }

@@ -152,7 +152,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
                 {(view.snap!.fillAt || (view.online && view.host && view.settings.isPrivate)) && (
                   <div className="waiting-actions">
                     {view.snap!.fillAt
-                      ? <span className="fill-wait" role="timer">Computer players join in <b>{fmtClock(Math.max(0, view.snap!.fillAt - now))}</b></span>
+                      ? <span className="fill-wait" role="timer">Waiting for player {st.seats.filter(Boolean).length + 1} · a computer player joins in <b>{Math.min(15, Math.max(0, Math.ceil((view.snap!.fillAt - Date.now()) / 1000)))}s</b></span>
                       : <span className="fill-wait">Waiting for friends to join</span>}
                     {view.online && <button className="fill-now" onClick={() => ctl.fillBots()}>{view.settings.isPrivate ? 'Fill with bots' : 'Start now'}</button>}
                   </div>
