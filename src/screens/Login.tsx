@@ -17,14 +17,15 @@ export function Login() {
   const [err, setErr] = useState<string | null>(null);
   const returningName = deviceGuestName();
   const [cfg, setCfg] = useState<AuthConfig>({ google: null, facebook: null });
+  const [emailMode, setEmailMode] = useState<'in' | 'up'>('in');
   const googleRef = useRef<HTMLDivElement>(null);
   useEffect(() => { void loadAuthConfig().then(setCfg); }, []);
   useEffect(() => {
     if (cfg.google && googleRef.current) void mountGoogleButton(googleRef.current, cfg.google, (e) => { if (e) setErr(e); else sfx.coins(); }).catch(() => {});
   }, [cfg.google]);
   const fb = async () => {
-    if (!cfg.facebook) return;
-    sfx.click(); setBusy(true); setErr(null);
+    sfx.click();
+    if (!cfg.facebook) { setErr('Facebook sign-in is coming soon — sign in with email for now.'); return; } setBusy(true); setErr(null);
     try { await facebookSignIn(cfg.facebook); sfx.coins(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
 
@@ -50,15 +51,21 @@ export function Login() {
         <Logo />
         <div className="login-glow" />
         <div className="login-buttons">
-          <button className="social em" onClick={() => { sfx.click(); setErr(null); setStep('email'); }}>
-            <span className="social-ico"><Icon name="chat" size={24} /></span><span>Sign in with email</span>
+          <button className="social fb" onClick={fb} disabled={busy}>
+            <span className="social-ico">f</span><span>Sign in with Facebook</span>
           </button>
-          {cfg.facebook && (
-            <button className="social fb" onClick={fb} disabled={busy}>
-              <span className="social-ico">f</span><span>Continue with Facebook</span>
+          {cfg.google ? <div className="google-slot" ref={googleRef} /> : (
+            <button className="social gp" onClick={() => { sfx.click(); setErr('Google sign-in is coming soon — sign in with email for now.'); }}>
+              <span className="social-ico"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6" fill="#fff" /><path d="M7 10v4M5 12h4" stroke="#1a7f37" strokeWidth="2" strokeLinecap="round" /><circle cx="16" cy="11" r="1.2" fill="#1a7f37" /><circle cx="18" cy="13" r="1.2" fill="#1a7f37" /></svg></span>
+              <span>Google Play Games</span>
             </button>
           )}
-          {cfg.google && <div className="google-slot" ref={googleRef} />}
+          <button className="social em" onClick={() => { sfx.click(); setErr(null); setEmailMode('in'); setStep('email'); }}>
+            <span className="social-ico"><Icon name="chat" size={24} /></span><span>Sign in with email</span>
+          </button>
+          <button className="social reg" onClick={() => { sfx.click(); setErr(null); setEmailMode('up'); setStep('email'); }}>
+            <span className="social-ico"><Icon name="star" size={24} /></span><span>New player? Register</span>
+          </button>
         </div>
         {err && step === null && <p className="form-error login-err" role="alert">{err}</p>}
         <button className="guest-link" onClick={guest} disabled={busy}>
@@ -94,13 +101,15 @@ export function Login() {
         </Modal>
       )}
 
-      {step === 'email' && <EmailModal avatar={avatar} setAvatar={setAvatar} onClose={() => setStep(null)} />}
+      {step === 'email' && <EmailModal onClose={() => setStep(null)} startMode={emailMode} />}
     </div>
   );
 }
 
-function EmailModal({ avatar, setAvatar, onClose }: { avatar: string; setAvatar: (k: string) => void; onClose: () => void }) {
-  const [mode, setMode] = useState<'in' | 'up'>('in');
+export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void; startMode?: 'in' | 'up' }) {
+  const [mode, setMode] = useState<'in' | 'up'>(startMode);
+  const guest = profile.get().provider === 'guest';
+  const [avatar, setAvatar] = useState(profile.get().provider ? profile.get().avatar : AVATAR_KEYS[Math.floor(Math.random() * AVATAR_KEYS.length)]);
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [name, setName] = useState('');
@@ -110,7 +119,7 @@ function EmailModal({ avatar, setAvatar, onClose }: { avatar: string; setAvatar:
     setBusy(true); setErr(null);
     try {
       if (mode === 'in') await emailSignIn(email, pw); else await emailSignUp(email, pw, name, avatar);
-      sfx.coins(); notifyReturning(profile.get().name);
+      sfx.coins(); notifyReturning(profile.get().name); onClose();
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   };
   return (
@@ -128,9 +137,10 @@ function EmailModal({ avatar, setAvatar, onClose }: { avatar: string; setAvatar:
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>
         <label className="field"><span>Password</span>
           <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>
-        {mode === 'up' && <div className="field"><span>Choose your avatar</span><AvatarPicker value={avatar} onChange={setAvatar} /></div>}
+        {mode === 'up' && !guest && <div className="field"><span>Choose your avatar</span><AvatarPicker value={avatar} onChange={setAvatar} /></div>}
+        {mode === 'up' && guest && <p className="muted small center">Your guest progress — coins, level and stats — moves into your new account.</p>}
         {err && <p className="form-error" role="alert">{err}</p>}
-        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'in' ? 'Sign in' : 'Create account — 50,000 free coins'}</Pill>
+        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'in' ? 'Sign in' : guest ? 'Create account & keep my progress' : 'Create account — 50,000 free coins'}</Pill>
         <p className="muted small center">{mode === 'in' ? <>New here? <button type="button" className="linkish" onClick={() => setMode('up')}>Create an account</button></> : 'Your coins, level and stats are saved to your account, so you can sign in on any phone or computer.'}</p>
       </form>
     </Modal>

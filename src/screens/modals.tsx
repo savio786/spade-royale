@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, chatPassLabel, isTestMode, nativeStoreOff, store } from '../lib/payments';
-import { emailSignUp } from '../lib/auth';
+import { facebookSignIn, loadAuthConfig, mountGoogleButton, type AuthConfig } from '../lib/auth';
+import { EmailModal } from './Login';
 import { PRODUCTS, priceLabel } from '../../shared/products';
 import { activeTheme, THEMES, themeVars } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
@@ -384,84 +385,103 @@ export function ThemeModal({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------- Settings ----------------
-function SaveAccountModal({ onClose }: { onClose: () => void }) {
-  const p = useProfile();
-  const [email, setEmail] = useState('');
-  const [pw, setPw] = useState('');
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const submit = async () => {
-    setBusy(true); setErr(null);
-    try { await emailSignUp(email, pw, name || p.name); sfx.coins(); toast('Account created — your progress is saved'); onClose(); }
-    catch (e) { setErr((e as Error).message); setBusy(false); }
-  };
+
+/** Short number shown as the player's ID (stable for each account). */
+const playerNumber = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return String(1_000_000 + (h % 9_000_000)); };
+
+function BigSwitch({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
-    <Modal title="Save your progress" onClose={onClose}>
-      <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-        <p className="center">Keep your <b>{fmt(p.coins)}</b> coins, level and stats, and sign in on any phone or computer.</p>
-        <label className="field"><span>Player name</span>
-          <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} placeholder={p.name} autoComplete="nickname" /></label>
-        <label className="field"><span>Email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>
-        <label className="field"><span>Password</span>
-          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" required minLength={6} /></label>
-        {err && <p className="form-error" role="alert">{err}</p>}
-        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : 'Create account'}</Pill>
-      </form>
-    </Modal>
+    <section className="tm-sec st-sec">
+      <h3>{label}</h3>
+      <label className="tm-switch">
+        <input type="checkbox" checked={on} onChange={() => { onToggle(); sfx.click(); }} aria-label={label} />
+        <span className="ct-switch" aria-hidden="true"><i>{on ? 'ON' : 'OFF'}</i></span>
+      </label>
+    </section>
   );
 }
 
 export function SettingsModal({ onClose, installPrompt }: { onClose: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
-  const [name, setName] = useState(p.name);
   const [status, setStatus] = useState<NetStatus>(net.status);
   const [confirmOut, setConfirmOut] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [cfg, setCfg] = useState<AuthConfig>({ google: null, facebook: null });
+  const googleRef = useRef<HTMLDivElement>(null);
   useEffect(() => net.onStatus(setStatus), []);
-  const toggle = (k: keyof typeof p.settings) => profile.set((x) => ({ settings: { ...x.settings, [k]: !x.settings[k] } }));
+  useEffect(() => { void loadAuthConfig().then(setCfg); }, []);
+  const signedIn = !!p.provider && p.provider !== 'guest' && !!p.guestKey;
+  useEffect(() => {
+    if (!signedIn && cfg.google && googleRef.current) void mountGoogleButton(googleRef.current, cfg.google, (e) => { if (e) toast(e, 'error'); else { sfx.coins(); toast('Signed in with Google'); } }).catch(() => {});
+  }, [cfg.google, signedIn]);
+  const set = (k: 'sound' | 'music' | 'vibrate') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
+  const fb = async () => {
+    sfx.click();
+    if (!cfg.facebook) { toast('Facebook sign-in is coming soon — use email for now'); return; }
+    setBusy(true);
+    try { await facebookSignIn(cfg.facebook); sfx.coins(); toast('Signed in with Facebook'); } catch (e) { toast((e as Error).message, 'error'); } finally { setBusy(false); }
+  };
+  const logOut = () => { if (!confirmOut) { setConfirmOut(true); return; } profile.reset(); onClose(); };
+  const via = p.provider === 'email' ? 'email' : p.provider === 'google' ? 'Google' : p.provider === 'facebook' ? 'Facebook' : '';
   return (
-    <Modal title="Settings" onClose={onClose}>
-      {p.provider === 'guest' ? (
-        <div className="field"><span>Guest name</span>
-          <div className="locked-name"><Icon name="lock" size={18} /><b>{p.name}</b></div>
-          <small className="muted">Guest names can't be changed. Your progress is saved automatically.</small>
-          {p.guestCode && (
-            <div className="guest-code">
-              <span>Your guest code</span>
-              <button className="code" onClick={() => { navigator.clipboard?.writeText(p.guestCode!).then(() => toast('Guest code copied'), () => toast(`Guest code: ${p.guestCode}`)); }} aria-label={`Copy guest code ${p.guestCode}`}>{p.guestCode} <Icon name="copy" size={16} /></button>
-              <small className="muted">Keep it private. Enter it on another phone or computer ("Have a guest code?") to continue as {p.name}.</small>
+    <Modal title="Settings" onClose={onClose} className="settings-modal">
+      <div className="st-account">
+        {signedIn ? (
+          <>
+            <div className="st-acc-text">
+              <h3>CONNECTED</h3>
+              <p>Signed in as <b>{p.name}</b> with {via}{p.email ? <> · {p.email}</> : null}. Your coins, level and stats are saved to your account.</p>
             </div>
-          )}
-          <Pill color="gold" className="wide-btn save-acct" onClick={() => setSaving(true)}><Icon name="star" size={16} /> Save your progress — create an account</Pill>
-          <small className="muted">Sign in with email on any phone or computer and keep your coins, level and stats.</small>
-        </div>
-      ) : p.provider && p.guestKey ? (
-        <div className="field"><span>Your account</span>
-          <div className="locked-name"><Icon name="lock" size={18} /><b>{p.name}</b></div>
-          <small className="muted">Signed in with {p.provider === 'email' ? 'email' : p.provider === 'google' ? 'Google' : 'Facebook'}{p.email ? ` · ${p.email}` : ''}. Your progress is saved to your account.</small>
-        </div>
-      ) : (
-        <label className="field"><span>Player name</span>
-          <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && profile.set({ name: name.trim() })} /></label>
-      )}
-      {saving && <SaveAccountModal onClose={() => setSaving(false)} />}
-      <div className="field"><span>Avatar</span>
-        <AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
-      <div className="field"><span>Table & cards (unlock more by leveling up)</span><ThemePicker /></div>
-      <div className="toggles">
-        {([['sound', 'Sound effects'], ['fast', 'Fast bots'], ['vibrate', 'Vibration']] as const).map(([k, l]) => (
-          <label key={k} className="toggle"><input type="checkbox" checked={p.settings[k]} onChange={() => toggle(k)} /><span className="tg" /> {l}</label>
-        ))}
-        <label className="toggle"><input type="checkbox" checked={p.settings.music !== false} onChange={() => profile.set((x) => ({ settings: { ...x.settings, music: x.settings.music === false } }))} /><span className="tg" /> Music at tables</label>
+            <button className="st-logout" onClick={logOut}>{confirmOut ? 'TAP TO LOG OUT' : 'LOG OUT'}</button>
+          </>
+        ) : (
+          <>
+            <div className="st-acc-text">
+              <h3>LOGIN</h3>
+              <p>Sign in or register and <b>save your progress!</b> Playing as <b>{p.name}</b>.</p>
+              <button className="st-guestout" onClick={logOut}>{confirmOut ? `Tap again — you'll stay saved as ${p.name}` : 'Sign out'}</button>
+            </div>
+            <div className="st-social">
+              <button className="social fb" onClick={fb} disabled={busy}><span className="social-ico">f</span><span>Sign in with Facebook</span></button>
+              {cfg.google
+                ? <div className="google-slot" ref={googleRef} />
+                : <button className="social gp" onClick={() => { sfx.click(); toast('Google sign-in is coming soon — use email for now'); }}><span className="social-ico"><svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6" fill="#fff" /><path d="M7 10v4M5 12h4" stroke="#1a7f37" strokeWidth="2" strokeLinecap="round" /><circle cx="16" cy="11" r="1.2" fill="#1a7f37" /><circle cx="18" cy="13" r="1.2" fill="#1a7f37" /></svg></span><span>Google Play Games</span></button>}
+              <button className="social em" onClick={() => { sfx.click(); setEmailOpen(true); }}><span className="social-ico"><Icon name="chat" size={22} /></span><span>Email — sign in or register</span></button>
+            </div>
+          </>
+        )}
       </div>
-      <p className="muted small legal-links"><a href="#privacy">Privacy Policy</a> · <a href="#terms">Terms of Service</a></p>
-      <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b> · Signed in: {p.provider}</p>
-      <div className="btn-row">
+
+      <div className="st-switches">
+        <BigSwitch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
+        <BigSwitch label="MUSIC" on={p.settings.music !== false} onToggle={() => set('music')} />
+        <BigSwitch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+      </div>
+
+      <details className="st-more">
+        <summary>Avatar, table & cards, guest code and more</summary>
+        {p.provider === 'guest' && p.guestCode && (
+          <div className="guest-code">
+            <span>Your guest code</span>
+            <button className="code" onClick={() => { navigator.clipboard?.writeText(p.guestCode!).then(() => toast('Guest code copied'), () => toast(`Guest code: ${p.guestCode}`)); }} aria-label={`Copy guest code ${p.guestCode}`}>{p.guestCode} <Icon name="copy" size={16} /></button>
+            <small className="muted">Keep it private. Enter it on another phone or computer ("Have a guest code?") to continue as {p.name}.</small>
+          </div>
+        )}
+        <div className="field"><span>Avatar</span><AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
+        <div className="field"><span>Table & cards (unlock more by leveling up)</span><ThemePicker /></div>
+        <div className="toggles">
+          <label className="toggle"><input type="checkbox" checked={p.settings.fast} onChange={() => profile.set((x) => ({ settings: { ...x.settings, fast: !x.settings.fast } }))} /><span className="tg" /> Fast computer players</label>
+        </div>
         {installPrompt && <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill>}
-        <Pill color="red" onClick={() => { if (confirmOut) { profile.reset(); onClose(); } else setConfirmOut(true); }}><Icon name="exit" size={16} /> {confirmOut ? (p.provider === 'guest' ? `Tap again (you'll stay saved as ${p.name})` : p.guestKey ? 'Tap again to sign out' : 'Tap again to reset profile') : 'Sign out'}</Pill>
-      </div>
+        <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b></p>
+      </details>
+
+      <footer className="st-foot">
+        <span>PLAYER ID: {playerNumber(p.id)}</span>
+        <span><a href="#privacy">PRIVACY POLICY</a> AND <a href="#terms">TERMS OF SERVICE</a></span>
+      </footer>
+      {emailOpen && <EmailModal onClose={() => setEmailOpen(false)} startMode="up" />}
     </Modal>
   );
 }
