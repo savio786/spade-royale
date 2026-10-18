@@ -1,3 +1,4 @@
+import { TableShape } from '../components/TableShape';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
@@ -130,27 +131,29 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       </div>
 
       <div className="felt-wrap">
-        <div className="felt-base" aria-hidden="true" />
+        <TableShape />
         <div className="felt">
-          <span className="rail-inlay l" aria-hidden="true">♠♥♣</span><span className="rail-inlay r" aria-hidden="true">♦♥♠</span>
           <InfoPanel st={st} />
           <ScorePanel st={st} />
           <div className="felt-center">
             {st.phase === 'waiting' && (
               <div className="waiting">
                 <div className="waiting-text">WAITING FOR PLAYERS<span className="dots3"><i>.</i><i>.</i><i>.</i></span></div>
+                {(view.snap!.fillAt || (view.online && view.host && view.settings.isPrivate)) && (
+                  <div className="waiting-actions">
+                    {view.snap!.fillAt
+                      ? <span className="fill-wait" role="timer">Computer players join in <b>{fmtClock(Math.max(0, view.snap!.fillAt - now))}</b></span>
+                      : <span className="fill-wait">Waiting for friends to join</span>}
+                    {view.online && <button className="fill-now" onClick={() => ctl.fillBots()}>{view.settings.isPrivate ? 'Fill with bots' : 'Start now'}</button>}
+                  </div>
+                )}
                 {view.code && (
                   <div className="invite">
                     <span>Invite code</span>
                     <button className="code" onClick={() => { navigator.clipboard?.writeText(view.code!).then(() => toast('Invite code copied'), () => toast(`Invite code: ${view.code}`)); }} aria-label={`Copy invite code ${view.code}`}>{view.code} <Icon name="copy" size={18} /></button>
                   </div>
                 )}
-                {view.snap!.fillAt && (
-                  <div className="fill-wait" role="timer">
-                    Waiting for real players · computer players join in <b>{fmtClock(Math.max(0, view.snap!.fillAt - now))}</b>
-                  </div>
-                )}
-                {view.online && (view.snap!.fillAt || (view.host && view.settings.isPrivate)) && <Pill color="purple" onClick={() => ctl.fillBots()}>{view.settings.isPrivate ? 'Fill empty seats with bots' : 'Start now with computer players'}</Pill>}
+
               </div>
             )}
             <div className={`trick ${st.phase === 'trickEnd' ? `collect to-${rel(st.lastTrickWinner ?? 0)}` : ''}`}>
@@ -298,7 +301,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myV
   const active = st.turn === seat && (st.phase === 'bidding' || st.phase === 'playing');
   const remain = active && deadline && total ? Math.max(0, deadline - now) / total : null;
   return (
-    <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''}`}>
+    <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} ${st.phase === 'waiting' ? 'is-waiting' : ''}`}>
       <div className="seat-av" style={remain !== null ? { ['--pct' as string]: `${remain * 100}%` } : undefined}>
         {s && <span className="bezel" aria-hidden="true" />}
         {s ? <Avatar k={s.avatar} size={pos === 'bottom' ? 92 : 86} vip={seat === me && myVip} name={s.name} /> : <span className="q-mark">?</span>}
