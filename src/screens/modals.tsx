@@ -4,6 +4,7 @@ import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile,
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, chatPassLabel, isTestMode, store } from '../lib/payments';
 import { PRODUCTS, priceLabel } from '../../shared/products';
+import { activeTheme, THEMES, themeVars } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { toast } from '../lib/toast';
@@ -341,6 +342,42 @@ export function TrophyModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ---------------- Table & card themes ----------------
+export function ThemePicker() {
+  const p = useProfile();
+  const lvl = levelFromXp(p.xp);
+  const current = activeTheme(p.theme, lvl);
+  return (
+    <div className="theme-grid" role="radiogroup" aria-label="Table and card theme">
+      {THEMES.map((t) => {
+        const open = lvl >= t.level;
+        return (
+          <button key={t.id} type="button" role="radio" aria-checked={current.id === t.id} disabled={!open}
+            className={`theme-pick ${current.id === t.id ? 'on' : ''}`} style={themeVars(t)}
+            onClick={() => { sfx.click(); profile.set({ theme: t.id }); }}
+            aria-label={open ? `${t.name} theme` : `${t.name} theme, unlocks at level ${t.level}`}>
+            <span className="tp-table"><span /></span>
+            <span className="tp-cards" aria-hidden="true"><i style={{ color: t.suits.S }}>♠</i><i style={{ color: t.suits.H }}>♥</i><i style={{ color: t.suits.D }}>♦</i><i className="back" /></span>
+            <small>{t.name}</small>
+            <em>{open ? (t.fourColor ? 'Four-color deck' : 'Classic deck') : `Level ${t.level}`}</em>
+            {!open && <span className="tp-lock"><Icon name="lock" size={14} /></span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ThemeModal({ onClose }: { onClose: () => void }) {
+  const p = useProfile();
+  return (
+    <Modal title="Table & cards" onClose={onClose} wide>
+      <p className="muted center small">You're level {levelFromXp(p.xp)}. New themes unlock as you level up: every game earns XP, and wins earn more.</p>
+      <ThemePicker />
+    </Modal>
+  );
+}
+
 // ---------------- Settings ----------------
 export function SettingsModal({ onClose, installPrompt }: { onClose: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
@@ -369,6 +406,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
       )}
       <div className="field"><span>Avatar</span>
         <AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
+      <div className="field"><span>Table & cards (unlock more by leveling up)</span><ThemePicker /></div>
       <div className="toggles">
         {([['sound', 'Sound effects'], ['fast', 'Fast bots'], ['vibrate', 'Vibration']] as const).map(([k, l]) => (
           <label key={k} className="toggle"><input type="checkbox" checked={p.settings[k]} onChange={() => toggle(k)} /><span className="tg" /> {l}</label>

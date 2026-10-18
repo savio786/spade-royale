@@ -24,6 +24,7 @@ export interface Profile {
   guestKey: string | null;      // guest account secret (server-side saved progress)
   guestCode: string | null;     // guest restore code shown to the player, e.g. K7QM-4XPT
   updatedAt: number;            // last local change (ms), used to sync with the server
+  theme: string | null;         // chosen table & card theme (see themes.ts)
 }
 
 // v2: every player starts over with a brand-new account (old v1 data is ignored and removed)
@@ -58,6 +59,7 @@ function fresh(): Profile {
     guestKey: null,
     guestCode: null,
     updatedAt: 0,
+    theme: null,
   };
 }
 

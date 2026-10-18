@@ -8,7 +8,8 @@ import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
-import { VipModal } from './modals';
+import { ThemeModal, VipModal } from './modals';
+import { activeTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
 const POS = ['bottom', 'left', 'top', 'right'] as const;
@@ -22,6 +23,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const [chatOpen, setChatOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [themesOpen, setThemesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [vip, setVip] = useState(false);
   const [giftFor, setGiftFor] = useState<number | null>(null);
@@ -73,6 +75,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         },
       }));
       won ? (sfx.win(), sfx.coins()) : sfx.lose();
+      { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
+        for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
       if (won && !view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize }); }
     }
@@ -115,7 +119,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:')) lastBySeat.set(m.seat, m);
 
   return (
-    <div className="screen table-screen felt-bg">
+    <div className="screen table-screen felt-bg" style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
       <div className="tbl-top-left">
         <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>BUY COINS</button>
         <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">VIP</span><small>CLUB</small></button>
@@ -193,6 +197,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           <div className="menu-list">
             <Pill color="blue" onClick={() => { setRulesOpen(true); setMenuOpen(false); }}><Icon name="book" size={18} /> How to play</Pill>
             <Pill color="purple" onClick={() => { setMenuOpen(false); helpBot.open(); }}><Icon name="chat" size={18} /> Ask Spade Bot</Pill>
+            <Pill color="gold" onClick={() => { setMenuOpen(false); setThemesOpen(true); }}><Icon name="star" size={18} /> Table & cards</Pill>
             <Pill color="blue" onClick={() => profile.set((x) => ({ settings: { ...x.settings, sound: !x.settings.sound } }))}>
               <Icon name={p.settings.sound ? 'sound' : 'mute'} size={18} /> Sound: {p.settings.sound ? 'On' : 'Off'}</Pill>
             <Pill color="red" onClick={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }}>
@@ -201,6 +206,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         </Modal>
       )}
       {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
+      {themesOpen && <ThemeModal onClose={() => setThemesOpen(false)} />}
       {vip && <VipModal onClose={() => setVip(false)} />}
       {giftFor !== null && (
         <Modal title={`Send a gift to ${st.seats[giftFor]?.name ?? 'the table'}`} onClose={() => setGiftFor(null)}>

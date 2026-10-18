@@ -109,7 +109,7 @@ export function CardView({ card, small, back, className, onClick, disabled, styl
   const label = `${rankLabel(card.r)} of ${({ S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' })[card.s]}`;
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag className={`pcard ${red ? 'red' : 'black'} ${small ? 'small' : ''} ${className ?? ''}`} style={style}
+    <Tag className={`pcard ${red ? 'red' : 'black'} s-${card.s} ${small ? 'small' : ''} ${className ?? ''}`} style={style}
       onClick={onClick} disabled={onClick ? disabled : undefined} aria-label={label}>
       <span className="pc-corner"><b>{rankLabel(card.r)}</b><i>{SUIT_SYMBOL[card.s]}{'︎'}</i></span>
       <span className="pc-center">{SUIT_SYMBOL[card.s]}{'︎'}</span>
