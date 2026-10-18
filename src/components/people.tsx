@@ -17,6 +17,7 @@ type Top = 'tee' | 'vneck' | 'collar' | 'hoodie' | 'jacket';
 export interface PersonSpec {
   name: string; skin: keyof typeof SKIN; hair: Hair; hairColor: string; eyes: string; top: Top; topColor: string; bg: string;
   fem?: boolean; beard?: 'full' | 'stubble' | 'mustache'; beardColor?: string; shades?: boolean; glasses?: boolean; earrings?: boolean; smile?: boolean; capColor?: string;
+  lip?: string; shadow?: string; // lipstick and eyeshadow colours (ladies)
 }
 
 const shade = (hex: string, amt: number) => {
@@ -99,6 +100,10 @@ export function PersonArt({ p, uid }: { p: PersonSpec; uid: string }) {
       <ellipse cx="63" cy="57" rx="5" ry="3" fill="#ff7a7a" opacity={p.fem ? 0.22 : 0.1} />
       {p.beard === 'stubble' && <path d="M29 50 C30 66 38 76 50 77 C62 76 70 66 71 50 C68 60 62 66 56 66 Q50 64 44 66 C38 66 32 60 29 50Z" fill={beardC} opacity=".3" />}
       {p.beard === 'full' && <path d="M28 48 C29 68 38 79 50 80 C62 79 71 68 72 48 C69 58 63 63 57 63 Q50 61 43 63 C37 63 31 58 28 48Z" fill={beardC} />}
+      {/* glam: eyeshadow + cheekbone highlight (ladies), jaw definition (guys) */}
+      {p.fem && !p.shades && [40, 60].map((x) => <ellipse key={x} cx={x} cy="44.6" rx="7" ry="3.6" fill={p.shadow ?? '#b46ad0'} opacity=".38" />)}
+      {p.fem && [36, 64].map((x) => <ellipse key={x} cx={x} cy="53" rx="5" ry="2" fill="#fff" opacity=".18" />)}
+      {!p.fem && <path d="M30 56 C33 66 40 71.5 50 72.4 C60 71.5 67 66 70 56 C68 64 61 69.5 50 70.2 C39 69.5 32 64 30 56Z" fill="#000" opacity=".12" />}
       {/* eyes */}
       {!p.shades && [40, 60].map((x) => (
         <g key={x}>
@@ -112,6 +117,16 @@ export function PersonArt({ p, uid }: { p: PersonSpec; uid: string }) {
           <path d={`M${x - 5} 49.6 Q${x} 51.4 ${x + 5} 49.6`} stroke={s.shade} strokeWidth=".7" fill="none" opacity=".7" />
         </g>
       ))}
+      {/* lashes + winged liner (ladies) */}
+      {p.fem && !p.shades && [40, 60].map((x) => {
+        const d = x < 50 ? -1 : 1;
+        return (
+          <g key={x} stroke="#1a0f0c" strokeLinecap="round" fill="none">
+            <path d={`M${x - 6.3} 47 Q${x} 42 ${x + 6.3} 47`} strokeWidth="1.45" />
+            <path d={`M${x + d * 6.2} 46.6 Q${x + d * 7.6} 45.8 ${x + d * 8.6} 44.4`} strokeWidth="1.3" />
+          </g>
+        );
+      })}
       {/* brows */}
       {[-1, 1].map((d) => <path key={d} d={`M${50 + d * 4.5} 40.5 Q${50 + d * 10} ${p.fem ? 37.2 : 37.8} ${50 + d * 16} 40`} stroke={p.hair === 'bald' ? beardC : shade(p.hairColor, -0.1)} strokeWidth={browW} fill="none" strokeLinecap="round" />)}
       {/* nose */}
@@ -135,6 +150,12 @@ export function PersonArt({ p, uid }: { p: PersonSpec; uid: string }) {
         </g>
       )}
       {p.beard === 'full' && <path d="M43 70 Q50 73 57 70" stroke={shade(beardC, -0.2)} strokeWidth=".8" fill="none" opacity=".6" />}
+      {p.fem && <g>
+        <path d="M43.4 64.4 Q46.8 62.1 50 63.2 Q53.2 62.1 56.6 64.4 Q54.6 69.2 50 69.2 Q45.4 69.2 43.4 64.4Z" fill={p.lip ?? '#c8325a'} opacity={p.smile ? 0 : 0.92} />
+        {!p.smile && <path d="M43.6 64.5 Q50 65.6 56.4 64.5" stroke="#5a0f22" strokeWidth=".8" fill="none" />}
+        {p.smile && <path d="M42.6 63.6 Q46.5 61.8 50 62.7 Q53.5 61.8 57.4 63.6" stroke={p.lip ?? '#c8325a'} strokeWidth="1.8" fill="none" strokeLinecap="round" />}
+        <ellipse cx="51.6" cy={p.smile ? 69.6 : 66.9} rx="2.4" ry=".8" fill="#fff" opacity=".45" />
+      </g>}
       {hairFront}
       {p.shades && (
         <g>
@@ -156,21 +177,29 @@ export function PersonArt({ p, uid }: { p: PersonSpec; uid: string }) {
 }
 
 export const PEOPLE: Record<string, PersonSpec> = {
-  p1: { name: 'Marcus', skin: 's6', hair: 'buzz', hairColor: '#1a1210', eyes: '#3a2414', top: 'collar', topColor: '#14796f', bg: '#3b5b7a', beard: 'full', smile: true },
-  p2: { name: 'Sofia', skin: 's3', hair: 'long', hairColor: '#3b2416', eyes: '#5a3a1e', top: 'vneck', topColor: '#c62842', bg: '#7a4a6a', fem: true, earrings: true },
-  p3: { name: 'Jake', skin: 's2', hair: 'side', hairColor: '#c9a15a', eyes: '#3b7bbf', top: 'tee', topColor: '#f1f1f1', bg: '#5a6a80', shades: true, beard: 'stubble', beardColor: '#a07a3a' },
-  p4: { name: 'Aiyana', skin: 's4', hair: 'long', hairColor: '#141010', eyes: '#3a2414', top: 'vneck', topColor: '#18a3a3', bg: '#5a4a8a', fem: true, smile: true },
-  p5: { name: 'Mei', skin: 's1', hair: 'bob', hairColor: '#17110f', eyes: '#3a2414', top: 'tee', topColor: '#9a7ad8', bg: '#4a7a8a', fem: true, glasses: true },
-  p6: { name: 'Andre', skin: 's5', hair: 'afro', hairColor: '#1c1310', eyes: '#2b1a10', top: 'hoodie', topColor: '#ef7d22', bg: '#2f4a6a', beard: 'stubble', smile: true },
-  p7: { name: 'Priya', skin: 's4', hair: 'bun', hairColor: '#120d0b', eyes: '#3a2414', top: 'jacket', topColor: '#d6a21e', bg: '#6a3a5a', fem: true, earrings: true },
-  p8: { name: 'Carlos', skin: 's3', hair: 'waves', hairColor: '#1b1411', eyes: '#4a2c16', top: 'jacket', topColor: '#22325e', bg: '#7a5a3a', beard: 'stubble' },
-  p9: { name: 'Grace', skin: 's6', hair: 'curlsLong', hairColor: '#1c1410', eyes: '#2b1a10', top: 'vneck', topColor: '#f06a5a', bg: '#3a6a5a', fem: true, earrings: true, smile: true },
-  p10: { name: 'Ethan', skin: 's1', hair: 'buzz', hairColor: '#6b4a2e', eyes: '#4f8a4a', top: 'hoodie', topColor: '#6a7380', bg: '#2a3a5a' },
-  p11: { name: 'Hana', skin: 's1', hair: 'long', hairColor: '#8e3b1f', eyes: '#4f8a4a', top: 'tee', topColor: '#3f8f4f', bg: '#5a4a7a', fem: true, smile: true },
-  p12: { name: 'Omar', skin: 's5', hair: 'short', hairColor: '#120d0b', eyes: '#2b1a10', top: 'collar', topColor: '#2a6fc9', bg: '#6a5a3a', beard: 'full' },
-  p13: { name: 'Rosa', skin: 's3', hair: 'bob', hairColor: '#5a2e1a', eyes: '#5a3a1e', top: 'vneck', topColor: '#c2307e', bg: '#2a5a6a', fem: true, earrings: true, smile: true },
-  p14: { name: 'Frank', skin: 's2', hair: 'bald', hairColor: '#9a9a9a', eyes: '#3b6b9f', top: 'jacket', topColor: '#7a5230', bg: '#4a5a4a', beard: 'mustache', beardColor: '#bdbdbd', glasses: true, smile: true },
-  p15: { name: 'Kenji', skin: 's2', hair: 'cap', hairColor: '#120d0b', eyes: '#2b1a10', top: 'tee', topColor: '#24272e', bg: '#7a3a3a', capColor: '#c62828', smile: true },
-  p16: { name: 'Lena', skin: 's1', hair: 'bun', hairColor: '#d7b46a', eyes: '#3b7bbf', top: 'jacket', topColor: '#e46aa0', bg: '#3a4a7a', fem: true, shades: true },
+  p1: { name: 'Marcus', skin: 's6', hair: 'buzz', hairColor: '#1a1210', eyes: '#3a2414', top: 'collar', topColor: '#14796f', bg: '#3b5b7a', beard: 'stubble', smile: true },
+  p2: { name: 'Sofia', skin: 's3', hair: 'long', hairColor: '#3b2416', eyes: '#5a3a1e', top: 'vneck', topColor: '#c62842', bg: '#7a4a6a', fem: true, earrings: true, lip: '#c0203f', shadow: '#a0507a', smile: true },
+  p3: { name: 'Jake', skin: 's2', hair: 'side', hairColor: '#c9a15a', eyes: '#3b7bbf', top: 'jacket', topColor: '#1e2a44', bg: '#5a6a80', beard: 'stubble', beardColor: '#a07a3a', smile: true },
+  p4: { name: 'Aiyana', skin: 's4', hair: 'long', hairColor: '#141010', eyes: '#3a2414', top: 'vneck', topColor: '#18a3a3', bg: '#5a4a8a', fem: true, earrings: true, lip: '#b3264a', shadow: '#c08a40', smile: true },
+  p5: { name: 'Mei', skin: 's1', hair: 'bob', hairColor: '#17110f', eyes: '#3a2414', top: 'vneck', topColor: '#9a7ad8', bg: '#4a7a8a', fem: true, earrings: true, lip: '#d6455e', shadow: '#c46aa0' },
+  p6: { name: 'Andre', skin: 's5', hair: 'short', hairColor: '#1c1310', eyes: '#2b1a10', top: 'jacket', topColor: '#2a2a2e', bg: '#2f4a6a', beard: 'stubble', smile: true },
+  p7: { name: 'Priya', skin: 's4', hair: 'long', hairColor: '#120d0b', eyes: '#3a2414', top: 'vneck', topColor: '#d6a21e', bg: '#6a3a5a', fem: true, earrings: true, lip: '#a8183a', shadow: '#c48a2a', smile: true },
+  p8: { name: 'Carlos', skin: 's3', hair: 'waves', hairColor: '#1b1411', eyes: '#4a2c16', top: 'jacket', topColor: '#22325e', bg: '#7a5a3a', beard: 'stubble', smile: true },
+  p9: { name: 'Grace', skin: 's6', hair: 'curlsLong', hairColor: '#1c1410', eyes: '#2b1a10', top: 'vneck', topColor: '#f06a5a', bg: '#3a6a5a', fem: true, earrings: true, lip: '#9a1a3a', shadow: '#d08a3a', smile: true },
+  p10: { name: 'Ethan', skin: 's1', hair: 'side', hairColor: '#6b4a2e', eyes: '#4f8a4a', top: 'collar', topColor: '#ffffff', bg: '#2a3a5a', beard: 'stubble', beardColor: '#6b4a2e', smile: true },
+  p11: { name: 'Hana', skin: 's1', hair: 'long', hairColor: '#8e3b1f', eyes: '#4f8a4a', top: 'vneck', topColor: '#1f6a3a', bg: '#5a4a7a', fem: true, earrings: true, lip: '#c8325a', shadow: '#8a6ac0', smile: true },
+  p12: { name: 'Omar', skin: 's5', hair: 'short', hairColor: '#120d0b', eyes: '#2b1a10', top: 'collar', topColor: '#2a6fc9', bg: '#6a5a3a', beard: 'full', smile: true },
+  p13: { name: 'Rosa', skin: 's3', hair: 'bob', hairColor: '#5a2e1a', eyes: '#5a3a1e', top: 'vneck', topColor: '#c2307e', bg: '#2a5a6a', fem: true, earrings: true, lip: '#c0203f', shadow: '#c06a8a', smile: true },
+  p14: { name: 'Luca', skin: 's2', hair: 'waves', hairColor: '#3a2416', eyes: '#3b6b9f', top: 'jacket', topColor: '#5a3a24', bg: '#4a5a4a', beard: 'stubble', beardColor: '#3a2416', smile: true },
+  p15: { name: 'Kenji', skin: 's2', hair: 'side', hairColor: '#120d0b', eyes: '#2b1a10', top: 'jacket', topColor: '#24272e', bg: '#7a3a3a', smile: true },
+  p16: { name: 'Lena', skin: 's1', hair: 'long', hairColor: '#d7b46a', eyes: '#3b7bbf', top: 'vneck', topColor: '#e46aa0', bg: '#3a4a7a', fem: true, earrings: true, lip: '#d6455e', shadow: '#7a8ad0', smile: true },
+  p17: { name: 'Bella', skin: 's2', hair: 'curlsLong', hairColor: '#6a3a1e', eyes: '#4a7a3a', top: 'vneck', topColor: '#1a1a2e', bg: '#7a3a5a', fem: true, earrings: true, lip: '#b0183a', shadow: '#a0607a' },
+  p18: { name: 'Jordan', skin: 's6', hair: 'waves', hairColor: '#120d0b', eyes: '#2b1a10', top: 'collar', topColor: '#7a1a2a', bg: '#3a3a6a', beard: 'full', smile: true },
+  p19: { name: 'Camila', skin: 's4', hair: 'bob', hairColor: '#2a1a12', eyes: '#3a2414', top: 'vneck', topColor: '#e8b030', bg: '#2a5a7a', fem: true, earrings: true, lip: '#c0203f', shadow: '#c08040', smile: true },
+  p20: { name: 'Ryan', skin: 's1', hair: 'short', hairColor: '#c9a15a', eyes: '#3b7bbf', top: 'tee', topColor: '#1e3a6a', bg: '#5a4a3a', beard: 'stubble', beardColor: '#b08a4a', smile: true },
+  p21: { name: 'Zara', skin: 's5', hair: 'long', hairColor: '#120d0b', eyes: '#2b1a10', top: 'vneck', topColor: '#7a3ad0', bg: '#5a2a4a', fem: true, earrings: true, lip: '#8a1a3a', shadow: '#c09040', smile: true },
+  p22: { name: 'Mateo', skin: 's3', hair: 'side', hairColor: '#1b1411', eyes: '#4a2c16', top: 'jacket', topColor: '#0e3a4a', bg: '#3a5a4a', beard: 'full', smile: true },
+  p23: { name: 'Ava', skin: 's1', hair: 'bun', hairColor: '#e0c07a', eyes: '#3b7bbf', top: 'vneck', topColor: '#c2307e', bg: '#4a3a7a', fem: true, earrings: true, lip: '#d6455e', shadow: '#c46aa0', smile: true },
+  p24: { name: 'Dante', skin: 's4', hair: 'buzz', hairColor: '#120d0b', eyes: '#2b1a10', top: 'collar', topColor: '#222222', bg: '#6a4a2a', beard: 'stubble', smile: true },
 };
 export const PEOPLE_KEYS = Object.keys(PEOPLE);

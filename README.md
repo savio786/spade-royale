@@ -115,7 +115,7 @@ Then redeploy. The text is a sensible starting point, not legal advice — have 
 
 ## Avatars and profile photos
 
-Players pick from 16 illustrated people (with matching names for computer players) or 24 animals and characters, or tap **Use my photo**. Photos are cropped and shrunk to a small 160×160 JPEG in the browser, then stored on the server (`/api/photo`, max 10 uploads per hour per address) and shown to the other players. Uploaded photos are not reviewed automatically — if you want to vet them, add a moderation service before going big.
+Players pick from 24 illustrated people (computer players always use one of these, with the matching name) or 24 animals and characters, or tap **Use my photo**. Photos are cropped and shrunk to a small 160×160 JPEG in the browser, then stored on the server (`/api/photo`, max 10 uploads per hour per address) and shown to the other players. Uploaded photos are not reviewed automatically — if you want to vet them, add a moderation service before going big.
 
 ## Table & card themes
 
