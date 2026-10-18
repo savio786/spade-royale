@@ -1166,3 +1166,14 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .rs-cell { height: 46px; font-size: 34px; }
 .rs-continue { animation: none; transition: transform .12s, filter .12s; }
 .rs-continue:hover { transform: scale(1.04); filter: brightness(1.08); }
+/* hand sits higher so whole cards are visible and easy to tap */
+.fan { bottom: -16px; }
+.fan .hcard { --w: 132px; cursor: pointer; }
+.fan .hcard.legal { transform: translateY(-34px); }
+.fan .hcard.legal:hover { transform: translateY(-50px); }
+.fan .hcard.dim { filter: brightness(.62) saturate(.8); cursor: not-allowed; }
+/* during play your picture moves to the bottom-left so it never covers your cards */
+.seat-bottom.in-play { left: -44px; translate: 0 0; bottom: -150px; }
+.seat-bottom.in-play .seat-pill { left: 50%; top: auto; bottom: calc(100% + 6px); translate: -50% 0; padding: 0 16px; min-width: 96px; height: 52px; font-size: 34px; }
+.fan { left: calc(50% + 46px); }
+.turn-clock { left: 20px; bottom: 196px; translate: none; z-index: 13; font-size: 22px; padding: 5px 14px; }

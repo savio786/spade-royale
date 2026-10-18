@@ -186,16 +186,23 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         const hidden = st.phase === 'bidding' && st.hand.length === 0 && st.handCounts[me] > 0;
         const cards: (Card | null)[] = hidden ? Array(st.handCounts[me]).fill(null) : st.hand;
         const n = cards.length;
-        const gap = Math.min(80, 1060 / Math.max(1, n));
+        const gap = Math.min(76, 900 / Math.max(1, n));
         return (
           <div className={`fan ${hidden ? 'hidden' : ''}`}>
             {cards.map((c, i) => {
               const off = i - (n - 1) / 2;
-              const pos = { ['--x' as string]: `${off * gap}px`, ['--y' as string]: `${off * off * 1.9}px`, ['--r' as string]: `${off * 2.6}deg`, ['--i' as string]: i, zIndex: i } as React.CSSProperties;
+              const pos = { ['--x' as string]: `${off * gap}px`, ['--y' as string]: `${off * off * 1.2}px`, ['--r' as string]: `${off * 2.2}deg`, ['--i' as string]: i, zIndex: i } as React.CSSProperties;
               if (!c) return <CardView key={`${st.round}-b${i}`} back className="hcard deal" style={pos} />;
               const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
               return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
-                onClick={() => { if (ok) { vibrate(10); ctl.act({ type: 'play', seat: me, card: c }); } }} disabled={!ok} />;
+                onClick={() => {
+                  if (ok) { vibrate(10); ctl.act({ type: 'play', seat: me, card: c }); return; }
+                  // explain why this card can't be played right now
+                  if (st.phase !== 'playing') return;
+                  if (!myTurn) return toast(`Wait for your turn — ${st.seats[st.turn]?.name ?? 'another player'} is playing`);
+                  if (st.trick.length) return toast(`Follow suit: play a ${({ S: '♠ spade', H: '♥ heart', D: '♦ diamond', C: '♣ club' })[st.trick[0].card.s]}`);
+                  toast('Spades aren’t broken yet — lead a different suit');
+                }} />;
             })}
           </div>
         );
