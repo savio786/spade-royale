@@ -386,8 +386,6 @@ export function ThemeModal({ onClose }: { onClose: () => void }) {
 
 // ---------------- Settings ----------------
 
-/** Short number shown as the player's ID (stable for each account). */
-const playerNumber = (id: string) => { let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return String(1_000_000 + (h % 9_000_000)); };
 
 function BigSwitch({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
@@ -478,7 +476,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
       </details>
 
       <footer className="st-foot">
-        <span>PLAYER ID: {playerNumber(p.id)}</span>
+        <span>PLAYER: {p.name.toUpperCase()}</span>
         <span><a href="#privacy">PRIVACY POLICY</a> AND <a href="#terms">TERMS OF SERVICE</a></span>
       </footer>
       {emailOpen && <EmailModal onClose={() => setEmailOpen(false)} startMode="up" />}
