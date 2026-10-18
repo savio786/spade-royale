@@ -4,6 +4,7 @@ import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
+import { LegalPage } from './screens/Legal';
 import { StartRequest, StoreModal } from './screens/modals';
 import { afterCheckoutReturn, loadPaymentConfig, store, syncPurchases, useStoreRequest } from './lib/payments';
 import { LocalController, RemoteController, TableController } from './lib/controller';
@@ -78,6 +79,8 @@ export default function App() {
     setScreen('table');
   }, []);
 
+  const legal = hash === '#privacy' ? 'privacy' : hash === '#terms' ? 'terms' : null;
+  if (legal) return <LegalPage page={legal} />;
   let body;
   if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
   else if (!p.provider) body = <Login />;

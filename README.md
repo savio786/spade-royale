@@ -104,6 +104,15 @@ npm run cap:ios                 # builds, syncs and opens Xcode
 
 Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 
+## Privacy Policy and Terms
+
+The site has a Privacy Policy (`#privacy`) and Terms of Service (`#terms`), linked from the landing-page footer and from Settings. Before you publish to Google Play or the App Store, add two environment variables in Render so the pages show who runs the game and how to reach you:
+
+- `VITE_OPERATOR_NAME` — your name or business name
+- `VITE_SUPPORT_EMAIL` — the email players should use for help and data-deletion requests
+
+Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://spade-royale.onrender.com/#privacy`.
+
 ## Table & card themes
 
 Eight themes unlock as players level up: Royal Purple (1), Emerald (2), Ocean (4), Ruby (6), Sunset (9), Neon Night (12), Gold Royale (16) and Prism (20). Each changes the felt, rim, panels, card faces and card backs. Ocean, Sunset, Neon Night and Prism use four-color decks. Players switch themes in Settings or at the table (Menu → Table & cards). Players get the newest unlocked theme automatically until they choose one themselves, and a message announces each new unlock. Themes are defined in `src/lib/themes.ts`.

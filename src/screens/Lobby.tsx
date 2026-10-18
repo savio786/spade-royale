@@ -7,7 +7,7 @@ import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
 import { helpBot } from '../lib/helpbot';
 import {
-  AdModal, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
+  AdModal, bonusLeftMs, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
 } from './modals';
 
 type ModalKey = null | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private';
@@ -59,7 +59,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
             <span className="dots" aria-hidden="true">{SLIDES.map((_, i) => <i key={i} className={i === slide ? 'on' : ''} />)}</span>
           </button>
           <div className="promo-row">
-            <button className="ad-chip" onClick={() => { sfx.click(); setModal('ad'); }} aria-label="Watch an ad for 100 coins"><b>+100</b><small>COINS</small><span className="ad-tag">AD</span></button>
+            <button className="ad-chip" onClick={() => { sfx.click(); setModal('ad'); }} aria-label="Bonus coins"><b>+100</b><small>BONUS</small>{bonusLeftMs(p.lastAd) === 0 && <span className="ad-tag">READY</span>}</button>
             <button className="vip-chip" onClick={() => { sfx.click(); setModal('vip'); }} aria-label="VIP Club"><span className="gold-text">VIP</span><small>CLUB</small></button>
           </div>
         </div>

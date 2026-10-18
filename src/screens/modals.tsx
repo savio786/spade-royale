@@ -186,19 +186,21 @@ export function VipModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ---------------- Rewarded ad ----------------
+// ---------------- Bonus coins (free top-up every 30 minutes) ----------------
+export const BONUS_COINS = 100;
+export const BONUS_EVERY_MS = 30 * 60 * 1000;
+export function bonusLeftMs(last: number) { return Math.max(0, last + BONUS_EVERY_MS - Date.now()); }
 export function AdModal({ onClose }: { onClose: () => void }) {
-  const [left, setLeft] = useState(5);
-  useEffect(() => {
-    if (left <= 0) return;
-    const t = setTimeout(() => setLeft(left - 1), 1000);
-    return () => clearTimeout(t);
-  }, [left]);
+  const p = useProfile();
+  const [, tick] = useState(0);
+  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
+  const left = bonusLeftMs(p.lastAd);
+  const mm = Math.floor(left / 60000), ss = Math.floor((left % 60000) / 1000);
   return (
-    <Modal title="Watch & earn" onClose={onClose}>
-      <div className="ad-box"><Icon name="tv" size={64} /><p>Rewarded video placeholder</p><small>Plug in AdMob (Android/iOS) or your ad network here.</small></div>
-      <Pill color="green" className="wide-btn" disabled={left > 0} onClick={() => { profile.set((x) => ({ coins: x.coins + 100, lastAd: Date.now() })); sfx.coins(); toast('+100 coins', 'coins'); onClose(); }}>
-        {left > 0 ? `Reward in ${left}s` : 'Collect +100 coins'}
+    <Modal title="Bonus coins" onClose={onClose}>
+      <div className="bonus-box"><Coin size={64} /><p>{BONUS_COINS} free coins every 30 minutes</p><small>Come back any time to top up your balance.</small></div>
+      <Pill color="green" className="wide-btn" disabled={left > 0} onClick={() => { if (bonusLeftMs(profile.get().lastAd) > 0) return; profile.set((x) => ({ coins: x.coins + BONUS_COINS, lastAd: Date.now() })); sfx.coins(); toast(`+${BONUS_COINS} coins`, 'coins'); onClose(); }}>
+        {left > 0 ? `Next bonus in ${mm}:${String(ss).padStart(2, '0')}` : `Collect ${BONUS_COINS} coins`}
       </Pill>
     </Modal>
   );
@@ -412,6 +414,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
           <label key={k} className="toggle"><input type="checkbox" checked={p.settings[k]} onChange={() => toggle(k)} /><span className="tg" /> {l}</label>
         ))}
       </div>
+      <p className="muted small legal-links"><a href="#privacy">Privacy Policy</a> · <a href="#terms">Terms of Service</a></p>
       <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b> · Signed in: {p.provider}</p>
       <div className="btn-row">
         {installPrompt && <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill>}

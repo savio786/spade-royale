@@ -164,16 +164,16 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
 
       {/* Hand */}
       <div className="hand" style={{ ['--n' as string]: Math.max(1, st.hand.length) }}>
-        {st.hand.map((c) => {
+        {st.hand.map((c, i) => {
           const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
-          return <CardView key={`${c.s}${c.r}`} card={c} className={`hcard ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
+          return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={{ ['--i' as string]: i }} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
             onClick={() => { if (ok) { vibrate(10); ctl.act({ type: 'play', seat: me, card: c }); } }} disabled={!ok} />;
         })}
       </div>
 
       {myTurn && secsLeft !== null && st.phase === 'playing' && <div className={`turn-clock ${secsLeft <= 4 ? 'hurry' : ''}`} role="timer">Your turn · {secsLeft}s</div>}
       {missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
-        <div className="missed-warning" role="alert">⏱ Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
+        <div className="missed-warning" role="alert"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg> Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
       )}
       {st.phase === 'bidding' && st.turn === me && <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />}
       {view.kicked && (

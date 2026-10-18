@@ -101,19 +101,86 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (k:
 }
 
 // ---------------- Playing card ----------------
+// Suit shapes drawn as SVG so they look identical on every device.
+const SUIT_PATH: Record<string, ReactNode> = {
+  S: <path d="M50 6C40 24 10 38 10 60c0 14 12 22 24 20 6-1 11-5 13-9-1 9-5 17-11 23h28c-6-6-10-14-11-23 2 4 7 8 13 9 12 2 24-6 24-20 0-22-30-36-40-54z" />,
+  H: <path d="M50 90C30 74 8 58 8 36 8 20 20 10 33 10c8 0 14 5 17 11 3-6 9-11 17-11 13 0 25 10 25 26 0 22-22 38-42 54z" />,
+  D: <path d="M50 4Q68 28 88 50 68 72 50 96 32 72 12 50 32 28 50 4z" />,
+  C: <><circle cx="50" cy="29" r="19" /><circle cx="28" cy="57" r="19" /><circle cx="72" cy="57" r="19" /><path d="M45 52c0 20-6 32-14 42h38c-8-10-14-22-14-42z" /></>,
+};
+export function SuitIcon({ s, className, style }: { s: string; className?: string; style?: React.CSSProperties }) {
+  return <svg className={className} style={style} viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">{SUIT_PATH[s]}</svg>;
+}
+
+// Classic pip positions (x%, y%) for number cards.
+const PIPS: Record<number, [number, number][]> = {
+  2: [[50, 18], [50, 82]],
+  3: [[50, 18], [50, 50], [50, 82]],
+  4: [[30, 18], [70, 18], [30, 82], [70, 82]],
+  5: [[30, 18], [70, 18], [50, 50], [30, 82], [70, 82]],
+  6: [[30, 18], [70, 18], [30, 50], [70, 50], [30, 82], [70, 82]],
+  7: [[30, 18], [70, 18], [50, 34], [30, 50], [70, 50], [30, 82], [70, 82]],
+  8: [[30, 18], [70, 18], [50, 34], [30, 50], [70, 50], [50, 66], [30, 82], [70, 82]],
+  9: [[30, 16], [70, 16], [30, 39], [70, 39], [50, 50], [30, 61], [70, 61], [30, 84], [70, 84]],
+  10: [[30, 16], [70, 16], [50, 28], [30, 39], [70, 39], [30, 61], [70, 61], [50, 72], [30, 84], [70, 84]],
+};
+
+/** Original court-card emblems: crown (K), tiara (Q), plumed cap (J). */
+function CourtEmblem({ r }: { r: number }) {
+  if (r === 13) return (
+    <svg viewBox="0 0 100 60" className="pc-emblem" aria-hidden="true">
+      <path d="M12 52 L8 14 L30 32 L50 6 L70 32 L92 14 L88 52Z" fill="#f5c542" stroke="#9a6a00" strokeWidth="3" strokeLinejoin="round" />
+      <rect x="12" y="46" width="76" height="9" rx="2" fill="#e0a800" stroke="#9a6a00" strokeWidth="2" />
+      <circle cx="50" cy="31" r="5" fill="#d32f2f" /><circle cx="30" cy="38" r="3.5" fill="#1e63c4" /><circle cx="70" cy="38" r="3.5" fill="#1e63c4" />
+      {[8, 50, 92].map((x, i) => <circle key={i} cx={x} cy={i === 1 ? 6 : 14} r="4" fill="#fff4c2" stroke="#9a6a00" strokeWidth="1.5" />)}
+    </svg>);
+  if (r === 12) return (
+    <svg viewBox="0 0 100 60" className="pc-emblem" aria-hidden="true">
+      <path d="M10 50 Q50 2 90 50 Q70 40 50 40 Q30 40 10 50Z" fill="#f5c542" stroke="#9a6a00" strokeWidth="3" strokeLinejoin="round" />
+      <path d="M50 12 L55 26 L50 34 L45 26Z" fill="#d81b60" stroke="#880e4f" strokeWidth="1.5" />
+      <circle cx="30" cy="34" r="3.5" fill="#fff" stroke="#9a6a00" /><circle cx="70" cy="34" r="3.5" fill="#fff" stroke="#9a6a00" />
+      <path d="M14 52 Q50 44 86 52" fill="none" stroke="#9a6a00" strokeWidth="3" strokeLinecap="round" />
+    </svg>);
+  return (
+    <svg viewBox="0 0 100 60" className="pc-emblem" aria-hidden="true">
+      <path d="M58 30 C66 8 86 4 94 10 C82 12 74 20 70 32Z" fill="#43a047" stroke="#1b5e20" strokeWidth="2" />
+      <path d="M14 52 C14 30 30 22 50 22 C70 22 86 30 86 52Z" fill="#1e63c4" stroke="#0d3a80" strokeWidth="3" strokeLinejoin="round" />
+      <rect x="10" y="46" width="80" height="9" rx="3" fill="#f5c542" stroke="#9a6a00" strokeWidth="2" />
+      <circle cx="50" cy="38" r="4.5" fill="#f5c542" stroke="#9a6a00" strokeWidth="1.5" />
+    </svg>);
+}
+
 export function CardView({ card, small, back, className, onClick, disabled, style }: {
   card?: Card; small?: boolean; back?: boolean; className?: string; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties;
 }) {
-  if (back || !card) return <div className={`pcard back ${small ? 'small' : ''} ${className ?? ''}`} style={style} aria-hidden="true" />;
+  if (back || !card) return <div className={`pcard back ${small ? 'small' : ''} ${className ?? ''}`} style={style} aria-hidden="true"><span className="pc-back-mark"><SuitIcon s="S" /></span></div>;
   const red = card.s === 'H' || card.s === 'D';
   const label = `${rankLabel(card.r)} of ${({ S: 'spades', H: 'hearts', D: 'diamonds', C: 'clubs' })[card.s]}`;
   const Tag = onClick ? 'button' : 'div';
+  const corner = <><b>{rankLabel(card.r)}</b><SuitIcon s={card.s} className="pc-corner-suit" /></>;
+  let body: ReactNode;
+  if (small) body = <SuitIcon s={card.s} className="pc-small-suit" />;
+  else if (card.r === 14) body = <span className={`pc-ace ${card.s === 'S' ? 'ornate' : ''}`}><SuitIcon s={card.s} /></span>;
+  else if (card.r >= 11) body = (
+    <span className="pc-face">
+      <CourtEmblem r={card.r} />
+      <SuitIcon s={card.s} className="pc-face-suit" />
+      <span className="pc-face-letter">{rankLabel(card.r)}</span>
+    </span>
+  );
+  else body = (
+    <span className="pc-pips">
+      {PIPS[card.r].map(([x, y], i) => (
+        <SuitIcon key={i} s={card.s} className={`pc-pip ${y > 55 ? 'flip' : ''}`} style={{ left: `${x}%`, top: `${y}%` }} />
+      ))}
+    </span>
+  );
   return (
     <Tag className={`pcard ${red ? 'red' : 'black'} s-${card.s} ${small ? 'small' : ''} ${className ?? ''}`} style={style}
       onClick={onClick} disabled={onClick ? disabled : undefined} aria-label={label}>
-      <span className="pc-corner"><b>{rankLabel(card.r)}</b><i>{SUIT_SYMBOL[card.s]}{'︎'}</i></span>
-      <span className="pc-center">{SUIT_SYMBOL[card.s]}{'︎'}</span>
-      <span className="pc-corner br"><b>{rankLabel(card.r)}</b><i>{SUIT_SYMBOL[card.s]}{'︎'}</i></span>
+      <span className="pc-corner">{corner}</span>
+      {body}
+      <span className="pc-corner br">{corner}</span>
     </Tag>
   );
 }
