@@ -1227,3 +1227,35 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .pcd-l5 { gap: 3px; } .pcd-l5 em { width: 28px; height: 56px; font-size: 22px; }
 .pcd-rings { justify-content: space-between; overflow: visible; }
 .pcd-ring { width: auto; flex: 1; }
+
+/* ================= Bigger table: closer to the classic app's proportions ================= */
+.felt-wrap { top: 58px; left: 36px; right: 36px; bottom: 120px; }
+.info-panel { scale: 1.16; left: 11%; }
+.score-panel { scale: 1.16; right: 11%; }
+.felt-center { left: 30%; right: 30%; }
+.center-msg b { font-size: 54px; } .cm-name { font-size: 54px; } .cm-big { font-size: 76px; }
+.waiting-text { font-size: 46px; }
+.q-mark { width: 106px; height: 106px; font-size: 64px; }
+.seat-pill { min-width: 120px; height: 74px; font-size: 48px; }
+.seat-top .seat-pill, .seat-right .seat-pill { padding-right: 46px; } .seat-left .seat-pill { padding-left: 46px; }
+.gift-mini { width: 44px; height: 44px; top: 34px; left: -20px; } .seat-right .gift-mini { right: -20px; }
+.gift-mini svg { width: 22px; height: 22px; }
+.seat-top { top: -54px; } .seat-left { left: -46px; } .seat-right { right: -46px; }
+.tbl-top-left, .tbl-top-right { top: 10px; }
+.table-screen .buy-coins.small { height: 62px; padding: 0 28px; font-size: 38px; }
+.vip-mini { height: 62px; padding: 0 20px; } .vip-mini .gold-text { font-size: 32px; } .vip-mini small { font-size: 13px; }
+.round-ui { width: 104px; height: 64px; } .round-ui svg { width: 32px; height: 32px; }
+.fan { bottom: -10px; } .fan .hcard { --w: 150px; }
+.tcard.pcard { --w: 104px; } .tcard { width: 104px; height: 146px; margin: -73px 0 0 -52px; }
+.turn-clock { font-size: 26px; padding: 6px 16px; bottom: 214px; }
+.seat-bottom.in-play { bottom: -160px; left: -40px; }
+.seat-bottom.in-play .seat-pill { height: 60px; font-size: 40px; }
+.dealer { width: 34px; height: 34px; font-size: 17px; }
+.seat-left { left: -14px; } .seat-right { right: -14px; }
+.info-panel { left: 13.5%; } .score-panel { right: 13.5%; }
+.seat-bottom.in-play { left: 14px; bottom: -134px; }
+.seat-bottom.in-play .seat-av .avatar { width: 96px !important; height: 96px !important; }
+.turn-clock { left: 14px; bottom: 236px; }
+.status-line { top: 14%; }
+.seat-bottom.in-play { bottom: -116px; }
+.turn-clock { bottom: 254px; }

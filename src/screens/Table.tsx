@@ -348,7 +348,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onP
     <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} ${st.phase === 'waiting' ? 'is-waiting' : 'in-play'}`}>
       <div className="seat-av" style={remain !== null ? { ['--pct' as string]: `${remain * 100}%` } : undefined}>
         {s && <span className="bezel" aria-hidden="true" />}
-        {s ? <button className="seat-pic" onClick={onProfile} aria-label={`View ${s.name}'s profile`}><Avatar k={s.avatar} size={pos === 'bottom' ? 92 : 86} vip={seat === me && myVip} name={s.name} /></button> : <span className="q-mark">?</span>}
+        {s ? <button className="seat-pic" onClick={onProfile} aria-label={`View ${s.name}'s profile`}><Avatar k={s.avatar} size={pos === 'bottom' ? 112 : 106} vip={seat === me && myVip} name={s.name} /></button> : <span className="q-mark">?</span>}
         {remain !== null && <span className="timer-ring" aria-hidden="true" />}
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
         {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}

@@ -107,8 +107,8 @@ export default function App() {
 function Stage({ children }: { children: React.ReactNode }) {
   const calc = () => {
     const vw = window.innerWidth, vh = window.innerHeight, ar = vw / vh;
-    const W = Math.round(Math.min(1600, Math.max(1280, 720 * ar)));
-    const H = Math.round(Math.min(1000, Math.max(720, 1280 / ar)));
+    const W = Math.round(Math.min(1360, Math.max(1280, 720 * ar)));  // keep the layout tight so everything stays big on wide screens
+    const H = Math.round(Math.min(820, Math.max(720, 1280 / ar)));   // …and on tall screens like iPad
     return { W, H, s: Math.min(vw / W, vh / H) };
   };
   const [d, setD] = useState(calc);
