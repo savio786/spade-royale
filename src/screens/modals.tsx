@@ -413,6 +413,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         {([['sound', 'Sound effects'], ['fast', 'Fast bots'], ['vibrate', 'Vibration']] as const).map(([k, l]) => (
           <label key={k} className="toggle"><input type="checkbox" checked={p.settings[k]} onChange={() => toggle(k)} /><span className="tg" /> {l}</label>
         ))}
+        <label className="toggle"><input type="checkbox" checked={p.settings.music !== false} onChange={() => profile.set((x) => ({ settings: { ...x.settings, music: x.settings.music === false } }))} /><span className="tg" /> Music at tables</label>
       </div>
       <p className="muted small legal-links"><a href="#privacy">Privacy Policy</a> · <a href="#terms">Terms of Service</a></p>
       <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b> · Signed in: {p.provider}</p>

@@ -5,7 +5,7 @@ import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, P
 import { botBid } from '../../shared/bot';
 import type { CtlView, TableController } from '../lib/controller';
 import { fmt, levelFromXp, profile, short, useProfile } from '../lib/profile';
-import { sfx, vibrate } from '../lib/sound';
+import { music, sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
@@ -97,6 +97,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (chatOpen) setUnread(0); }, [chatOpen]);
+  useEffect(() => { if (p.settings.music !== false) music.start(); else music.stop(); }, [p.settings.music]);
+  useEffect(() => () => music.stop(), []);
 
   const leave = () => {
     ctl.leave();
@@ -202,17 +204,13 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
       )}
       {menuOpen && (
-        <Modal title="Menu" onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}>
-          <div className="menu-list">
-            <Pill color="blue" onClick={() => { setRulesOpen(true); setMenuOpen(false); }}><Icon name="book" size={18} /> How to play</Pill>
-            <Pill color="purple" onClick={() => { setMenuOpen(false); helpBot.open(); }}><Icon name="chat" size={18} /> Ask Spade Bot</Pill>
-            <Pill color="gold" onClick={() => { setMenuOpen(false); setThemesOpen(true); }}><Icon name="star" size={18} /> Table & cards</Pill>
-            <Pill color="blue" onClick={() => profile.set((x) => ({ settings: { ...x.settings, sound: !x.settings.sound } }))}>
-              <Icon name={p.settings.sound ? 'sound' : 'mute'} size={18} /> Sound: {p.settings.sound ? 'On' : 'Off'}</Pill>
-            <Pill color="red" onClick={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }}>
-              <Icon name="exit" size={18} /> {confirmLeave ? `Leave and forfeit ${fmt(st.settings.bet)} coins?` : 'Leave table'}</Pill>
-          </div>
-        </Modal>
+        <TableMenu
+          onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}
+          onRules={() => { setRulesOpen(true); setMenuOpen(false); }}
+          onBot={() => { setMenuOpen(false); helpBot.open(); }}
+          onThemes={() => { setMenuOpen(false); setThemesOpen(true); }}
+          confirmLeave={confirmLeave} bet={st.settings.bet}
+          onExit={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }} />
       )}
       {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
       {themesOpen && <ThemeModal onClose={() => setThemesOpen(false)} />}
@@ -454,6 +452,50 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
           <input type="checkbox" checked={chatOn} onChange={() => { sfx.click(); profile.set((x) => ({ settings: { ...x.settings, chatOff: chatOn } })); }} />
           <span className="ct-switch" aria-hidden="true"><i>{chatOn ? 'ON' : 'OFF'}</i></span>
         </label>
+      </aside>
+    </div>
+  );
+}
+
+function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
+  return (
+    <section className="tm-sec">
+      <h3>{label}</h3>
+      <label className="tm-switch">
+        <input type="checkbox" checked={on} onChange={() => { onToggle(); sfx.click(); }} aria-label={label} />
+        <span className="ct-switch" aria-hidden="true"><i>{on ? 'ON' : 'OFF'}</i></span>
+      </label>
+    </section>
+  );
+}
+
+function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, bet }: {
+  onClose: () => void; onRules: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number;
+}) {
+  const p = useProfile();
+  const set = (k: 'sound' | 'music' | 'vibrate') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
+  useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
+  return (
+    <div className="tm-overlay" role="dialog" aria-modal="true" aria-label="Table menu">
+      <div className="tm-dim" onClick={onClose} />
+      <aside className="tm-panel">
+        <button className="tm-close" onClick={() => { sfx.click(); onClose(); }} aria-label="Close menu"><Icon name="close" size={26} /></button>
+        <div className="tm-scroll">
+          <button className="tm-btn exit" onClick={() => { sfx.click(); onExit(); }}>
+            <span className="tm-ico"><Icon name="exit" size={24} /></span>{confirmLeave ? 'TAP TO CONFIRM' : 'EXIT TABLE'}
+          </button>
+          {confirmLeave && <p className="tm-warn">Leaving now forfeits your {fmt(bet)} coin bet.</p>}
+          <div className="tm-rule" />
+          <button className="tm-btn blue" onClick={() => { sfx.click(); onRules(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>HOW TO PLAY</button>
+          <button className="tm-btn purple" onClick={() => { sfx.click(); onBot(); }}><span className="tm-ico"><Icon name="chat" size={22} /></span>ASK SPADE BOT</button>
+          <button className="tm-btn gold" onClick={() => { sfx.click(); onThemes(); }}><span className="tm-ico"><Icon name="star" size={22} /></span>TABLE & CARDS</button>
+          <div className="tm-rule" />
+          <Switch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
+          <div className="tm-rule" />
+          <Switch label="MUSIC" on={p.settings.music !== false} onToggle={() => set('music')} />
+          <div className="tm-rule" />
+          <Switch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+        </div>
       </aside>
     </div>
   );
