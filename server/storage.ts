@@ -11,6 +11,11 @@ const UP_URL = clean(process.env.UPSTASH_REDIS_REST_URL).replace(/\/$/, '');
 const UP_TOKEN = clean(process.env.UPSTASH_REDIS_REST_TOKEN);
 const DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
 export const storageKind = UP_URL && UP_TOKEN ? 'upstash' : 'files';
+if (storageKind === 'upstash') {
+  // masked fingerprint so a wrong value can be spotted without printing the secret
+  let host = UP_URL; try { host = new URL(UP_URL).host; } catch { /* keep raw */ }
+  console.log(`upstash: database ${host} · token ${UP_TOKEN.length} chars, ${UP_TOKEN.slice(0, 4)}…${UP_TOKEN.slice(-4)}`);
+}
 
 async function redis(cmd: unknown[]) {
   const r = await fetch(UP_URL, { method: 'POST', headers: { authorization: `Bearer ${UP_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify(cmd) });
