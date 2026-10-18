@@ -113,6 +113,10 @@ The site has a Privacy Policy (`#privacy`) and Terms of Service (`#terms`), link
 
 Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://spade-royale.onrender.com/#privacy`.
 
+## Avatars and profile photos
+
+Players pick from 16 illustrated people (with matching names for computer players) or 24 animals and characters, or tap **Use my photo**. Photos are cropped and shrunk to a small 160×160 JPEG in the browser, then stored on the server (`/api/photo`, max 10 uploads per hour per address) and shown to the other players. Uploaded photos are not reviewed automatically — if you want to vet them, add a moderation service before going big.
+
 ## Table & card themes
 
 Eight themes unlock as players level up: Royal Purple (1), Emerald (2), Ocean (4), Ruby (6), Sunset (9), Neon Night (12), Gold Royale (16) and Prism (20). Each changes the felt, rim, panels, card faces and card backs. Ocean, Sunset, Neon Night and Prism use four-color decks. Players switch themes in Settings or at the table (Menu → Table & cards). Players get the newest unlocked theme automatically until they choose one themselves, and a message announces each new unlock. Themes are defined in `src/lib/themes.ts`.

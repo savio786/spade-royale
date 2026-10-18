@@ -25,11 +25,17 @@ export interface RuntimeOptions {
   botSpeed?: number; // 1 = normal
 }
 
-const AVATARS = Array.from({ length: 24 }, (_, i) => `a${i + 1}`);
+const CARTOON = Array.from({ length: 24 }, (_, i) => `a${i + 1}`);
+// Human portraits p1–p16 and the names that match them (keep in step with src/components/people.tsx).
+const PEOPLE_NAMES = ['Marcus', 'Sofia', 'Jake', 'Aiyana', 'Mei', 'Andre', 'Priya', 'Carlos', 'Grace', 'Ethan', 'Hana', 'Omar', 'Rosa', 'Frank', 'Kenji', 'Lena'];
 let botCounter = 0;
+/** Computer players mostly look like people (with matching names); some use the cartoon avatars and nicknames. */
 export function makeBot(exclude: string[] = []): Seat {
+  const base = { id: `bot:${++botCounter}`, level: 5 + Math.floor(Math.random() * 60), bot: true };
+  const free = PEOPLE_NAMES.map((n, i) => [n, i] as const).filter(([n]) => !exclude.includes(n));
+  if (free.length && Math.random() < 0.75) { const [name, i] = pick(free); return { ...base, name, avatar: `p${i + 1}` }; }
   const names = BOT_NAMES.filter((n) => !exclude.includes(n));
-  return { id: `bot:${++botCounter}`, name: pick(names.length ? names : BOT_NAMES), avatar: pick(AVATARS), level: 5 + Math.floor(Math.random() * 60), bot: true };
+  return { ...base, name: pick(names.length ? names : BOT_NAMES), avatar: pick(CARTOON) };
 }
 
 export class TableRuntime {

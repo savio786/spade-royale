@@ -30,7 +30,7 @@ function Privacy() {
     <p>This policy explains what information Spade Royale{BY} (“we”) collects when you play, and how it is used.</p>
     <h2>What we collect</h2>
     <ul>
-      <li><b>Game profile:</b> your player name, avatar, coins, level, game results and settings. Guest accounts receive an automatic name and a recovery code.</li>
+      <li><b>Game profile:</b> your player name, avatar (and your profile photo, if you upload one — it is shown to other players at your table and on leaderboards), coins, level, game results and settings. Guest accounts receive an automatic name and a recovery code.</li>
       <li><b>Chat messages</b> you send at tables, which are relayed to the other players at that table and are not stored after the table closes.</li>
       <li><b>Purchases:</b> when you buy coins or a Chat Pass, payment is handled by Stripe (or by Google Play / the App Store in the mobile apps). We receive a record of what you bought, not your full card details.</li>
       <li><b>Technical data:</b> basic server logs (such as IP address and time of request) used to keep the service running and to prevent abuse.</li>
@@ -62,6 +62,7 @@ function Terms() {
     <ul>
       <li>No cheating, collusion between opponents, bots or automation, or exploiting bugs.</li>
       <li>No harassment, hate speech, threats, spam or sharing personal information in chat.</li>
+      <li>Profile photos must be appropriate for all players and must not show someone else without their permission. We remove photos that break this rule.</li>
       <li>Players who repeatedly miss turns are removed from the table automatically.</li>
     </ul>
     <p>We may suspend accounts, remove coins or reset leaderboard positions that break these rules.</p>

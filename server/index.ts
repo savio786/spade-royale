@@ -8,7 +8,8 @@ import { TableRuntime } from '../shared/runtime';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
 import { board, credit, initLeaderboard } from './leaderboard';
-import { storageKind } from './storage';
+import { getRecord, putRecord, storageKind } from './storage';
+import { createHash } from 'crypto';
 import { createGuest, guestName, loadAccount, restoreByCode, saveProgress } from './accounts';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentsEnabled } from './payments';
 
@@ -108,7 +109,7 @@ function leave(c: Client, notify = true) {
 function handle(c: Client, m: ClientMsg) {
   switch (m.t) {
     case 'hello':
-      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: String(m.player.avatar || 'a1'), level: Number(m.player.level) || 1, chat: !!m.player.chat };
+      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat };
       guestName(c.player.id).then((n) => { if (n && c.player) c.player.name = n; });
       return send(c, { t: 'welcome', online: onlineCounts() });
     case 'list':
@@ -155,6 +156,40 @@ function handle(c: Client, m: ClientMsg) {
   }
 }
 
+/** Only built-in avatar keys or uploaded photo ids are passed on to other players. */
+function cleanAvatar(v: unknown) { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : 'a1'; }
+
+// ---- profile photos ----
+const photoCache = new Map<string, Buffer>();
+const photoTries = new Map<string, { n: number; t: number }>();
+async function photoApi(req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) {
+  try {
+    if (req.method === 'POST' && url.pathname === '/api/photo') {
+      const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+      const t = photoTries.get(ip); const now = Date.now();
+      if (t && now - t.t < 3_600_000 && t.n >= 10) return json(res, 429, { error: 'Too many uploads — try again later.' });
+      photoTries.set(ip, t && now - t.t < 3_600_000 ? { n: t.n + 1, t: t.t } : { n: 1, t: now });
+      const b = JSON.parse(await readBody(req, 60_000));
+      const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.data || ''));
+      if (!m) return json(res, 400, { error: 'Please choose a picture file.' });
+      const buf = Buffer.from(m[1], 'base64');
+      if (buf.length > 40_000 || buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) return json(res, 400, { error: 'That picture could not be used.' });
+      const id = createHash('sha256').update(buf).digest('hex').slice(0, 24);
+      if (!photoCache.has(id)) { await putRecord(`photo-${id}`, m[1]); photoCache.set(id, buf); }
+      return json(res, 200, { id });
+    }
+    const g = /^\/api\/photo\/([a-f0-9]{24})$/.exec(url.pathname);
+    if (req.method === 'GET' && g) {
+      let buf = photoCache.get(g[1]);
+      if (!buf) { const b64 = await getRecord<string>(`photo-${g[1]}`); if (b64) { buf = Buffer.from(b64, 'base64'); if (photoCache.size > 800) photoCache.delete(photoCache.keys().next().value as string); photoCache.set(g[1], buf); } }
+      if (!buf) return json(res, 404, { error: 'not found' });
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': buf.length, 'cache-control': 'public, max-age=31536000, immutable', 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff' });
+      return res.end(buf);
+    }
+    return json(res, 404, { error: 'not found' });
+  } catch (e) { console.error('photo', e); return json(res, 500, { error: 'Upload failed — please try again.' }); }
+}
+
 // ---- static hosting of the built app (optional, for one-box deployment) ----
 const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 // ---- leaderboard API ----
@@ -167,6 +202,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
+  if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled() });
   if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
   if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook')) {
@@ -199,7 +235,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         if (!id || !(bet >= 100 && bet <= 5_000_000) || !(prize > 0 && prize <= max)) return json(res, 400, { error: 'invalid result' });
         if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
         lastReport.set(id, now);
-        guestName(id).then((gn) => credit({ id, name: gn || String(b.name || 'Player'), avatar: String(b.avatar || 'a1') }, prize));
+        guestName(id).then((gn) => credit({ id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }, prize));
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });

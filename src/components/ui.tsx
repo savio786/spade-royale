@@ -1,7 +1,9 @@
 import React, { ReactNode, useEffect } from 'react';
 import { Card, rankLabel, SUIT_SYMBOL } from '../../shared/engine';
 import { sfx } from '../lib/sound';
-import { AvatarArt, avatarName, AVATAR_KEYS as AVATAR_KEYS_LIST } from './avatars';
+import { AvatarArt, avatarName, isPhoto, AVATAR_KEYS as AVATAR_KEYS_LIST } from './avatars';
+import { PEOPLE_KEYS } from './people';
+import { photoUrl, uploadPhoto } from '../lib/photo';
 
 // ---------------- Icons ----------------
 const P: Record<string, ReactNode> = {
@@ -78,23 +80,45 @@ export { AVATAR_KEYS, avatarName } from './avatars';
 export function Avatar({ k, size = 64, vip, name }: { k: string; size?: number; vip?: boolean; name?: string }) {
   return (
     <span className={`avatar ${vip ? 'vip' : ''}`} style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s avatar` : `${avatarName(k)} avatar`}>
-      <AvatarArt k={k} />
+      {isPhoto(k) ? <PhotoImg k={k} /> : <AvatarArt k={k} />}
     </span>
   );
 }
 
-/** Big preview + grid of all avatars with their names. */
+function PhotoImg({ k }: { k: string }) {
+  const [bad, setBad] = React.useState(false);
+  if (bad) return <AvatarArt k="p3" />;
+  return <img src={photoUrl(k)} alt="" draggable={false} onError={() => setBad(true)} />;
+}
+
+/** Big preview + grid of all avatars with their names, plus "use my photo". */
 export function AvatarPicker({ value, onChange }: { value: string; onChange: (k: string) => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  const onFile = async (f: File | undefined) => {
+    if (!f) return;
+    setBusy(true); setErr(null);
+    try { onChange(await uploadPhoto(f)); sfx.click(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); if (fileRef.current) fileRef.current.value = ''; }
+  };
+  const tile = (k: string) => (
+    <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`}
+      onClick={() => { sfx.click(); onChange(k); }} aria-label={avatarName(k)} title={avatarName(k)}>
+      <Avatar k={k} size={52} /><small>{avatarName(k)}</small>
+    </button>
+  );
   return (
     <div className="avatar-picker">
-      <div className="ap-preview"><Avatar k={value} size={84} /><b>{avatarName(value)}</b></div>
+      <div className="ap-preview"><Avatar k={value} size={84} /><b>{avatarName(value)}</b>
+        <button type="button" className="ap-upload" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'Uploading…' : isPhoto(value) ? 'Change photo' : 'Use my photo'}</button>
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+      </div>
+      {err && <p className="ap-err" role="alert">{err}</p>}
       <div className="avatar-grid" role="radiogroup" aria-label="Choose an avatar">
-        {AVATAR_KEYS_LIST.map((k) => (
-          <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`}
-            onClick={() => { sfx.click(); onChange(k); }} aria-label={avatarName(k)} title={avatarName(k)}>
-            <Avatar k={k} size={52} /><small>{avatarName(k)}</small>
-          </button>
-        ))}
+        <span className="ap-group">People</span>
+        {PEOPLE_KEYS.map(tile)}
+        <span className="ap-group">Animals & characters</span>
+        {AVATAR_KEYS_LIST.filter((k) => !PEOPLE_KEYS.includes(k)).map(tile)}
       </div>
     </div>
   );

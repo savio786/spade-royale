@@ -293,6 +293,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myV
   return (
     <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''}`}>
       <div className="seat-av" style={remain !== null ? { ['--pct' as string]: `${remain * 100}%` } : undefined}>
+        {s && <span className="bezel" aria-hidden="true" />}
         {s ? <Avatar k={s.avatar} size={pos === 'bottom' ? 92 : 86} vip={seat === me && myVip} name={s.name} /> : <span className="q-mark">?</span>}
         {remain !== null && <span className="timer-ring" aria-hidden="true" />}
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
