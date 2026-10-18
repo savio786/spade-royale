@@ -1219,3 +1219,11 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .pcd-l5 em i { font-style: normal; font-size: 18px; }
 .pcd-l5 em.w i { color: #1fb85a; } .pcd-l5 em.l i { color: #e0202e; } .pcd-l5 em.l { color: #c0101e; }
 .lobby .me-avatar { cursor: pointer; }
+/* all stats visible at once: no sideways scrolling needed */
+.pcd-stats { display: grid; grid-template-columns: 1.75fr repeat(7, 1fr); gap: 10px; overflow: visible; padding: 6px 16px 6px; }
+.pcd-tile { min-width: 0; height: 132px; padding: 8px 6px; }
+.pcd-tile span { font-size: 19px; line-height: 1; }
+.pcd-tile b { font-size: 42px; }
+.pcd-l5 { gap: 3px; } .pcd-l5 em { width: 28px; height: 56px; font-size: 22px; }
+.pcd-rings { justify-content: space-between; overflow: visible; }
+.pcd-ring { width: auto; flex: 1; }
