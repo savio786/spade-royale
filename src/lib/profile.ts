@@ -18,7 +18,7 @@ export interface Profile {
   lastSpin: number;             // ms
   lastAd: number;               // ms
   claimed: string[];            // achievement ids
-  settings: { sound: boolean; fast: boolean; vibrate: boolean };
+  settings: { sound: boolean; fast: boolean; vibrate: boolean; chatOff?: boolean };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
   chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
   guestKey: string | null;      // guest account secret (server-side saved progress)

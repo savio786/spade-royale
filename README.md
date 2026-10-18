@@ -158,7 +158,7 @@ What players can buy is listed in `shared/products.ts`:
 | 25,000 / 150,000 / 400,000 / 1M / 3M / 8M coins | $0.99 / $4.99 / $9.99 / $19.99 / $49.99 / $99.99 |
 | Chat Pass: 1 day / 30 days / lifetime | $0.99 / $2.99 / $9.99 |
 
-- **Chat is paid.** Without a Chat Pass, players can read table chat and send gifts, but can't send messages, quick phrases or emoji. VIP members get chat included. The server checks this too, not just the app.
+- **Quick phrases and emoji are free; typed messages are paid.** Everyone can send the preset phrases (Hello, Good luck, Faster please…) and emoji, read chat and send gifts. Typing your own message needs a Chat Pass (VIP includes it). The server checks this too — the free list lives in `shared/chat.ts`. Players can switch other people's chat off with the CHAT switch.
 - **Buying coins when short.** Whenever a player picks a table they can't afford, the store opens and says how many coins they're missing. It also shows a "Running low on coins" bar in the lobby and a "Buy coins to play again" button after a game.
 
 **Taking real payments on the website (Stripe)**

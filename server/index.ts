@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import { readFileSync, existsSync, statSync } from 'fs';
 import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
+import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
 import { board, credit, initLeaderboard } from './leaderboard';
@@ -148,9 +149,9 @@ function handle(c: Client, m: ClientMsg) {
     case 'chat': {
       if (!c.room || !c.player) return;
       const isGift = String(m.text).startsWith('🎁:');
-      // sending messages needs a Chat Pass (verified purchases when Stripe is on, otherwise the device's test-mode pass)
-      const allowed = isGift || (paymentsEnabled() ? hasChatPass(c.player.id) : !!c.player.chat);
-      if (!allowed) return send(c, { t: 'error', message: 'Get a Chat Pass to send messages' });
+      // quick phrases and emoji are free; typed messages need a Chat Pass (verified purchases when Stripe is on, otherwise the device's test-mode pass)
+      const allowed = isGift || isFreeChat(String(m.text)) || (paymentsEnabled() ? hasChatPass(c.player.id) : !!c.player.chat);
+      if (!allowed) return send(c, { t: 'error', message: 'Get a Chat Pass to type your own messages — quick phrases and emoji are free' });
     }
       return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
     case 'leave':

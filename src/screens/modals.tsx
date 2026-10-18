@@ -144,7 +144,7 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
         <button role="tab" aria-selected={tab === 'chat'} className={`tab ${tab === 'chat' ? 'on' : ''}`} onClick={() => setTab('chat')}>Chat Pass</button>
       </div>
       {tab === 'coins' && shortBy > 0 && <p className="need-banner"><Coin size={22} /> You need <b>{fmt(shortBy)}</b> more coins for that table. Any pack below covers it{shortBy > 25_000 ? ' except the smallest' : ''}.</p>}
-      {tab === 'chat' && <p className="need-banner chat"><Icon name="chat" size={22} /> {pass ? <>You have a <b>{pass}</b>. Buying more adds to it.</> : <>Chatting at tables needs a Chat Pass. Everyone can still read the chat and send gifts.</>}</p>}
+      {tab === 'chat' && <p className="need-banner chat"><Icon name="chat" size={22} /> {pass ? <>You have a <b>{pass}</b>. Buying more adds to it.</> : <>Quick phrases and emoji are free. A Chat Pass lets you type your own messages at the table.</>}</p>}
       <div className={`packs ${tab === 'chat' ? 'three' : ''}`}>
         {items.map((k) => {
           const bonus = k.kind === 'coins' && p.vip ? Math.round(k.coins! * 0.2) : 0;

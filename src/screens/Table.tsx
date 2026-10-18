@@ -14,8 +14,7 @@ import { activeTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
 const POS = ['bottom', 'left', 'top', 'right'] as const;
-const QUICK = ['Good luck!', 'Nice play partner!', 'Well played', 'Hurry up please', 'Oops 😅', 'Thanks!', 'Good game!', 'Cover my nil!'];
-const EMOJI = ['😂', '😎', '😡', '😭', '🔥', '👏', '🙏', '♠️'];
+import { FREE_EMOJI, QUICK_PHRASES } from '../../shared/chat';
 const GIFTS = [{ e: '🌹', cost: 100 }, { e: '☕', cost: 100 }, { e: '🍹', cost: 250 }, { e: '🍕', cost: 250 }, { e: '🏆', cost: 1000 }, { e: '💎', cost: 5000 }];
 
 export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onExit: () => void; onPlayAgain: () => void }) {
@@ -86,7 +85,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     if (newest && newest.id !== lastChatId.current) {
       const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me);
       lastChatId.current = newest.id;
-      if (fresh.length) { sfx.chat(); if (!chatOpen) setUnread((u) => u + fresh.length); }
+      if (fresh.length && !profile.get().settings.chatOff) { sfx.chat(); if (!chatOpen) setUnread((u) => u + fresh.length); }
       // gifts arrive via chat as "🎁:<seat>:<emoji>"
       for (const m of msgs.filter((m) => m.text.startsWith('🎁:') && Date.now() - m.ts < 3000)) {
         const [, to, e] = m.text.split(':');
@@ -117,7 +116,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const myTurn = st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
   const legal = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me);
   const lastBySeat = new Map<number, { text: string; ts: number }>();
-  for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:')) lastBySeat.set(m.seat, m);
+  for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me)) lastBySeat.set(m.seat, m);
 
   return (
     <div className="screen table-screen felt-bg" style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
@@ -411,45 +410,52 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
 
 function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; onClose: () => void; onSend: (t: string) => void }) {
   const [text, setText] = useState('');
-  const listRef = useRef<HTMLDivElement>(null);
-  const msgs = view.snap?.chat ?? [];
-  useEffect(() => { listRef.current?.scrollTo(0, 1e9); }, [msgs.length]);
   const p = useProfile();
   const unlocked = canChat(p);
   const pass = chatPassLabel(p);
-  const send = (t: string) => { if (unlocked && t.trim()) { onSend(t); sfx.click(); } };
+  const chatOn = !p.settings.chatOff;
+  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-4);
+  const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); onClose(); } };
   return (
-    <aside className="chat-panel" aria-label="Table chat">
-      <header><b>Table chat</b><button className="icon-btn" onClick={onClose} aria-label="Close chat"><Icon name="close" size={20} /></button></header>
-      <div className="chat-list" ref={listRef}>
-        {msgs.map((m) => {
-          if (m.text.startsWith('🎁:')) {
-            const [, to, e] = m.text.split(':');
-            return <div key={m.id} className="chat-sys">{m.name} sent {e} to {view.snap?.state.seats[+to]?.name}</div>;
-          }
-          return m.system ? <div key={m.id} className="chat-sys">{m.text}</div> : (
-            <div key={m.id} className={`chat-msg ${m.seat === me ? 'mine' : ''}`}><span className="chat-name">{m.name}</span><span>{m.text}</span></div>
-          );
-        })}
-        {msgs.length === 0 && <div className="chat-sys">{unlocked ? 'Say hi to the table 👋' : 'Messages from the table appear here.'}</div>}
-      </div>
-      {!unlocked ? (
-        <div className="chat-locked">
-          <Icon name="lock" size={30} />
-          <div><b>Chat is a paid feature</b><p>Get a Chat Pass to send messages, quick phrases and emoji. Reading chat and sending gifts stay free.</p></div>
-          <Pill color="gold" onClick={() => store.open({ tab: 'chat' })}>Get Chat Pass — from $0.99</Pill>
+    <div className="chat-overlay" role="dialog" aria-label="Table chat">
+      <div className="chat-dim" onClick={onClose} />
+      <aside className="chat-phrases">
+        <div className="chat-scroll">
+          {QUICK_PHRASES.map((q) => <button key={q} className="speech" onClick={() => send(q)}>{q}</button>)}
         </div>
-      ) : <>
-      {pass && <div className="chat-pass-line"><Icon name="chat" size={14} /> {pass}</div>}
-      <div className="quick-row">{QUICK.map((q) => <button key={q} onClick={() => send(q)}>{q}</button>)}</div>
-      <div className="emoji-row">{EMOJI.map((e) => <button key={e} onClick={() => send(e)} aria-label={`Send ${e}`}>{e}</button>)}</div>
-      <form onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }} className="chat-form">
-        <label className="sr-only" htmlFor="chat-in">Message</label>
-        <input id="chat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type a message…" autoComplete="off" />
-        <button type="submit" className="send-btn" aria-label="Send"><Icon name="send" size={20} /></button>
-      </form>
-      </>}
-    </aside>
+        <button className="chat-back" onClick={() => { sfx.click(); onClose(); }}>BACK</button>
+      </aside>
+      {msgs.length > 0 && (
+        <div className="chat-recent" aria-live="polite">
+          {msgs.map((m) => <div key={m.id} className={m.seat === me ? 'mine' : ''}><b>{m.name}:</b> {m.text}</div>)}
+        </div>
+      )}
+      <div className="chat-custom">
+        {unlocked ? (
+          <form onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }}>
+            <label className="sr-only" htmlFor="chat-in">Message</label>
+            <input id="chat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type your own message…" autoComplete="off" autoFocus />
+            <button type="submit" className="chat-send">SEND</button>
+            {pass && <small className="chat-pass-left">{pass}</small>}
+          </form>
+        ) : (
+          <>
+            <span className="cc-txt">GET A <b>CHAT PASS</b> TO TYPE YOUR OWN MESSAGES</span>
+            <button className="cc-buy" onClick={() => { sfx.click(); store.open({ tab: 'chat' }); }}>BUY NOW</button>
+          </>
+        )}
+      </div>
+      <aside className="chat-emoji">
+        <div className="chat-scroll emoji-grid">
+          {FREE_EMOJI.map((e) => <button key={e} onClick={() => send(e)} aria-label={`Send ${e}`}>{e}</button>)}
+        </div>
+        <label className="chat-toggle">
+          <span>CHAT</span>
+          <input type="checkbox" checked={chatOn} onChange={() => { sfx.click(); profile.set((x) => ({ settings: { ...x.settings, chatOff: chatOn } })); }} />
+          <span className="ct-switch" aria-hidden="true"><i>{chatOn ? 'ON' : 'OFF'}</i></span>
+        </label>
+      </aside>
+    </div>
   );
 }
 

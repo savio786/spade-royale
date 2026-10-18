@@ -89,7 +89,7 @@ export const TOPICS: Topic[] = [
     answer: 'Purchases normally appear within a few seconds of paying. If something is missing, refresh the game: delivered purchases are picked up automatically. Still missing? Contact support' + (SUPPORT ? ` at ${SUPPORT}` : ' through the site owner') + ' with the time of the purchase.',
     related: ['coins-buy', 'support'] },
   { id: 'chat-pass', title: 'Chat Pass', keys: ['chat', 'chat pass', 'cant chat', "can't chat", 'cant i chat', "can't i chat", 'chat at the table', 'chat with', 'message', 'talk', 'type', 'locked', 'send message', 'emoji', 'quick phrase'],
-    answer: 'Sending messages at tables needs a Chat Pass: $0.99 for 1 day, $2.99 for 30 days, or $9.99 for life (VIP includes chat). Without one you can still read the chat and send gifts.',
+    answer: 'Quick phrases (Hello, Good luck, Nice try…) and emoji are free for everyone — tap the chat button at the table. Typing your own messages needs a Chat Pass: $0.99 for 1 day, $2.99 for 30 days, or $9.99 for life (VIP includes it). Use the CHAT switch to turn other players\' messages off.',
     actions: [{ label: 'Get Chat Pass', action: 'store-chat' }], related: ['gifts', 'vip'] },
   { id: 'gifts', title: 'Table gifts', keys: ['gift', 'gifts', 'send gift', 'rose', 'drink', 'present', 'trophy gift', 'diamond'],
     answer: 'Tap the small gift icon on any player\'s avatar at the table to send them a gift (a rose, coffee, a trophy…). Gifts cost from 100 coins and are free to send without a Chat Pass.',
