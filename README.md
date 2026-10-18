@@ -47,6 +47,15 @@ android/ ios/  Capacitor native projects
 
 The same `shared/` engine runs in the browser (offline play) and on the server (online play), so rules are identical everywhere.
 
+## Running free ($0) on Render
+
+The live service runs on Render's free plan with two settings:
+
+- `KEEP_AWAKE=1` makes the server visit its own `/health` page every 10 minutes, so Render never puts it to sleep. One service running all month fits inside Render's 750 free hours.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` store the leaderboard, Wall of Fame and purchases in a free Upstash Redis database, so restarts don't wipe them. Without these two settings the server saves to files in `DATA_DIR`, which is fine on your own computer or with a paid Render disk.
+
+Free-plan limit: Render still restarts free services now and then, and on every deploy. Games in progress at that moment are interrupted, but saved data is kept.
+
 ## Put it on a website
 
 **Full version (multiplayer + private tables): Render, one click.** Push this folder to a GitHub repo, then in Render choose *New → Blueprint* and pick the repo. `render.yaml` + `Dockerfile` build the site and start the server on one URL. Add your own domain under *Settings → Custom Domains*.

@@ -1,7 +1,6 @@
 // Real weekly leaderboard + Wall of Fame, stored on the server in data/leaderboard.json.
 // Starts empty: only real players' winnings ever appear here.
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'fs';
-import { join } from 'path';
+import { loadJSON, saveJSON } from './storage';
 
 export interface LbEntry { id: string; name: string; avatar: string; earnings: number }
 export interface FameEntry { week: string; name: string; avatar: string; earnings: number }
@@ -11,9 +10,6 @@ interface Store {
   lastWeek: { week: string; rows: LbEntry[] } | null;
   fame: FameEntry[];
 }
-
-const DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
-const FILE = join(DIR, 'leaderboard.json');
 
 /** Weeks start Sunday 00:00 UTC. */
 export function weekKey(d = new Date()) {
@@ -28,20 +24,8 @@ export function weekEndsAt(d = new Date()) {
 function empty(): Store { return { week: weekKey(), players: {}, lastWeek: null, fame: [] }; }
 
 let store: Store = empty();
-try { if (existsSync(FILE)) store = { ...empty(), ...JSON.parse(readFileSync(FILE, 'utf8')) }; } catch { store = empty(); }
-
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-function save() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    try {
-      mkdirSync(DIR, { recursive: true });
-      writeFileSync(FILE + '.tmp', JSON.stringify(store));
-      renameSync(FILE + '.tmp', FILE);
-    } catch (e) { console.error('leaderboard save failed', e); }
-  }, 500);
-}
+export async function initLeaderboard() { store = await loadJSON('leaderboard', empty()); }
+const save = () => saveJSON('leaderboard', () => store);
 
 const sorted = (rows: LbEntry[]) => rows.filter((r) => r.earnings > 0).sort((a, b) => b.earnings - a.earnings);
 

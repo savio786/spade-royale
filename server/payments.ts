@@ -2,8 +2,7 @@
 // Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to switch them on; without them the store runs in test mode.
 // Purchases are recorded here and handed to the player's device the next time it checks in.
 import { createHmac, timingSafeEqual } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { loadJSON, saveJSON } from './storage';
 import { productById } from '../shared/products';
 
 const KEY = process.env.STRIPE_SECRET_KEY || '';
@@ -13,14 +12,9 @@ export const paymentsEnabled = () => !!KEY && !!WH_SECRET;
 interface Grant { session: string; playerId: string; productId: string; at: number; claimed: boolean }
 interface Store { grants: Grant[]; chatUntil: Record<string, number> } // chatUntil: ms epoch, -1 = lifetime
 
-const DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
-const FILE = join(DIR, 'purchases.json');
 let store: Store = { grants: [], chatUntil: {} };
-try { if (existsSync(FILE)) store = { ...store, ...JSON.parse(readFileSync(FILE, 'utf8')) }; } catch { /* start empty */ }
-function save() {
-  try { mkdirSync(DIR, { recursive: true }); writeFileSync(FILE + '.tmp', JSON.stringify(store)); renameSync(FILE + '.tmp', FILE); }
-  catch (e) { console.error('purchases save failed', e); }
-}
+export async function initPayments() { store = await loadJSON('purchases', store); }
+const save = () => saveJSON('purchases', () => store);
 
 /** Server-side truth for chat when real payments are on. */
 export function hasChatPass(playerId: string) {

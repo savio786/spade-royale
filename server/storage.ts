@@ -1,0 +1,51 @@
+// Where the server keeps the leaderboard and purchase records.
+// - With UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN set: a free Upstash Redis database
+//   (survives restarts on Render's free plan).
+// - Otherwise: JSON files in DATA_DIR (default ./data) — fine locally or with a Render disk.
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
+import { join } from 'path';
+
+const UP_URL = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/$/, '');
+const UP_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
+export const storageKind = UP_URL && UP_TOKEN ? 'upstash' : 'files';
+
+async function redis(cmd: unknown[]) {
+  const r = await fetch(UP_URL, { method: 'POST', headers: { authorization: `Bearer ${UP_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify(cmd) });
+  const j = (await r.json()) as { result?: unknown; error?: string };
+  if (!r.ok || j.error) throw new Error(j.error || `Upstash HTTP ${r.status}`);
+  return j.result;
+}
+
+export async function loadJSON<T>(name: string, fallback: T): Promise<T> {
+  try {
+    if (storageKind === 'upstash') {
+      const v = await redis(['GET', `spade-royale:${name}`]);
+      return typeof v === 'string' ? { ...fallback, ...JSON.parse(v) } : fallback;
+    }
+    const f = join(DIR, `${name}.json`);
+    return existsSync(f) ? { ...fallback, ...JSON.parse(readFileSync(f, 'utf8')) } : fallback;
+  } catch (e) {
+    console.error(`could not load ${name}, starting empty`, e);
+    return fallback;
+  }
+}
+
+/** Debounced save: many quick changes become one write. */
+const timers = new Map<string, ReturnType<typeof setTimeout>>();
+export function saveJSON(name: string, get: () => unknown) {
+  if (timers.has(name)) return;
+  timers.set(name, setTimeout(async () => {
+    timers.delete(name);
+    const data = JSON.stringify(get());
+    try {
+      if (storageKind === 'upstash') await redis(['SET', `spade-royale:${name}`, data]);
+      else {
+        mkdirSync(DIR, { recursive: true });
+        const f = join(DIR, `${name}.json`);
+        writeFileSync(f + '.tmp', data);
+        renameSync(f + '.tmp', f);
+      }
+    } catch (e) { console.error(`could not save ${name}`, e); }
+  }, 400));
+}

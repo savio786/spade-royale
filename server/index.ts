@@ -7,8 +7,9 @@ import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
-import { board, credit } from './leaderboard';
-import { claim, createCheckout, handleWebhook, hasChatPass, paymentsEnabled } from './payments';
+import { board, credit, initLeaderboard } from './leaderboard';
+import { storageKind } from './storage';
+import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentsEnabled } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
@@ -216,4 +217,13 @@ wss.on('connection', (ws) => {
   ws.on('close', () => { leave(c, false); clients.delete(c); });
 });
 
-http.listen(PORT, () => console.log(`Spade Royale server on http://localhost:${PORT} (ws path /ws)`));
+Promise.all([initLeaderboard(), initPayments()]).then(() => {
+  http.listen(PORT, () => console.log(`Spade Royale server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
+});
+
+// Render's free plan sleeps after 15 idle minutes; with KEEP_AWAKE=1 the server visits itself every 10 minutes.
+const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+if (process.env.KEEP_AWAKE === '1' && SELF_URL) {
+  setInterval(() => { fetch(`${SELF_URL}/health`).catch(() => {}); }, 10 * 60_000);
+  console.log(`keep-awake on: pinging ${SELF_URL}/health every 10 minutes`);
+}
