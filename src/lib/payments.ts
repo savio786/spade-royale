@@ -2,18 +2,13 @@
 // and the purchase is delivered when the player returns. Otherwise the store runs in test mode (instant, free).
 import { useSyncExternalStore } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { serverOrigin } from './config';
 import { Product, productById } from '../../shared/products';
 import { profile, Profile, fmt } from './profile';
 import { toast } from './toast';
 import { sfx } from './sound';
 
-function apiBase(): string | null {
-  if (import.meta.env.VITE_OFFLINE === '1') return null;
-  const ws = import.meta.env.VITE_SERVER_URL as string | undefined;
-  if (ws) return ws.replace(/^ws/, 'http').replace(/\/ws\/?$/, '');
-  const { protocol, origin } = window.location;
-  return protocol === 'http:' || protocol === 'https:' ? origin : null;
-}
+const apiBase = serverOrigin;
 
 // ---------- chat pass ----------
 export const canChat = (p: Profile) => p.vip || p.chatUntil === -1 || p.chatUntil > Date.now();

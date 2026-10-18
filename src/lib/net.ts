@@ -3,17 +3,11 @@
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
 import { profile, levelFromXp } from './profile';
 import { canChat } from './payments';
+import { socketUrl } from './config';
 
 export type NetStatus = 'offline' | 'connecting' | 'online';
 
-function serverUrl() {
-  if (import.meta.env.VITE_OFFLINE === '1') return null; // static hosting without the multiplayer server
-  const env = import.meta.env.VITE_SERVER_URL as string | undefined;
-  if (env) return env;
-  const { protocol, host } = window.location;
-  if (protocol !== 'http:' && protocol !== 'https:') return null; // native shell without a configured server
-  return `${protocol === 'https:' ? 'wss' : 'ws'}://${host}/ws`;
-}
+const serverUrl = socketUrl;
 
 class Net {
   ws: WebSocket | null = null;

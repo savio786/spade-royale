@@ -1,5 +1,6 @@
 // HTTP calls to the game server for the real leaderboard. Returns null when no server is reachable.
 import type { Mode } from '../../shared/engine';
+import { serverOrigin } from './config';
 
 export interface BoardRow { name: string; avatar: string; earnings: number; me?: boolean }
 export interface FameRow { week: string; name: string; avatar: string; earnings: number }
@@ -12,13 +13,7 @@ export interface Board {
   fame: FameRow[];
 }
 
-function apiBase(): string | null {
-  if (import.meta.env.VITE_OFFLINE === '1') return null;
-  const ws = import.meta.env.VITE_SERVER_URL as string | undefined;
-  if (ws) return ws.replace(/^ws/, 'http').replace(/\/ws\/?$/, '');
-  const { protocol, origin } = window.location;
-  return protocol === 'http:' || protocol === 'https:' ? origin : null;
-}
+const apiBase = serverOrigin;
 
 export async function fetchBoard(id?: string): Promise<Board | null> {
   const base = apiBase();
