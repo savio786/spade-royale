@@ -2,7 +2,7 @@
 // Used in the browser for offline play (one human, three bots) and on the
 // server for online/private tables (up to four humans, bots fill the gaps).
 import { Action, applyAction, createGame, GameState, isFull, PublicState, RuleError, Seat, sideOf, startRound, TableSettings, viewFor } from './engine';
-import { botBid, botPlay, BOT_LINES, BOT_NAMES, pick } from './bot';
+import { botBid, botPlay, BOT_LINES, BOT_NAMES, pick, skilledBid, skilledPlay, skillForBet } from './bot';
 
 export interface ChatMsg { id: number; seat: number; name: string; text: string; ts: number; system?: boolean }
 export interface Snapshot {
@@ -217,9 +217,12 @@ export class TableRuntime {
       return;
     }
     const seat = g.turn;
+    // computer players: high skill at big tables (25K+ bet), medium below. A timed-out human always gets the best move.
+    const skill = skillForBet(g.settings.bet);
+    const isBot = !!g.seats[seat]?.bot;
     const auto = () => {
-      if (this.g.phase === 'bidding') this.act(seat, { type: 'bid', seat, bid: botBid(this.g, seat) });
-      else if (this.g.phase === 'playing') this.act(seat, { type: 'play', seat, card: botPlay(this.g, seat) });
+      if (this.g.phase === 'bidding') this.act(seat, { type: 'bid', seat, bid: isBot ? skilledBid(this.g, seat, skill) : botBid(this.g, seat) });
+      else if (this.g.phase === 'playing') this.act(seat, { type: 'play', seat, card: isBot ? skilledPlay(this.g, seat, skill) : botPlay(this.g, seat) });
     };
     if (g.seats[seat]?.bot) {
       const base = g.phase === 'bidding' ? 900 : 650;

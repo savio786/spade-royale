@@ -133,7 +133,11 @@ The Online Lobby lists only public tables that have at least one real person at 
 
 ## Waiting for real players
 
-Public online tables wait **2 minutes** after the first person sits down so other real people can join (Quick Play and the Online Lobby send new players to tables that are already waiting). The table shows a countdown; when it runs out, computer players take the empty seats. Anyone at the table can tap **Start now with computer players** to skip the wait. Change the wait with the `FILL_MS` environment variable in Render (milliseconds, e.g. `60000` for 1 minute). Private tables never add computer players on their own — the host decides.
+Public online tables wait **30 seconds** after the first person sits down so other real people can join (Quick Play and the Online Lobby send new players to tables that are already waiting). The table shows a countdown; when it runs out, computer players take the empty seats. Anyone at the table can tap **Start now with computer players** to skip the wait. Change the wait with the `FILL_MS` environment variable in Render (milliseconds, default `30000` = 30 seconds). Private tables never add computer players on their own — the host decides.
+
+## Computer player skill
+
+Computer players play at **high** skill at tables with a bet of 25,000 coins or more, and **medium** skill at smaller tables (they misjudge some bids and make the odd loose play). In testing, high-skill players win about 64% of games against medium ones. Change the threshold with `HIGH_SKILL_BET` in `shared/bot.ts`.
 
 ## Turn timer and inactivity
 

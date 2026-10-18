@@ -142,3 +142,23 @@ export const BOT_LINES = {
   nil: ['Going nil, cover me!', 'Nil time 🙏'],
 };
 export const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+
+// ---------------- Skill levels ----------------
+export type BotSkill = 'medium' | 'high';
+/** Tables with a bet at or above this use high-skill computer players; smaller tables use medium. */
+export const HIGH_SKILL_BET = 25_000;
+export const skillForBet = (bet: number): BotSkill => (bet >= HIGH_SKILL_BET ? 'high' : 'medium');
+
+/** High plays the full strategy. Medium misjudges some bids and makes occasional loose plays. */
+export function skilledBid(g: GameState, seat: number, skill: BotSkill): number {
+  const best = botBid(g, seat);
+  if (skill === 'high') return best;
+  if (best === 0) return Math.random() < 0.35 ? 1 : 0;               // sometimes too timid to go nil
+  if (Math.random() < 0.3) return Math.max(1, Math.min(13, best + (Math.random() < 0.5 ? -1 : 1)));
+  return best;
+}
+export function skilledPlay(g: GameState, seat: number, skill: BotSkill): Card {
+  if (skill === 'high' || Math.random() >= 0.22) return botPlay(g, seat);
+  const legal = legalCards(g, seat);
+  return legal[Math.floor(Math.random() * legal.length)];
+}
