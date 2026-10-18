@@ -23,7 +23,7 @@ export interface TableController {
 }
 
 export const TURN_MS = 12000;   // time to bid or play before the game does it for you
-export const MAX_MISSED = 3;     // missed turns in a row before you're removed
+export const MAX_MISSED = 3;     // missed turns in one game before you're removed
 
 function me() {
   const p = profile.get();
@@ -39,7 +39,7 @@ export class LocalController implements TableController {
     this.view = { snap: null, code: opts.code ?? null, host: true, online: false, error: null, settings, kicked: null };
     this.rt = new TableRuntime(settings, {
       fillBotsAfterMs: null, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED, botSpeed: profile.get().settings.fast ? 0.55 : 1,
-      onInactive: () => { this.view = { ...this.view, kicked: `You missed ${MAX_MISSED} turns in a row, so you were disconnected from the table.` }; this.subs.forEach((f) => f(this.view)); },
+      onInactive: () => { this.view = { ...this.view, kicked: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` }; this.subs.forEach((f) => f(this.view)); },
     });
     this.seat = this.rt.addHuman(me(), 0);
     this.rt.subscribe('me', this.seat, (snap) => { this.view = { ...this.view, snap }; this.subs.forEach((f) => f(this.view)); });

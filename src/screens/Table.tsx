@@ -169,7 +169,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
 
       {myTurn && secsLeft !== null && st.phase === 'playing' && <div className={`turn-clock ${secsLeft <= 4 ? 'hurry' : ''}`} role="timer">Your turn · {secsLeft}s</div>}
       {missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
-        <div className="missed-warning" role="alert">⏱ Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns in a row and you'll be disconnected.</div>
+        <div className="missed-warning" role="alert">⏱ Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
       )}
       {st.phase === 'bidding' && st.turn === me && <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />}
       {view.kicked && (

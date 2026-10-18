@@ -62,7 +62,7 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
     fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
     onInactive: (_seat, playerId) => {
       for (const c of room.clients) if (c.player?.id === playerId) {
-        send(c, { t: 'kicked', reason: `You missed ${MAX_MISSED} turns in a row, so you were disconnected from the table.` });
+        send(c, { t: 'kicked', reason: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` });
         leave(c, false);
       }
     },

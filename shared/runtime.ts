@@ -9,7 +9,7 @@ export interface Snapshot {
   state: PublicState; chat: ChatMsg[];
   turnDeadline: number | null;   // when the current human turn auto-plays
   turnTotal: number | null;      // length of a turn (ms)
-  missed: number[];              // consecutive turns each seat let run out
+  missed: number[];              // turns each seat let run out during this game
   maxMissed: number;             // removed from the table when reached
 }
 
@@ -18,7 +18,7 @@ export interface RuntimeOptions {
   fillBotsAfterMs: number | null;
   /** auto-play for a human who doesn't act in time (null = wait forever) */
   turnTimeoutMs: number | null;
-  /** consecutive timed-out turns before a player is removed (default 3) */
+  /** timed-out turns during one game before a player is removed (default 3); acting in between does not reset it */
   maxMissedTurns?: number;
   /** called when a player is removed for inactivity, before their seat goes to a computer player */
   onInactive?: (seat: number, playerId: string) => void;
@@ -149,7 +149,6 @@ export class TableRuntime {
       if (e instanceof RuleError) return e.message;
       throw e;
     }
-    if (seat >= 0 && !this.autoActing) this.missed[seat] = 0; // the player acted themselves
     if (a.type === 'bid' && a.bid === 0 && this.g.seats[seat]?.bot && Math.random() < 0.6) this.say(seat, pick(BOT_LINES.nil));
     this.changed();
     return null;
@@ -197,7 +196,7 @@ export class TableRuntime {
     }
   }
 
-  /** A human let their turn run out: play for them from their cards, and remove them after too many in a row. */
+  /** A human let their turn run out: play for them from their cards, and remove them after too many in one game. */
   private timedOut(seat: number, auto: () => void) {
     const s = this.g.seats[seat];
     if (!s || s.bot) return auto();
@@ -206,7 +205,7 @@ export class TableRuntime {
     const max = this.opts.maxMissedTurns ?? 3;
     const n = ++this.missed[seat];
     if (n >= max) {
-      this.system(`${s.name} was disconnected after ${max} missed turns`);
+      this.system(`${s.name} was disconnected after missing ${max} turns this game`);
       this.opts.onInactive?.(seat, s.id);
       this.removeHuman(s.id);
     } else {
