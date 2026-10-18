@@ -660,3 +660,32 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .chat-pass-line { display: flex; align-items: center; gap: 6px; padding: 6px 14px 0; font-size: 12px; color: var(--gold); }
 .low-coins { position: absolute; left: 50%; bottom: 132px; translate: -50% 0; z-index: 3; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border-radius: 999px; background: rgba(10, 6, 40, .9); border: 2px solid var(--gold); white-space: nowrap; font-weight: 500; }
 .pill.small-pill { min-height: 38px; font-size: 19px; padding: 0 16px; border-width: 2px; }
+
+/* Spade Bot (help chat) */
+.help-btn { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font: 400 38px/1 var(--display); color: #fff; background: radial-gradient(circle at 40% 30%, #7d8cff, #2a37b0); border: 3px solid #c8d0ff; box-shadow: 0 0 10px rgba(110,140,255,.7); }
+.net-dot + .help-btn { margin-left: 4px; }
+.helpbot { z-index: 45; display: flex; flex-direction: column; background: linear-gradient(180deg, #1a2390, #080c3c); border: 3px solid #7b8fff; box-shadow: 0 10px 40px rgba(0,0,0,.6); color: var(--ink); font-family: var(--body); animation: slideIn .2s ease-out; }
+.helpbot.stage { position: absolute; top: 0; right: 0; bottom: 0; width: 440px; border-width: 0 0 0 3px; }
+.helpbot.page { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: min(400px, calc(100vw - 32px)); height: min(620px, calc(100vh - 32px)); border-radius: 18px; overflow: hidden; }
+.helpbot header { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 14px; border-bottom: 2px solid rgba(255,255,255,.12); background: rgba(0,0,0,.2); }
+.hb-avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #2a1d8a; background: radial-gradient(circle at 40% 30%, #fff1a8, var(--gold) 55%, var(--gold-lo)); flex: none; }
+.hb-title { flex: 1; display: flex; flex-direction: column; line-height: 1.2; }
+.hb-title b { font: 400 24px var(--display); letter-spacing: 1.5px; }
+.hb-title small { font-size: 12px; color: var(--ink-2); }
+.hb-list { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.hb-msg { max-width: 88%; padding: 10px 13px; border-radius: 16px 16px 16px 4px; background: rgba(255,255,255,.1); font-size: 15px; line-height: 1.45; align-self: flex-start; }
+.hb-msg p { margin: 0; }
+.hb-msg.me { align-self: flex-end; border-radius: 16px 16px 4px 16px; background: #3a58e8; }
+.hb-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.hb-chips button { padding: 6px 11px; border-radius: 999px; font-size: 13px; background: rgba(255,255,255,.08); border: 1px solid rgba(160,180,255,.5); color: #dfe6ff; }
+.hb-chips button:hover { background: rgba(255,255,255,.18); }
+.hb-msg.typing { display: flex; gap: 5px; padding: 14px; }
+.hb-msg.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-2); animation: blink 1s infinite; }
+.hb-msg.typing i:nth-child(2) { animation-delay: .15s; } .hb-msg.typing i:nth-child(3) { animation-delay: .3s; }
+.hb-form { display: flex; gap: 8px; padding: 10px 12px 14px; border-top: 2px solid rgba(255,255,255,.08); }
+.hb-form input { flex: 1; min-width: 0; height: 46px; border-radius: 12px; padding: 0 14px; color: #fff; background: rgba(4,6,40,.7); border: 2px solid rgba(140,160,255,.45); outline: none; font-size: 16px; }
+.hb-form input:focus { border-color: var(--blue-hi); }
+.helpbot-launcher { position: fixed; z-index: 30; right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 10px; padding: 12px 18px 12px 14px; border-radius: 999px; font-weight: 700; font-size: 15px; color: #fff; background: linear-gradient(180deg, #4d63ff, #1f2dab); border: 2px solid #c8d0ff; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.helpbot-launcher:hover { filter: brightness(1.12); }
+@media (max-width: 480px) { .helpbot-launcher span { display: none; } .helpbot-launcher { padding: 14px; } }

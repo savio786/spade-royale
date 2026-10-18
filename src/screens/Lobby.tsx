@@ -5,6 +5,7 @@ import type { OnlineCounts } from '../../shared/protocol';
 import { net, NetStatus } from '../lib/net';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
+import { helpBot } from '../lib/helpbot';
 import {
   AdModal, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
 } from './modals';
@@ -45,6 +46,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button className="buy-coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}>BUY COINS</button>
         <div className="level-pill"><span className="level-star"><Icon name="star" size={34} /></span> LEVEL {lvl}</div>
         <span className={`net-dot ${status}`} title={`Server ${status}`} aria-label={`Multiplayer ${status}`} />
+        <button className="help-btn" onClick={() => { sfx.click(); helpBot.open(); }} aria-label="Help: ask Spade Bot"><span>?</span></button>
         <button className="gear" onClick={() => { sfx.click(); setModal('settings'); }} aria-label="Settings"><Icon name="gear" size={34} /></button>
       </header>
 

@@ -104,6 +104,14 @@ npm run cap:ios                 # builds, syncs and opens Xcode
 
 Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 
+## Spade Bot (help chat)
+
+A free, built-in help bot answers players' questions about rules, bidding, Nil, bags, scoring, private tables, coins, the Chat Pass, gifts, VIP, the leaderboard, accounts and installing the app. Players open it from the **?** button in the lobby, the **Ask Spade Bot** button in the table menu, or the "Questions? Ask Spade Bot" button on the landing page. Some answers include buttons that open the store or the full rules.
+
+- Answers and keywords live in `src/lib/helpbot.ts`. To add a topic, copy an entry and change its `keys` and `answer`.
+- `npx tsx scripts/test-helpbot.ts` checks that sample questions reach the right answer.
+- Set `VITE_SUPPORT_EMAIL` (for example in Render → Environment) to show your support address in the bot's answers.
+
 ## Payments (coins and Chat Pass)
 
 What players can buy is listed in `shared/products.ts`:

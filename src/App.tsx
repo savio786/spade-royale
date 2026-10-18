@@ -11,6 +11,8 @@ import { cityForBet, profile, useProfile } from './lib/profile';
 import { net } from './lib/net';
 import { useToasts, toast } from './lib/toast';
 import { Coin } from './components/ui';
+import { HelpBot } from './components/HelpBot';
+import { helpBot } from './lib/helpbot';
 import { Capacitor } from '@capacitor/core';
 import type { TableSettings } from '../shared/engine';
 
@@ -52,6 +54,7 @@ export default function App() {
     return () => window.removeEventListener('focus', onFocus);
   }, [inApp]);
   const storeReq = useStoreRequest();
+  useEffect(() => { helpBot.close(); }, [inApp]); // landing ↔ game: start with the help chat closed
 
   const installPrompt = bip ? () => { bip.prompt(); setBip(null); } : null;
 
@@ -84,7 +87,7 @@ export default function App() {
 
   return (
     <>
-      {inApp ? <Stage>{body}{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : body}
+      {inApp ? <Stage>{body}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<HelpBot variant="page" /></>}
       {inApp && <RotateHint />}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}

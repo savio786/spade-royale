@@ -7,6 +7,7 @@ import { fmt, levelFromXp, profile, short, useProfile } from '../lib/profile';
 import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
+import { helpBot } from '../lib/helpbot';
 import { VipModal } from './modals';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
@@ -173,6 +174,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         <Modal title="Menu" onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}>
           <div className="menu-list">
             <Pill color="blue" onClick={() => { setRulesOpen(true); setMenuOpen(false); }}><Icon name="book" size={18} /> How to play</Pill>
+            <Pill color="purple" onClick={() => { setMenuOpen(false); helpBot.open(); }}><Icon name="chat" size={18} /> Ask Spade Bot</Pill>
             <Pill color="blue" onClick={() => profile.set((x) => ({ settings: { ...x.settings, sound: !x.settings.sound } }))}>
               <Icon name={p.settings.sound ? 'sound' : 'mute'} size={18} /> Sound: {p.settings.sound ? 'On' : 'Off'}</Pill>
             <Pill color="red" onClick={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }}>
