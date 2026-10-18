@@ -41,10 +41,13 @@ export async function loadPaymentConfig() {
   try { const r = await fetch(`${base}/api/payments`); realPayments = r.ok && !!(await r.json()).enabled; } catch { /* test mode */ }
 }
 export const isTestMode = () => !realPayments;
+/** The Android/iPhone apps may only sell through Google Play / Apple billing. Until that is connected, buying is switched off in the apps. */
+export const nativeStoreOff = () => Capacitor.isNativePlatform() || import.meta.env?.VITE_NATIVE_STORE === 'play';
 
 export async function buy(productId: string): Promise<void> {
   const p = productById(productId);
   if (!p) return;
+  if (nativeStoreOff()) { toast('Purchases in the app are coming soon'); return; }
   if (!realPayments) { apply(p); return; } // test mode
   const base = apiBase()!;
   try {

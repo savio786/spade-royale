@@ -75,19 +75,16 @@ If you host the web build somewhere else (e.g. Netlify) and the server separatel
 
 ## Google Play (Android)
 
-Requirements: Android Studio, a Google Play Console account ($25 one-time).
+Every push to `main` builds the Android app on GitHub (Actions → **Android app**):
 
-```bash
-cp .env.example .env            # set VITE_SERVER_URL to your deployed server (wss://…/ws)
-npm run cap:android             # builds, syncs and opens Android Studio
-```
+- **spade-royale-android** — a test APK you can install straight onto a phone.
+- **spade-royale-play-bundle** — the signed `.aab` to upload to the Play Console. It is built once these four repository secrets exist (GitHub → Settings → Secrets and variables → Actions → New repository secret): `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Keep the upload key file safe — Play App Signing lets you reset a lost upload key, but it takes a support request.
 
-1. Change `appId` in `capacitor.config.ts` (e.g. `com.yourcompany.spades`) before your first release, then run `npx cap sync`.
-2. Icons/splash: `npx @capacitor/assets generate` (uses `resources/icon.png` and `resources/splash.png`).
-3. Android Studio → *Build → Generate Signed Bundle* → **AAB**. Keep the keystore safe.
-4. Play Console → create the app → upload the AAB to Internal testing → fill in content rating, data safety and store listing → promote to Production.
+The version code is GitHub's build number, so each new bundle can be uploaded as an update.
 
-The activity is locked to landscape (`android/app/src/main/AndroidManifest.xml`).
+**Purchases in the app:** Google requires Google Play Billing for coins, Chat Passes and VIP inside an Android app, so buying is switched off in the app build (the store shows "coming soon"; free coins still work). Once the Play developer account exists and the products are created in the Play Console, connect Google Play Billing (for example with RevenueCat) and turn the store back on.
+
+Publishing checklist: Google Play developer account ($25 one-time) → create the app (package `com.spaderoyale.app`) → enroll in Play App Signing → upload the `.aab` to Internal / Closed testing → store listing, privacy policy `https://spade-royale.onrender.com/#privacy`, content rating (simulated gambling with virtual coins, 18+), data safety → production. New personal accounts may need a closed test with 12+ testers for 14 days first.
 
 ## Apple App Store (iPhone / iPad)
 

@@ -1,5 +1,7 @@
-# Builds an installable Android test app (APK) on every push to main.
-# Download it from GitHub → Actions → latest "Android app" run → Artifacts → spade-royale-android.
+# Builds the Android app on every push to main.
+#  • spade-royale-android     → test APK you can install directly on a phone
+#  • spade-royale-play-bundle → signed .aab to upload to the Google Play Console
+#    (needs the four ANDROID_* secrets in GitHub → Settings → Secrets and variables → Actions)
 name: Android app
 
 on:
@@ -10,6 +12,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -20,22 +26,44 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Check Android tools (preinstalled on GitHub's machines)
-        run: echo "ANDROID_HOME=$ANDROID_HOME" && ls "$ANDROID_HOME"
       - name: Install
         run: npm ci
-      - name: Build the game
+      - name: Build the game (app version)
         run: npx vite build
+        env:
+          VITE_NATIVE_STORE: play
       - name: Copy it into the Android project
         run: npx cap sync android
-      - name: Build the APK
+      - name: Build the test APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-      - name: Upload the APK
+      - name: Upload the test APK
         uses: actions/upload-artifact@v4
         with:
           name: spade-royale-android
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+      - name: Build the signed Play Store bundle
+        if: env.HAS_KEY == 'true'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/upload.jks"
+          ./gradlew bundleRelease --no-daemon
+          rm -f "$RUNNER_TEMP/upload.jks"
+      - name: Upload the Play Store bundle
+        if: env.HAS_KEY == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spade-royale-play-bundle
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+      - name: Reminder
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::Add the ANDROID_* secrets to also build the signed Play Store bundle (.aab)."

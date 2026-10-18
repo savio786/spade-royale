@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
-import { buy, chatPassLabel, isTestMode, store } from '../lib/payments';
+import { buy, chatPassLabel, isTestMode, nativeStoreOff, store } from '../lib/payments';
 import { PRODUCTS, priceLabel } from '../../shared/products';
 import { activeTheme, THEMES, themeVars } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
@@ -137,6 +137,7 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
   const pass = chatPassLabel(p);
   const purchase = async (id: string) => { setBusy(id); await buy(id); setBusy(null); };
   const items = PRODUCTS.filter((x) => x.kind === tab);
+  const appOff = nativeStoreOff();
   return (
     <Modal title="Store" onClose={onClose} wide className="store-modal">
       <div className="tabs" role="tablist">
@@ -145,6 +146,7 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
       </div>
       {tab === 'coins' && shortBy > 0 && <p className="need-banner"><Coin size={22} /> You need <b>{fmt(shortBy)}</b> more coins for that table. Any pack below covers it{shortBy > 25_000 ? ' except the smallest' : ''}.</p>}
       {tab === 'chat' && <p className="need-banner chat"><Icon name="chat" size={22} /> {pass ? <>You have a <b>{pass}</b>. Buying more adds to it.</> : <>Quick phrases and emoji are free. A Chat Pass lets you type your own messages at the table.</>}</p>}
+      {appOff && <p className="need-banner"><Icon name="star" size={22} /> Coin packs and Chat Passes are coming soon to the app. Free coins: the daily gift, the Mega Bonus wheel and +100 coins every 30 minutes.</p>}
       <div className={`packs ${tab === 'chat' ? 'three' : ''}`}>
         {items.map((k) => {
           const bonus = k.kind === 'coins' && p.vip ? Math.round(k.coins! * 0.2) : 0;
@@ -156,12 +158,12 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
               <div className="pack-amt">{k.kind === 'coins' ? fmt(k.coins!) : k.chatDays === 0 ? 'Lifetime' : `${k.chatDays} day${k.chatDays === 1 ? '' : 's'}`}</div>
               {bonus > 0 && <div className="pack-bonus">+{fmt(bonus)} VIP bonus</div>}
               {k.kind === 'chat' && <div className="pack-bonus">{k.chatDays === 0 ? 'Chat forever' : 'Unlimited messages'}</div>}
-              <Pill color="green" disabled={busy !== null} onClick={() => purchase(k.id)}>{busy === k.id ? 'Opening…' : priceLabel(k.priceCents)}</Pill>
+              <Pill color="green" disabled={busy !== null || appOff} onClick={() => purchase(k.id)}>{appOff ? 'Soon' : busy === k.id ? 'Opening…' : priceLabel(k.priceCents)}</Pill>
             </div>
           );
         })}
       </div>
-      <p className="muted small center store-foot">{isTestMode()
+      <p className="muted small center store-foot">{appOff ? 'In-app purchases will use Google Play billing.' : isTestMode()
         ? 'Test mode: purchases are free and instant. Add your Stripe keys to the server to take real payments (README → Payments).'
         : 'Secure checkout by Stripe. Purchases are added to your account as soon as payment completes.'}</p>
     </Modal>
@@ -179,9 +181,9 @@ export function VipModal({ onClose }: { onClose: () => void }) {
         <li><Icon name="gift" /> +20% coins on every store pack</li>
         <li><Icon name="bolt" /> Double daily-spin rewards</li>
       </ul>
-      {p.vip ? <p className="center gold-text">You're a VIP member.</p> : (
-        <Pill color="gold" className="wide-btn" onClick={() => { profile.set({ vip: true }); sfx.win(); toast('Welcome to the VIP Club!'); onClose(); }}>Join VIP — $4.99/week (test mode)</Pill>
-      )}
+      {p.vip ? <p className="center gold-text">You're a VIP member.</p> : nativeStoreOff()
+        ? <Pill color="gold" className="wide-btn" disabled>VIP Club — coming soon to the app</Pill>
+        : <Pill color="gold" className="wide-btn" onClick={() => { profile.set({ vip: true }); sfx.win(); toast('Welcome to the VIP Club!'); onClose(); }}>Join VIP — $4.99/week (test mode)</Pill>}
     </Modal>
   );
 }
