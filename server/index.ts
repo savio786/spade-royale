@@ -15,7 +15,8 @@ import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymen
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
-const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 8000);
+// Public tables wait this long for real people before computer players take the empty seats.
+const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 120_000);
 const TURN_MS = Number(process.env.TURN_MS || 12000);
 const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 
@@ -134,7 +135,8 @@ function handle(c: Client, m: ClientMsg) {
       return seatClient(c, r);
     }
     case 'fillBots':
-      if (c.room && c.player && c.room.hostId === c.player.id) c.room.rt.fillWithBots(400);
+      // private tables: only the host; public tables: anyone seated who doesn't want to wait
+      if (c.room && c.player && (c.room.hostId === c.player.id || !c.room.rt.g.settings.isPrivate)) c.room.rt.fillWithBots(400);
       return;
     case 'act': {
       if (!c.room || !c.player) return;

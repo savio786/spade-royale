@@ -805,3 +805,6 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .legal-body a { color: var(--gold); }
 .legal-meta { margin-top: 36px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1); color: #9c93c4; font-size: 14px; }
 .land-legal a, .legal-links a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+.fill-wait { margin: 6px 0 10px; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.3); color: #e6dcff; font-size: 15px; text-align: center; }
+.fill-wait b { color: var(--gold); font-variant-numeric: tabular-nums; }

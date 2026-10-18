@@ -145,7 +145,12 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
                     <button className="code" onClick={() => { navigator.clipboard?.writeText(view.code!).then(() => toast('Invite code copied'), () => toast(`Invite code: ${view.code}`)); }} aria-label={`Copy invite code ${view.code}`}>{view.code} <Icon name="copy" size={18} /></button>
                   </div>
                 )}
-                {view.online && view.host && view.settings.isPrivate && <Pill color="purple" onClick={() => ctl.fillBots()}>Fill empty seats with bots</Pill>}
+                {view.snap!.fillAt && (
+                  <div className="fill-wait" role="timer">
+                    Waiting for real players · computer players join in <b>{fmtClock(Math.max(0, view.snap!.fillAt - now))}</b>
+                  </div>
+                )}
+                {view.online && (view.snap!.fillAt || (view.host && view.settings.isPrivate)) && <Pill color="purple" onClick={() => ctl.fillBots()}>{view.settings.isPrivate ? 'Fill empty seats with bots' : 'Start now with computer players'}</Pill>}
               </div>
             )}
             <div className={`trick ${st.phase === 'trickEnd' ? `collect to-${rel(st.lastTrickWinner ?? 0)}` : ''}`}>
@@ -281,6 +286,8 @@ function ScorePanel({ st }: { st: PublicState }) {
     </div>
   );
 }
+
+const fmtClock = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 
 function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myVip }: {
   st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; onGift: () => void; myVip: boolean;

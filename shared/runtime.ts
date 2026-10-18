@@ -11,6 +11,7 @@ export interface Snapshot {
   turnTotal: number | null;      // length of a turn (ms)
   missed: number[];              // turns each seat let run out during this game
   maxMissed: number;             // removed from the table when reached
+  fillAt: number | null;         // when computer players fill the empty seats (waiting tables)
 }
 
 export interface RuntimeOptions {
@@ -44,6 +45,7 @@ export class TableRuntime {
   private listeners = new Map<string, { seat: number; fn: (s: Snapshot) => void }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private fillTimer: ReturnType<typeof setTimeout> | null = null;
+  private fillAt: number | null = null;
   private deadline: number | null = null;
   private missed = [0, 0, 0, 0];
   private autoActing = false;
@@ -74,6 +76,7 @@ export class TableRuntime {
     this.g = { ...this.g, seats };
     this.system(`${p.name} joined the table`);
     if (this.opts.fillBotsAfterMs !== null && !this.fillTimer) {
+      this.fillAt = Date.now() + this.opts.fillBotsAfterMs;
       this.fillTimer = setTimeout(() => this.fillWithBots(), this.opts.fillBotsAfterMs);
     }
     this.changed();
@@ -99,6 +102,7 @@ export class TableRuntime {
   /** Seat bots one by one with a small delay, like players arriving. */
   fillWithBots(stagger = 700) {
     if (this.fillTimer) { clearTimeout(this.fillTimer); this.fillTimer = null; }
+    this.fillAt = null;
     const addOne = () => {
       if (this.destroyed || this.g.phase !== 'waiting') return;
       const free = this.g.seats.findIndex((s) => !s);
@@ -121,7 +125,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3 };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));
