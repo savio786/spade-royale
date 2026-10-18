@@ -7,7 +7,7 @@ import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
 import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
-import { prizeFor, seatsOfSide, type Mode, type TableSettings } from '../shared/engine';
+import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
 import { board, credit, initLeaderboard } from './leaderboard';
 import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
@@ -114,7 +114,7 @@ function leave(c: Client, notify = true) {
 function handle(c: Client, m: ClientMsg) {
   switch (m.t) {
     case 'hello':
-      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat };
+      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat, stats: cleanStats(m.player.stats) };
       guestName(c.player.id).then((n) => { if (n && c.player) c.player.name = n; });
       return send(c, { t: 'welcome', online: onlineCounts() });
     case 'list':
@@ -162,6 +162,18 @@ function handle(c: Client, m: ClientMsg) {
     case 'leave':
       return leave(c);
   }
+}
+
+/** Profile-card numbers a player shares with the table (bounded so nobody can send junk). */
+function cleanStats(v: unknown): PublicStats | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  const n = (x: unknown, max = 1e12) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
+  const rings: Record<string, number> = {};
+  if (o.rings && typeof o.rings === 'object') for (const c of CITIES) { const r = n((o.rings as Record<string, unknown>)[c], 1e6); if (r) rings[c] = r; }
+  const played = n(o.played, 1e7);
+  return { coins: n(o.coins), played, won: Math.min(played, n(o.won, 1e7)), last5: String(o.last5 ?? '').replace(/[^WL]/g, '').slice(-5),
+    nil: n(o.nil, 1e7), nilMade: n(o.nilMade, 1e7), blind: n(o.blind, 1e7), blindMade: n(o.blindMade, 1e7), rings };
 }
 
 /** Only built-in avatar keys or uploaded photo ids are passed on to other players. */

@@ -1,7 +1,7 @@
 // WebSocket link to the multiplayer server. The app works fully offline (bots)
 // and upgrades to live tables when the server is reachable.
 import type { ClientMsg, ServerMsg } from '../../shared/protocol';
-import { profile, levelFromXp } from './profile';
+import { publicStats, profile, levelFromXp } from './profile';
 import { canChat } from './payments';
 import { socketUrl } from './config';
 
@@ -44,7 +44,7 @@ class Net {
 
   hello() {
     const p = profile.get();
-    this.send({ t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p) } });
+    this.send({ t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p), stats: publicStats(p) } });
   }
 
   send(m: ClientMsg) {

@@ -3,7 +3,7 @@ import type { Snapshot } from './runtime';
 
 export type OnlineCounts = Record<Mode, number> & { total: number };
 
-export interface PlayerHello { id: string; name: string; avatar: string; level: number; chat?: boolean }
+export interface PlayerHello { id: string; name: string; avatar: string; level: number; chat?: boolean; stats?: import('./engine').PublicStats }
 
 export interface TableSummary {
   id: string;

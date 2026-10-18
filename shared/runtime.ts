@@ -1,7 +1,7 @@
 // A running table: game state + bot turns + timers + chat.
 // Used in the browser for offline play (one human, three bots) and on the
 // server for online/private tables (up to four humans, bots fill the gaps).
-import { Action, applyAction, createGame, GameState, isFull, PublicState, RuleError, Seat, sideOf, startRound, TableSettings, viewFor } from './engine';
+import { CITIES, PublicStats, Action, applyAction, createGame, GameState, isFull, PublicState, RuleError, Seat, sideOf, startRound, TableSettings, viewFor } from './engine';
 import { botBid, botPlay, BOT_LINES, BOT_NAMES, pick, skilledBid, skilledPlay, skillForBet } from './bot';
 
 export interface ChatMsg { id: number; seat: number; name: string; text: string; ts: number; system?: boolean }
@@ -37,8 +37,22 @@ const CARTOON = Array.from({ length: 24 }, (_, i) => `a${i + 1}`);
 const PEOPLE_NAMES = ['Marcus', 'Sofia', 'Jake', 'Aiyana', 'Mei', 'Andre', 'Priya', 'Carlos', 'Grace', 'Ethan', 'Hana', 'Omar', 'Rosa', 'Luca', 'Kenji', 'Lena', 'Bella', 'Jordan', 'Camila', 'Ryan', 'Zara', 'Mateo', 'Ava', 'Dante'];
 let botCounter = 0;
 /** Computer players are always one of the illustrated people, with the matching name. */
+function botStats(level: number): PublicStats {
+  const r = (a: number, b: number) => a + Math.random() * (b - a);
+  const played = Math.round(level * r(3, 7) + r(5, 30));
+  const rate = r(0.42, 0.72);
+  const won = Math.round(played * rate);
+  const nil = Math.round(played * r(0.15, 0.45)), blind = Math.round(nil * r(0, 0.12));
+  const rings: Record<string, number> = {};
+  const reach = Math.min(CITIES.length, 1 + Math.floor(level / 10));
+  for (let i = 0; i < reach; i++) if (Math.random() < 0.93) rings[CITIES[i]] = Math.max(1, Math.round(won * r(0.05, 0.4) / (i + 1)));
+  return { coins: Math.round(level * level * r(400, 2500) + r(5000, 60000)), played, won,
+    last5: Array.from({ length: 5 }, () => (Math.random() < rate ? 'W' : 'L')).join(''),
+    nil, nilMade: Math.round(nil * r(0.65, 0.92)), blind, blindMade: Math.round(blind * r(0.4, 0.8)), rings };
+}
 export function makeBot(exclude: string[] = []): Seat {
-  const base = { id: `bot:${++botCounter}`, level: 5 + Math.floor(Math.random() * 60), bot: true };
+  const lvl = 5 + Math.floor(Math.random() * 60);
+  const base = { id: `bot:${++botCounter}`, level: lvl, bot: true, stats: botStats(lvl) };
   const free = PEOPLE_NAMES.map((n, i) => [n, i] as const).filter(([n]) => !exclude.includes(n));
   if (free.length) { const [name, i] = pick(free); return { ...base, name, avatar: `p${i + 1}` }; }
   const names = BOT_NAMES.filter((n) => !exclude.includes(n));

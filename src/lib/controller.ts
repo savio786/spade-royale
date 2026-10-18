@@ -2,7 +2,7 @@
 import type { Action, TableSettings } from '../../shared/engine';
 import { TableRuntime, Snapshot } from '../../shared/runtime';
 import { net } from './net';
-import { profile, levelFromXp } from './profile';
+import { profile, levelFromXp, publicStats } from './profile';
 
 export interface CtlView {
   snap: Snapshot | null;
@@ -27,7 +27,7 @@ export const MAX_MISSED = 3;     // missed turns in one game before you're remov
 
 function me() {
   const p = profile.get();
-  return { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp) };
+  return { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), stats: publicStats(p) };
 }
 
 export class LocalController implements TableController {

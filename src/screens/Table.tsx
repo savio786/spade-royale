@@ -4,7 +4,8 @@ import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
 import type { CtlView, TableController } from '../lib/controller';
-import { fmt, levelFromXp, profile, short, useProfile } from '../lib/profile';
+import { fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
+import { PlayerCard } from '../components/PlayerCard';
 import { music, sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
@@ -27,6 +28,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const [rulesOpen, setRulesOpen] = useState(false);
   const [vip, setVip] = useState(false);
   const [giftFor, setGiftFor] = useState<number | null>(null);
+  const [cardSeat, setCardSeat] = useState<number | null>(null);
   const [flying, setFlying] = useState<{ id: number; e: string; to: string }[]>([]);
   const [unread, setUnread] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -63,7 +65,16 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : 0;
       const nils = st.history.filter((h) => h.nilResults[me] === true).length;
       const pens = st.history.filter((h) => h.bagPenalty[mySide]).length;
+      const myNils = st.history.filter((h) => h.bids[me] === 0);
+      const blinds = myNils.filter((h) => h.blind?.[me]);
+      const city = st.settings.city;
       profile.set((x) => ({
+        card: {
+          last5: ((x.card?.last5 ?? '') + (won ? 'W' : 'L')).slice(-5),
+          nil: (x.card?.nil ?? 0) + myNils.length, nilMade: (x.card?.nilMade ?? 0) + myNils.filter((h) => h.nilResults[me]).length,
+          blind: (x.card?.blind ?? 0) + blinds.length, blindMade: (x.card?.blindMade ?? 0) + blinds.filter((h) => h.nilResults[me]).length,
+          rings: won ? { ...(x.card?.rings ?? {}), [city]: ((x.card?.rings ?? {})[city] ?? 0) + 1 } : (x.card?.rings ?? {}),
+        },
         coins: x.coins + prize,
         xp: x.xp + 40 + (won ? 80 : 0),
         weekEarnings: x.weekEarnings + prize,
@@ -176,7 +187,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         {[0, 1, 2, 3].map((seat) => (
           <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} total={view.snap!.turnTotal} now={now}
             bubble={(() => { const b = lastBySeat.get(seat); return b && now - b.ts < 4500 ? b.text : null; })()}
-            onGift={() => setGiftFor(seat)} myVip={p.vip} />
+            onGift={() => setGiftFor(seat)} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
         ))}
         {flying.map((f) => <span key={f.id} className={`flying to-${f.to}`} aria-hidden="true">{f.e}</span>)}
       </div>
@@ -244,6 +255,13 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
       {themesOpen && <ThemeModal onClose={() => setThemesOpen(false)} />}
       {vip && <VipModal onClose={() => setVip(false)} />}
+      {cardSeat !== null && st.seats[cardSeat] && (() => {
+        const s = st.seats[cardSeat]!;
+        const mine = cardSeat === me;
+        const lvl = mine ? levelFromXp(p.xp) : s.level;
+        return <PlayerCard onClose={() => setCardSeat(null)} player={{ name: mine ? (p.name || s.name) : s.name, avatar: mine ? p.avatar : s.avatar, level: lvl, bot: s.bot,
+          stats: mine ? publicStats(p) : s.stats, levelPct: mine ? ((p.xp - xpForLevel(lvl)) / (xpForLevel(lvl + 1) - xpForLevel(lvl))) * 100 : undefined }} />;
+      })()}
       {giftFor !== null && (
         <Modal title={`Send a gift to ${st.seats[giftFor]?.name ?? 'the table'}`} onClose={() => setGiftFor(null)}>
           <div className="gift-grid">
@@ -318,8 +336,8 @@ function ScorePanel({ st }: { st: PublicState }) {
 
 const fmtClock = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 
-function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myVip }: {
-  st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; onGift: () => void; myVip: boolean;
+function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onProfile, myVip }: {
+  st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; onGift: () => void; onProfile: () => void; myVip: boolean;
 }) {
   const s = st.seats[seat];
   const mode = st.settings.mode;
@@ -330,12 +348,12 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myV
     <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} ${st.phase === 'waiting' ? 'is-waiting' : 'in-play'}`}>
       <div className="seat-av" style={remain !== null ? { ['--pct' as string]: `${remain * 100}%` } : undefined}>
         {s && <span className="bezel" aria-hidden="true" />}
-        {s ? <Avatar k={s.avatar} size={pos === 'bottom' ? 92 : 86} vip={seat === me && myVip} name={s.name} /> : <span className="q-mark">?</span>}
+        {s ? <button className="seat-pic" onClick={onProfile} aria-label={`View ${s.name}'s profile`}><Avatar k={s.avatar} size={pos === 'bottom' ? 92 : 86} vip={seat === me && myVip} name={s.name} /></button> : <span className="q-mark">?</span>}
         {remain !== null && <span className="timer-ring" aria-hidden="true" />}
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
         {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}
       </div>
-      {s && <div className="seat-name">{s.name} {s.bot ? <small className="cpu-tag">CPU</small> : <small>Lv {s.level}</small>}</div>}
+      {s && <div className="seat-name" onClick={onProfile} role="button" tabIndex={-1}>{s.name} {s.bot ? <small className="cpu-tag">CPU</small> : <small>Lv {s.level}</small>}</div>}
       {s && st.phase !== 'waiting' && (
         <div className="seat-pill" aria-label={`${s.name}: ${st.bids[seat] === null ? 'no bid yet' : `${st.tricks[seat]} of ${st.bids[seat]} books`}`}>
           {st.bids[seat] === null ? '-/-' : st.bids[seat] === 0 ? <>{st.tricks[seat]}/<small>{st.blind?.[seat] ? 'BN' : 'NIL'}</small></> : `${st.tricks[seat]}/${st.bids[seat]}`}

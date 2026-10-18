@@ -6,12 +6,22 @@ export interface Card { s: Suit; r: number } // r: 2..14 (14 = Ace)
 export type Mode = 'partners' | 'solo';
 export type Phase = 'waiting' | 'bidding' | 'playing' | 'trickEnd' | 'roundEnd' | 'gameOver';
 
+/** Career numbers shown on a player's profile card. */
+export interface PublicStats {
+  coins: number; played: number; won: number;
+  last5: string;                     // most recent last, e.g. "LWWWW"
+  nil: number; nilMade: number; blind: number; blindMade: number;
+  rings: Record<string, number>;     // city → wins at that city's tables
+}
+export const CITIES = ['New York', 'Chicago', 'Miami', 'Seattle', 'Las Vegas', 'London', 'Monaco'];
+
 export interface Seat {
   id: string;          // player id (bots start with "bot:")
   name: string;
   avatar: string;      // avatar key
   level: number;
   bot: boolean;
+  stats?: PublicStats;
 }
 
 export interface TableSettings {

@@ -14,6 +14,7 @@ export interface Profile {
   claimedWeeks: string[];       // weeks whose leaderboard reward was collected
   stats: { played: number; won: number; soloWins: number; partnersWins: number; nilsMade: number; biggestWin: number; bagsPenalties: number };
   friends: Friend[];
+  card: { last5: string; nil: number; nilMade: number; blind: number; blindMade: number; rings: Record<string, number> };
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
   lastSpin: number;             // ms
   lastAd: number;               // ms
@@ -52,6 +53,7 @@ function fresh(): Profile {
     weekKey: weekKey(), weekEarnings: 0, claimedWeeks: [],
     stats: { played: 0, won: 0, soloWins: 0, partnersWins: 0, nilsMade: 0, biggestWin: 0, bagsPenalties: 0 },
     friends: [],
+    card: { last5: '', nil: 0, nilMade: 0, blind: 0, blindMade: 0, rings: {} },
     lastDaily: null, lastSpin: 0, lastAd: 0, claimed: [],
     settings: { sound: true, fast: false, vibrate: true },
     lastTable: null,
@@ -137,4 +139,10 @@ export const MIN_STEPS = [-100, -150, -200, -250, -300];
 export function suggestedBet(coins: number) {
   const target = coins / 20;
   return [...BET_STEPS].reverse().find((b) => b <= target) ?? 100;
+}
+
+/** The numbers this player shows on their profile card at tables. */
+export function publicStats(p: Profile): import('../../shared/engine').PublicStats {
+  const c = p.card ?? { last5: '', nil: 0, nilMade: 0, blind: 0, blindMade: 0, rings: {} };
+  return { coins: p.coins, played: p.stats.played, won: p.stats.won, last5: c.last5, nil: c.nil, nilMade: c.nilMade, blind: c.blind, blindMade: c.blindMade, rings: c.rings };
 }

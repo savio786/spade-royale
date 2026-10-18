@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
-import { fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel } from '../lib/profile';
+import { fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
+import { PlayerCard } from '../components/PlayerCard';
 import { GlobeArt, PlayArt, PrivateArt } from '../components/LobbyArt';
 
 const MEGA_MS = 4 * 3600e3;
@@ -14,7 +15,7 @@ import {
   AdModal, bonusLeftMs, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
 } from './modals';
 
-type ModalKey = null | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private';
+type ModalKey = null | 'card' | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private';
 
 const SLIDES = [
   { k: 'vip', title: 'VIP', sub: 'Get special privileges!' },
@@ -46,7 +47,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
   return (
     <div className="screen lobby felt-bg">
       <header className="topbar">
-        <button className="me-avatar" onClick={() => setModal('settings')} aria-label="Profile and settings"><Avatar k={p.avatar} size={84} vip={p.vip} name={p.name} /></button>
+        <button className="me-avatar" onClick={() => { sfx.click(); setModal('card'); }} aria-label="Your profile and stats"><Avatar k={p.avatar} size={84} vip={p.vip} name={p.name} /></button>
         <div className="coins-pill">
           <Coin size={36} /><span className="coins-num">{fmt(p.coins)}</span>
           <button className="plus-btn" aria-label="Get coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}><Icon name="plus" size={20} /></button>
@@ -107,6 +108,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span></button>
       </nav>
 
+      {modal === 'card' && <PlayerCard onClose={close} player={{ name: p.name, avatar: p.avatar, level: lvl, stats: publicStats(p), levelPct: lvlPct }} />}
       {modal === 'vip' && <VipModal onClose={close} />}
       {modal === 'ad' && <AdModal onClose={close} />}
       {modal === 'spin' && <SpinModal onClose={close} />}
