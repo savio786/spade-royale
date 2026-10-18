@@ -21,7 +21,9 @@ const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 15_000);
 const TURN_MS = Number(process.env.TURN_MS || 12000);
 const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 
-interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number }
+interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>> }
+/** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
+const REJOIN_MS = 45_000;
 interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null }
 
 const rooms = new Map<string, Room>();
@@ -87,7 +89,33 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   return room;
 }
 
-function closeRoom(r: Room) { r.rt.destroy(); rooms.delete(r.id); }
+function closeRoom(r: Room) { r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
+
+/** Connection dropped: during a game hold the seat for a while so the player can come back. */
+function dropped(c: Client) {
+  const r = c.room, id = c.player?.id;
+  const phase = r?.rt.g.phase;
+  if (!r || !id || phase === 'waiting' || phase === 'gameOver') return leave(c, false);
+  c.unsub?.(); c.unsub = null; r.clients.delete(c); c.room = null;
+  r.away ??= new Map();
+  clearTimeout(r.away.get(id));
+  r.away.set(id, setTimeout(() => {
+    r.away?.delete(id);
+    if (![...r.clients].some((x) => x.player?.id === id)) { r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
+  }, REJOIN_MS));
+}
+
+/** A returning player takes their seat back. */
+function rejoin(c: Client, tableId: string) {
+  const r = rooms.get(String(tableId)), id = c.player?.id;
+  const seat = r && id ? r.rt.g.seats.findIndex((s) => s?.id === id && !s.bot) : -1;
+  if (!r || !id || seat < 0) return send(c, { t: 'tableGone' });
+  clearTimeout(r.away?.get(id)); r.away?.delete(id);
+  for (const other of [...r.clients]) if (other !== c && other.player?.id === id) { other.unsub?.(); r.clients.delete(other); other.room = null; }
+  c.room = r; r.clients.add(c);
+  send(c, { t: 'joined', tableId: r.id, seat, code: r.code, host: r.hostId === id, settings: r.rt.g.settings });
+  c.unsub = r.rt.subscribe(id, seat, (snap) => send(c, { t: 'snap', snap }));
+}
 
 function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
@@ -161,6 +189,8 @@ function handle(c: Client, m: ClientMsg) {
       return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
     case 'leave':
       return leave(c);
+    case 'rejoin':
+      return rejoin(c, m.tableId);
   }
 }
 
@@ -326,7 +356,13 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     try { handle(c, JSON.parse(String(raw))); } catch (e) { send(c, { t: 'error', message: 'Bad message' }); }
   });
-  ws.on('close', () => { leave(c, false); clients.delete(c); });
+  ws.on('close', () => { dropped(c); clients.delete(c); });
+});
+
+// Render stops the old server when a new version goes live: warn everyone first.
+process.on('SIGTERM', () => {
+  for (const c of clients) send(c, { t: 'notice', message: c.room && c.room.rt.g.phase !== 'waiting' ? 'The game server is restarting for an update. This game will end and your bet will be refunded.' : 'The game server is restarting for an update — back in a moment.' });
+  setTimeout(() => process.exit(0), 1500);
 });
 
 Promise.all([initLeaderboard(), initPayments()]).then(() => {

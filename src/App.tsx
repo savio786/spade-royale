@@ -49,6 +49,7 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', h);
   }, []);
   useEffect(() => { if (inApp && p.provider) net.connect(); }, [inApp, p.provider]);
+  useEffect(() => net.on((m) => { if (m.t === 'notice') toast(m.message); }), []);
   useEffect(() => { if (inApp) void pullGuestProgress(); }, [inApp]);
   useEffect(() => { if (p.provider && net.status === 'online') net.hello(); }, [p.name, p.avatar, p.provider, p.chatUntil, p.vip]);
   useEffect(() => {

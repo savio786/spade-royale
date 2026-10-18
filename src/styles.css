@@ -1272,3 +1272,6 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .seat-pill { display: flex; align-items: baseline; justify-content: center; align-content: center; padding-top: 0; padding-bottom: 0; line-height: 1; }
 .seat-pill { align-items: center; } .seat-pill small { margin-left: 1px; }
 .seat-pill { cursor: pointer; pointer-events: auto; }
+.conn-banner { position: absolute; left: 50%; top: 86px; translate: -50% 0; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 999px; background: rgba(120,10,30,.92); border: 2px solid #ff8a96; color: #fff; font-size: 17px; font-weight: 600; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+.conn-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid rgba(255,255,255,.3); border-top-color: #fff; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

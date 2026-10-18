@@ -12,6 +12,7 @@ export interface CtlView {
   error: string | null;
   settings: TableSettings;
   kicked: string | null;          // set when removed from the table for inactivity
+  conn: 'ok' | 'lost' | 'gone';   // online tables: connection to the server
 }
 
 export interface TableController {
@@ -36,7 +37,7 @@ export class LocalController implements TableController {
   private subs = new Set<(v: CtlView) => void>();
   private seat = 0;
   constructor(settings: TableSettings, opts: { code?: string } = {}) {
-    this.view = { snap: null, code: opts.code ?? null, host: true, online: false, error: null, settings, kicked: null };
+    this.view = { snap: null, code: opts.code ?? null, host: true, online: false, error: null, settings, kicked: null, conn: 'ok' };
     this.rt = new TableRuntime(settings, {
       fillBotsAfterMs: null, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED, botSpeed: profile.get().settings.fast ? 0.55 : 1,
       onInactive: () => { this.view = { ...this.view, kicked: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` }; this.subs.forEach((f) => f(this.view)); },
@@ -66,19 +67,29 @@ export class RemoteController implements TableController {
   private subs = new Set<(v: CtlView) => void>();
   private off: () => void;
   constructor(join: RemoteJoin) {
-    this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null };
-    this.off = net.on((m) => {
-      if (m.t === 'joined') this.update({ code: m.code, host: m.host, settings: m.settings, error: null });
+    this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null, conn: 'ok' };
+    const offMsg = net.on((m) => {
+      if (m.t === 'joined') { this.tableId = m.tableId; this.update({ code: m.code, host: m.host, settings: m.settings, error: null, conn: 'ok' }); }
       else if (m.t === 'snap') this.update({ snap: m.snap });
       else if (m.t === 'error') this.update({ error: m.message });
       else if (m.t === 'kicked') this.update({ kicked: m.reason });
+      else if (m.t === 'tableGone') this.update({ conn: 'gone' });
     });
+    // dropped connection: show it, and once reconnected ask for our seat back
+    let wasOnline = net.status === 'online';
+    const offStatus = net.onStatus((s) => {
+      if (s !== 'online' && wasOnline && this.tableId) this.update({ conn: 'lost' });
+      if (s === 'online' && !wasOnline && this.tableId) net.send({ t: 'rejoin', tableId: this.tableId });
+      wasOnline = s === 'online';
+    });
+    this.off = () => { offMsg(); offStatus(); };
     net.hello();
     if (join.kind === 'quick') net.send({ t: 'quick', settings: join.settings });
     else if (join.kind === 'table') net.send({ t: 'join', tableId: join.tableId });
     else if (join.kind === 'createPrivate') net.send({ t: 'createPrivate', settings: join.settings });
     else net.send({ t: 'joinPrivate', code: join.code });
   }
+  private tableId: string | null = null;
   private update(p: Partial<CtlView>) { this.view = { ...this.view, ...p }; this.subs.forEach((f) => f(this.view)); }
   subscribe(f: (v: CtlView) => void) { this.subs.add(f); f(this.view); return () => { this.subs.delete(f); }; }
   act(a: Action) { net.send({ t: 'act', action: a }); }

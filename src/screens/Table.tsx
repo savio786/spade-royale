@@ -104,6 +104,10 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         setTimeout(() => setFlying((f) => f.filter((x) => x.id !== m.id)), 1800);
       }
     }
+    if (view.online && view.conn === 'gone' && charged.current && !settled.current && st.phase !== 'gameOver') {
+      settled.current = true;
+      profile.set((x) => ({ coins: x.coins + st.settings.bet }));
+    }
     if (view.error) toast(view.error, 'error');
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -226,6 +230,19 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       {st.phase === 'bidding' && st.turn === me && st.bids[me] === null && (st.hand.length === 0
         ? <SeeCards secsLeft={secsLeft} onSee={() => { sfx.click(); ctl.act({ type: 'reveal', seat: me }); }} onBlind={() => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: 0, blind: true }); }} />
         : <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />)}
+      {view.online && view.conn === 'lost' && !view.kicked && (
+        <div className="conn-banner" role="status"><span className="conn-spin" aria-hidden="true" /> Connection lost — reconnecting… your seat is held for 45 seconds</div>
+      )}
+      {view.online && view.conn === 'gone' && st.phase !== 'gameOver' && (
+        <div className="modal-backdrop">
+          <div className="modal kicked" role="alertdialog" aria-label="Game interrupted">
+            <h2 className="modal-title">Game interrupted</h2>
+            <p className="center">This table closed before the game finished — usually because the game server restarted for an update.</p>
+            {charged.current && <p className="center gold-text">Your {fmt(st.settings.bet)} coin bet has been refunded.</p>}
+            <div className="btn-row"><Pill color="green" onClick={leave}>Back to lobby</Pill></div>
+          </div>
+        </div>
+      )}
       {view.kicked && (
         <div className="modal-backdrop">
           <div className="modal kicked" role="alertdialog" aria-label="Disconnected for inactivity">

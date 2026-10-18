@@ -26,9 +26,10 @@ class Net {
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
+      // say who we are first, so anything that reacts to "online" (like rejoining a table) is recognised
+      ws.send(JSON.stringify(this.helloMsg()));
       this.setStatus('online');
-      this.hello();
-      this.queue.splice(0).forEach((m) => this.send(m));
+      this.queue.splice(0).filter((m) => m.t !== 'act').forEach((m) => this.send(m)); // stale moves are dropped
     };
     ws.onmessage = (e) => {
       try { const m = JSON.parse(e.data) as ServerMsg; this.subs.forEach((f) => f(m)); } catch { /* ignore */ }
@@ -36,16 +37,17 @@ class Net {
     ws.onclose = () => {
       this.ws = null;
       this.setStatus('offline');
-      const delay = Math.min(30000, 2000 * 2 ** this.retry++);
+      const delay = Math.min(15000, 1000 * 2 ** this.retry++); // quick retries: 1s, 2s, 4s…
       setTimeout(() => this.connect(), delay);
     };
     ws.onerror = () => ws.close();
   }
 
-  hello() {
+  private helloMsg(): ClientMsg {
     const p = profile.get();
-    this.send({ t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p), stats: publicStats(p) } });
+    return { t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p), stats: publicStats(p) } };
   }
+  hello() { this.send(this.helloMsg()); }
 
   send(m: ClientMsg) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m));

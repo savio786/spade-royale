@@ -25,7 +25,8 @@ export type ClientMsg =
   | { t: 'fillBots' }
   | { t: 'act'; action: Action }
   | { t: 'chat'; text: string }
-  | { t: 'leave' };
+  | { t: 'leave' }
+  | { t: 'rejoin'; tableId: string };   // after a dropped connection: take my seat back
 
 export type ServerMsg =
   | { t: 'welcome'; online: OnlineCounts }
@@ -34,4 +35,6 @@ export type ServerMsg =
   | { t: 'snap'; snap: Snapshot }
   | { t: 'error'; message: string }
   | { t: 'left' }
-  | { t: 'kicked'; reason: string };
+  | { t: 'kicked'; reason: string }
+  | { t: 'tableGone' }                  // the table no longer exists (e.g. the server restarted)
+  | { t: 'notice'; message: string };
