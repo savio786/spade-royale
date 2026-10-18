@@ -1265,3 +1265,9 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .fan .hcard.legal { transform: translateY(-40px); }
 .fan .hcard.legal:hover { transform: translateY(-56px); }
 .score-panel .sp-spade { display: none; }
+/* when the game is shown sideways on an upright phone, turn toasts the same way */
+body.rotated .toasts { left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%) rotate(90deg); }
+body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-50%, -50%) rotate(90deg); }
+.info-panel { left: 15.5%; } .score-panel { right: 15.5%; }
+.seat-pill { display: flex; align-items: baseline; justify-content: center; align-content: center; padding-top: 0; padding-bottom: 0; line-height: 1; }
+.seat-pill { align-items: center; } .seat-pill small { margin-left: 1px; }

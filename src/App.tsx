@@ -95,7 +95,6 @@ export default function App() {
   return (
     <>
       {inApp ? <Stage>{body}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<HelpBot variant="page" /></>}
-      {inApp && <RotateHint />}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
       </div>
@@ -105,21 +104,27 @@ export default function App() {
 
 /** Game screens are laid out on a landscape stage that scales to any window, iPad or phone. */
 function Stage({ children }: { children: React.ReactNode }) {
+  // Phones held upright: turn the whole game sideways so it fills the screen (works even with rotation lock
+  // or in in-app browsers like Messenger that stay in portrait). Turn the phone and it reads the right way up.
   const calc = () => {
-    const vw = window.innerWidth, vh = window.innerHeight, ar = vw / vh;
+    const sw = window.innerWidth, sh = window.innerHeight;
+    const rotated = sh > sw && Math.min(sw, sh) <= 820;
+    const vw = rotated ? sh : sw, vh = rotated ? sw : sh, ar = vw / vh;
     const W = Math.round(Math.min(1360, Math.max(1280, 720 * ar)));  // keep the layout tight so everything stays big on wide screens
     const H = Math.round(Math.min(820, Math.max(720, 1280 / ar)));   // …and on tall screens like iPad
-    return { W, H, s: Math.min(vw / W, vh / H) };
+    return { W, H, s: Math.min(vw / W, vh / H), rotated };
   };
   const [d, setD] = useState(calc);
-  useEffect(() => { const h = () => setD(calc()); window.addEventListener('resize', h); window.addEventListener('orientationchange', h); return () => { window.removeEventListener('resize', h); window.removeEventListener('orientationchange', h); }; }, []);
+  useEffect(() => {
+    const h = () => setD(calc());
+    window.addEventListener('resize', h); window.addEventListener('orientationchange', h);
+    return () => { window.removeEventListener('resize', h); window.removeEventListener('orientationchange', h); };
+  }, []);
+  useEffect(() => { document.body.classList.toggle('rotated', d.rotated); }, [d.rotated]);
   return (
     <div className="stage-outer felt-bg">
-      <div className="stage" style={{ width: d.W, height: d.H, transform: `translate(-50%, -50%) scale(${d.s})` }}>{children}</div>
+      <div className="stage" style={{ width: d.W, height: d.H, transform: `translate(-50%, -50%)${d.rotated ? ' rotate(90deg)' : ''} scale(${d.s})` }}>{children}</div>
     </div>
   );
 }
 
-function RotateHint() {
-  return <div className="rotate-hint"><div>↻</div><p>Turn your device sideways for the best table view</p></div>;
-}
