@@ -31,4 +31,5 @@ export type ServerMsg =
   | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings }
   | { t: 'snap'; snap: Snapshot }
   | { t: 'error'; message: string }
-  | { t: 'left' };
+  | { t: 'left' }
+  | { t: 'kicked'; reason: string };

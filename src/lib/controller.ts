@@ -11,6 +11,7 @@ export interface CtlView {
   online: boolean;
   error: string | null;
   settings: TableSettings;
+  kicked: string | null;          // set when removed from the table for inactivity
 }
 
 export interface TableController {
@@ -20,6 +21,9 @@ export interface TableController {
   fillBots(): void;
   leave(): void;
 }
+
+export const TURN_MS = 12000;   // time to bid or play before the game does it for you
+export const MAX_MISSED = 3;     // missed turns in a row before you're removed
 
 function me() {
   const p = profile.get();
@@ -32,8 +36,11 @@ export class LocalController implements TableController {
   private subs = new Set<(v: CtlView) => void>();
   private seat = 0;
   constructor(settings: TableSettings, opts: { code?: string } = {}) {
-    this.rt = new TableRuntime(settings, { fillBotsAfterMs: null, turnTimeoutMs: null, botSpeed: profile.get().settings.fast ? 0.55 : 1 });
-    this.view = { snap: null, code: opts.code ?? null, host: true, online: false, error: null, settings };
+    this.view = { snap: null, code: opts.code ?? null, host: true, online: false, error: null, settings, kicked: null };
+    this.rt = new TableRuntime(settings, {
+      fillBotsAfterMs: null, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED, botSpeed: profile.get().settings.fast ? 0.55 : 1,
+      onInactive: () => { this.view = { ...this.view, kicked: `You missed ${MAX_MISSED} turns in a row, so you were disconnected from the table.` }; this.subs.forEach((f) => f(this.view)); },
+    });
     this.seat = this.rt.addHuman(me(), 0);
     this.rt.subscribe('me', this.seat, (snap) => { this.view = { ...this.view, snap }; this.subs.forEach((f) => f(this.view)); });
     setTimeout(() => this.rt.fillWithBots(settings.isPrivate ? 500 : 900), 700);
@@ -59,11 +66,12 @@ export class RemoteController implements TableController {
   private subs = new Set<(v: CtlView) => void>();
   private off: () => void;
   constructor(join: RemoteJoin) {
-    this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings };
+    this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null };
     this.off = net.on((m) => {
       if (m.t === 'joined') this.update({ code: m.code, host: m.host, settings: m.settings, error: null });
       else if (m.t === 'snap') this.update({ snap: m.snap });
       else if (m.t === 'error') this.update({ error: m.message });
+      else if (m.t === 'kicked') this.update({ kicked: m.reason });
     });
     net.hello();
     if (join.kind === 'quick') net.send({ t: 'quick', settings: join.settings });

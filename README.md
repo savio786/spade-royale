@@ -104,6 +104,13 @@ npm run cap:ios                 # builds, syncs and opens Xcode
 
 Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 
+## Turn timer and inactivity
+
+- Players have **12 seconds** to bid or play a card, at online tables and against computer players. A green ring and a countdown show the time left.
+- When time runs out, the game bids or plays for them based on their cards, and shows a warning ("1/3").
+- After **3 missed turns in a row** the player is disconnected from the table. A computer player takes the seat and the bet is lost. Acting on any turn resets the count.
+- To change these on the server, set `TURN_MS` (milliseconds) and `MAX_MISSED_TURNS` in Render → Environment. For games against computer players, change `TURN_MS` and `MAX_MISSED` in `src/lib/controller.ts`.
+
 ## Guest accounts
 
 "Continue as guest" gives each new guest an automatic, permanent name such as **Guest48213**. Guest names can't be changed.

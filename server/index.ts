@@ -15,7 +15,8 @@ import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymen
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
 const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 8000);
-const TURN_MS = Number(process.env.TURN_MS || 25000);
+const TURN_MS = Number(process.env.TURN_MS || 12000);
+const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 
 interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number }
 interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null }
@@ -57,7 +58,15 @@ function makeCode() {
 
 function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean): Room {
   const id = `t${++roomSeq}`;
-  const rt = new TableRuntime({ ...settings, isPrivate }, { fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS });
+  const rt = new TableRuntime({ ...settings, isPrivate }, {
+    fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
+    onInactive: (_seat, playerId) => {
+      for (const c of room.clients) if (c.player?.id === playerId) {
+        send(c, { t: 'kicked', reason: `You missed ${MAX_MISSED} turns in a row, so you were disconnected from the table.` });
+        leave(c, false);
+      }
+    },
+  });
   const room: Room = { id, code: isPrivate ? makeCode() : null, hostId, rt, clients: new Set(), createdAt: Date.now() };
   rooms.set(id, room);
   rt.onGameOver = (g) => {

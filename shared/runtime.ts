@@ -5,13 +5,23 @@ import { Action, applyAction, createGame, GameState, isFull, PublicState, RuleEr
 import { botBid, botPlay, BOT_LINES, BOT_NAMES, pick } from './bot';
 
 export interface ChatMsg { id: number; seat: number; name: string; text: string; ts: number; system?: boolean }
-export interface Snapshot { state: PublicState; chat: ChatMsg[]; turnDeadline: number | null }
+export interface Snapshot {
+  state: PublicState; chat: ChatMsg[];
+  turnDeadline: number | null;   // when the current human turn auto-plays
+  turnTotal: number | null;      // length of a turn (ms)
+  missed: number[];              // consecutive turns each seat let run out
+  maxMissed: number;             // removed from the table when reached
+}
 
 export interface RuntimeOptions {
   /** auto-fill empty seats with bots after this many ms (null = never, host must start) */
   fillBotsAfterMs: number | null;
   /** auto-play for a human who doesn't act in time (null = wait forever) */
   turnTimeoutMs: number | null;
+  /** consecutive timed-out turns before a player is removed (default 3) */
+  maxMissedTurns?: number;
+  /** called when a player is removed for inactivity, before their seat goes to a computer player */
+  onInactive?: (seat: number, playerId: string) => void;
   botSpeed?: number; // 1 = normal
 }
 
@@ -29,6 +39,8 @@ export class TableRuntime {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private fillTimer: ReturnType<typeof setTimeout> | null = null;
   private deadline: number | null = null;
+  private missed = [0, 0, 0, 0];
+  private autoActing = false;
   private msgId = 0;
   private destroyed = false;
   onGameOver?: (g: GameState) => void;
@@ -70,6 +82,7 @@ export class TableRuntime {
     const name = seats[idx]!.name;
     if (this.g.phase === 'waiting') seats[idx] = null;
     else seats[idx] = { ...makeBot(), name: `${name} (bot)` };
+    this.missed[idx] = 0;
     this.g = { ...this.g, seats };
     this.system(`${name} left the table`);
     this.changed();
@@ -102,7 +115,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3 };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));
@@ -136,6 +149,7 @@ export class TableRuntime {
       if (e instanceof RuleError) return e.message;
       throw e;
     }
+    if (seat >= 0 && !this.autoActing) this.missed[seat] = 0; // the player acted themselves
     if (a.type === 'bid' && a.bid === 0 && this.g.seats[seat]?.bot && Math.random() < 0.6) this.say(seat, pick(BOT_LINES.nil));
     this.changed();
     return null;
@@ -179,7 +193,25 @@ export class TableRuntime {
       later(base + Math.random() * 600, auto);
     } else if (this.opts.turnTimeoutMs) {
       this.deadline = Date.now() + this.opts.turnTimeoutMs;
-      this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) auto(); }, this.opts.turnTimeoutMs);
+      this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) this.timedOut(seat, auto); }, this.opts.turnTimeoutMs);
+    }
+  }
+
+  /** A human let their turn run out: play for them from their cards, and remove them after too many in a row. */
+  private timedOut(seat: number, auto: () => void) {
+    const s = this.g.seats[seat];
+    if (!s || s.bot) return auto();
+    this.autoActing = true;
+    try { auto(); } finally { this.autoActing = false; }
+    const max = this.opts.maxMissedTurns ?? 3;
+    const n = ++this.missed[seat];
+    if (n >= max) {
+      this.system(`${s.name} was disconnected after ${max} missed turns`);
+      this.opts.onInactive?.(seat, s.id);
+      this.removeHuman(s.id);
+    } else {
+      this.system(`${s.name} ran out of time, so the game played for them (${n}/${max})`);
+      this.emit();
     }
   }
 

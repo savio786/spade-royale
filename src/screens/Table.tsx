@@ -105,6 +105,10 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   }
 
   const mode = st.settings.mode;
+  const deadline = view.snap!.turnDeadline;
+  const secsLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
+  const missedMine = view.snap!.missed?.[me] ?? 0;
+  const maxMissed = view.snap!.maxMissed ?? 3;
   const myTurn = st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
   const legal = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me);
   const lastBySeat = new Map<number, { text: string; ts: number }>();
@@ -147,7 +151,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         </div>
 
         {[0, 1, 2, 3].map((seat) => (
-          <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} now={now}
+          <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} total={view.snap!.turnTotal} now={now}
             bubble={(() => { const b = lastBySeat.get(seat); return b && now - b.ts < 4500 ? b.text : null; })()}
             onGift={() => setGiftFor(seat)} myVip={p.vip} />
         ))}
@@ -163,7 +167,21 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         })}
       </div>
 
-      {st.phase === 'bidding' && st.turn === me && <BidPanel st={st} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />}
+      {myTurn && secsLeft !== null && st.phase === 'playing' && <div className={`turn-clock ${secsLeft <= 4 ? 'hurry' : ''}`} role="timer">Your turn · {secsLeft}s</div>}
+      {missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
+        <div className="missed-warning" role="alert">⏱ Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns in a row and you'll be disconnected.</div>
+      )}
+      {st.phase === 'bidding' && st.turn === me && <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />}
+      {view.kicked && (
+        <div className="modal-backdrop">
+          <div className="modal kicked" role="alertdialog" aria-label="Disconnected for inactivity">
+            <h2 className="modal-title">Disconnected</h2>
+            <p className="center">{view.kicked}</p>
+            <p className="center muted small">A computer player took your seat, and your bet for this table was lost. Bid and play within {Math.round((view.snap?.turnTotal ?? 12000) / 1000)} seconds to stay in the game.</p>
+            <div className="btn-row"><Pill color="blue" onClick={leave}>Back to lobby</Pill></div>
+          </div>
+        </div>
+      )}
       {st.phase === 'roundEnd' && <RoundSummary st={st} canContinue={!view.online} onContinue={() => ctl.act({ type: 'nextRound' })} />}
       {st.phase === 'gameOver' && <GameOver st={st} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
@@ -256,14 +274,14 @@ function ScorePanel({ st }: { st: PublicState }) {
   );
 }
 
-function SeatView({ st, seat, pos, me, deadline, now, bubble, onGift, myVip }: {
-  st: PublicState; seat: number; pos: string; me: number; deadline: number | null; now: number; bubble: string | null; onGift: () => void; myVip: boolean;
+function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myVip }: {
+  st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; onGift: () => void; myVip: boolean;
 }) {
   const s = st.seats[seat];
   const mode = st.settings.mode;
   const team = mode === 'partners' ? (sideOf(mode, seat) === sideOf(mode, me) ? 'blue' : 'red') : ['blue', 'red', 'green', 'gold'][seat];
   const active = st.turn === seat && (st.phase === 'bidding' || st.phase === 'playing');
-  const remain = active && deadline ? Math.max(0, deadline - now) / 25000 : null;
+  const remain = active && deadline && total ? Math.max(0, deadline - now) / total : null;
   return (
     <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''}`}>
       <div className="seat-av" style={remain !== null ? { ['--pct' as string]: `${remain * 100}%` } : undefined}>
@@ -282,13 +300,13 @@ function SeatView({ st, seat, pos, me, deadline, now, bubble, onGift, myVip }: {
   );
 }
 
-function BidPanel({ st, onBid }: { st: PublicState; onBid: (b: number) => void }) {
+function BidPanel({ st, onBid, secsLeft }: { st: PublicState; onBid: (b: number) => void; secsLeft: number | null }) {
   const me = st.mySeat;
   const suggestion = useMemo(() => botBid({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me), [st.round]); // eslint-disable-line react-hooks/exhaustive-deps
   const partnerBid = st.settings.mode === 'partners' ? st.bids[(me + 2) % 4] : null;
   return (
     <div className="bid-panel" role="dialog" aria-label="Place your bid">
-      <div className="bid-title">YOUR BID</div>
+      <div className="bid-title">YOUR BID{secsLeft !== null && <span className={`bid-clock ${secsLeft <= 4 ? 'hurry' : ''}`}> · {secsLeft}s</span>}</div>
       <div className="bid-hint">Suggested: <b>{suggestion === 0 ? 'Nil' : suggestion}</b>{partnerBid !== null && <> · Partner bid <b>{partnerBid === 0 ? 'Nil' : partnerBid}</b></>}</div>
       <div className="bid-grid">
         <button className="bid-btn nil" onClick={() => onBid(0)}>NIL</button>

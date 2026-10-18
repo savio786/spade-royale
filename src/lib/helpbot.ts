@@ -48,8 +48,8 @@ export const TOPICS: Topic[] = [
   { id: 'solo-partners', title: 'Solo vs Partners', keys: ['solo', 'partner', 'partners', 'team', 'teammate', 'difference', 'mode', 'alone'],
     answer: 'Partners: classic Spades, two teams of two. You sit across from your partner and your bids and books are combined. Solo: four players, everyone for themselves, and the winner takes a bigger prize.',
     related: ['winning', 'private'] },
-  { id: 'timer', title: 'Turn timer', keys: ['timer', 'time', 'too slow', 'auto play', 'autoplay', 'played for me', 'for me', 'played a card', 'afk', 'took too long'],
-    answer: 'At online tables you have 25 seconds per turn (the green ring around your avatar). If time runs out the game plays a sensible card or bid for you so the table isn\'t held up.',
+  { id: 'timer', title: 'Turn timer', keys: ['timer', 'time', 'too slow', 'auto play', 'autoplay', 'played for me', 'for me', 'played a card', 'afk', 'took too long', 'kicked out', 'removed', 'inactive', 'inactivity', 'seconds'],
+    answer: 'You have 12 seconds to bid or play (watch the green ring around your avatar and the countdown). If time runs out, the game bids or plays a sensible card for you based on your hand. Miss 3 turns in a row and you\'re disconnected from the table: a computer player takes your seat and your bet is lost.',
     related: ['disconnect'] },
 
   // ---- tables ----
