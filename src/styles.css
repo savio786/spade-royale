@@ -800,3 +800,87 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .waiting-actions .fill-wait { margin: 0; padding: 0; background: none; font-size: 14px; }
 .fill-now { padding: 5px 14px; border-radius: 999px; background: linear-gradient(180deg, #a26bff, #6a2fd6); border: 2px solid #d9c4ff; color: #fff; font: 400 16px var(--display); letter-spacing: 1px; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
 .fill-now:hover { filter: brightness(1.1); }
+
+/* ================= Lobby: casino styling ================= */
+.lobby.felt-bg {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='%23000' fill-opacity='.13'%3E%3Ctext x='20' y='110' font-size='120' font-family='serif'%3E%E2%99%A0%3C/text%3E%3Ctext x='150' y='230' font-size='120' font-family='serif'%3E%E2%99%A5%3C/text%3E%3C/g%3E%3Cg fill='%23fff' fill-opacity='.035'%3E%3Ctext x='150' y='100' font-size='110' font-family='serif'%3E%E2%99%A6%3C/text%3E%3Ctext x='20' y='240' font-size='110' font-family='serif'%3E%E2%99%A3%3C/text%3E%3C/g%3E%3C/svg%3E") 0 0/260px 260px,
+    linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.05) 45%, rgba(255,255,255,0) 60%),
+    radial-gradient(ellipse at 50% 45%, #7a1a35, #4a0b1e 55%, #22040e);
+}
+/* top bar: dark glass with a chrome edge */
+.lobby .topbar { background: linear-gradient(180deg, #0d0b2e, #070618); border-bottom: none; box-shadow: 0 6px 18px rgba(0,0,0,.55); }
+.lobby .topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -5px; height: 5px; background: linear-gradient(180deg, #f2f4ff, #8a90b0 50%, #3c4060); }
+.tb-sep { width: 2px; height: 70px; margin-left: auto; background: linear-gradient(180deg, transparent, rgba(160,170,255,.35), transparent); }
+.tb-sep + .net-dot { margin-left: 0; }
+.buy-coins { position: relative; }
+.lobby .buy-coins::before, .lobby .buy-coins::after { content: ''; position: absolute; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fff4b8, #e0a000 60%, #7a4a00); box-shadow: 0 0 0 2px #5a3500; }
+.lobby .buy-coins::before { left: -12px; } .lobby .buy-coins::after { right: -12px; }
+.level-pill { position: relative; overflow: visible; isolation: isolate; background: linear-gradient(180deg, #2a1470, #150a40); }
+.level-fill { position: absolute; left: 0; top: 0; bottom: 0; z-index: -1; border-radius: 999px; background: linear-gradient(180deg, #8f5bff, #5320d0); box-shadow: inset 0 2px 0 rgba(255,255,255,.3); min-width: 56px; transition: width .6s; }
+.level-txt { text-shadow: 0 2px 0 rgba(0,0,0,.35); }
+.gear { filter: drop-shadow(0 0 8px #2f6bff) drop-shadow(0 0 2px #9cc4ff); }
+
+/* big ring buttons: chrome bezel, glowing mesh inside, glossy icon */
+.ring { background: conic-gradient(from 20deg, #ffffff, #8c93b8, #eef0fb, #5c6285, #ffffff, #9aa1c4, #ffffff); box-shadow: inset 0 0 0 3px rgba(255,255,255,.8), inset 0 -8px 14px rgba(0,0,0,.35), 0 0 0 3px #1a1030, 0 14px 30px rgba(0,0,0,.65); }
+.ring-inner { position: relative; overflow: hidden; box-shadow: inset 0 0 0 5px #2c3150, inset 0 6px 18px rgba(0,0,0,.8); }
+.ring-btn .ring-inner { --mesh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='24' viewBox='0 0 14 24'%3E%3Cpath d='M7 0l7 4v8l-7 4-7-4V4z' fill='none' stroke='%23fff' stroke-opacity='.18' stroke-width='1'/%3E%3C/svg%3E"); }
+.ring-btn.green .ring-inner { background: var(--mesh) 0 0/14px 24px, radial-gradient(circle at 50% 45%, #1f7a4a, #0a2a1c 70%, #04120b); }
+.ring-btn.blue .ring-inner { background: var(--mesh) 0 0/14px 24px, radial-gradient(circle at 50% 45%, #1f4fa8, #0a1840 70%, #040a1e); }
+.ring-btn.purple .ring-inner { background: var(--mesh) 0 0/14px 24px, radial-gradient(circle at 50% 45%, #6a2fc0, #250c4c 70%, #10051f); }
+.ring-inner::after { content: ''; position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(160deg, rgba(255,255,255,.18), rgba(255,255,255,0) 40%); pointer-events: none; }
+.ring-art { width: 96%; height: 96%; overflow: visible; transition: transform .2s; }
+.ring-btn.green .ring-art { filter: drop-shadow(0 0 10px rgba(60,255,140,.75)) brightness(1.15); }
+.ring-btn.blue .ring-art { filter: drop-shadow(0 0 10px rgba(70,160,255,.8)); }
+.ring-btn.purple .ring-art { filter: drop-shadow(0 0 10px rgba(190,120,255,.8)); }
+.lobby .bottom-nav > button:not(.mega) svg { width: 56px; height: 56px; filter: drop-shadow(0 0 4px #2f8bff) drop-shadow(0 0 10px rgba(47,139,255,.7)); color: #57a8ff; }
+.ring-btn:hover .ring-art { transform: scale(1.06); }
+.ring-bolt { border-radius: 14px; background: linear-gradient(135deg, #ffffff, #b6bbd4 45%, #6e7496); color: #2d3150; box-shadow: inset 0 1px 0 #fff, 0 3px 6px rgba(0,0,0,.5); }
+.ring-bolt.b3 { display: grid; top: 26px; left: 6px; transform: rotate(45deg); }
+.ring-label { border-color: #f2f4ff; box-shadow: 0 0 0 3px #22223a, 0 0 0 5px #9aa1c4, inset 0 3px 0 rgba(255,255,255,.45), inset 0 -4px 0 rgba(0,0,0,.25), 0 10px 20px rgba(0,0,0,.55); }
+
+/* neon "NOW OPEN" sign with brackets */
+.now-open { bottom: -52px; border: 2px solid #ff3f55; color: #ffd0d6; background: rgba(40,0,8,.55); text-shadow: 0 0 4px #ff2a3f, 0 0 12px #ff2a3f; box-shadow: 0 0 8px #ff2a3f, 0 0 20px rgba(255,42,63,.55), inset 0 0 8px rgba(255,42,63,.6); animation: neonFlicker 4s infinite; }
+.now-open::before, .now-open::after { content: ''; position: absolute; top: -18px; width: 34px; height: 30px; border: 2px solid #ff3f55; box-shadow: 0 0 8px #ff2a3f; pointer-events: none; }
+.now-open::before { left: -44px; border-right: none; border-top: none; }
+.now-open::after { right: -44px; border-left: none; border-top: none; }
+@keyframes neonFlicker { 0%, 100% { opacity: 1; } 92% { opacity: 1; } 93% { opacity: .4; } 94% { opacity: 1; } 96% { opacity: .55; } 97% { opacity: 1; } }
+
+/* VIP promo: tufted purple velvet, glitter gold */
+.promo { background:
+    radial-gradient(circle, rgba(0,0,0,.45) 2px, transparent 2.6px) 0 0/34px 34px,
+    repeating-linear-gradient(45deg, rgba(0,0,0,.22) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.22) 0 1px, transparent 1px 24px),
+    radial-gradient(circle at 50% 35%, #5b2fb0, #2a0f63 60%, #12052e);
+  border: 4px solid #d6dcff; box-shadow: 0 0 0 3px #0b0630, inset 0 0 30px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.6); }
+.promo::before { display: none; }
+.promo-title { background: linear-gradient(180deg, #fff8d0 0%, #ffd75e 30%, #e09a00 55%, #fff1a0 70%, #b86a00 100%); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 3px 0 #5a2c00) drop-shadow(0 0 10px rgba(255,200,60,.45)); }
+.promo-sub { color: #ffe08a; text-shadow: 0 2px 0 #3a1a00, 0 0 8px rgba(255,200,60,.4); }
+.promo-crown svg { color: #ffd75e; }
+.promo-sparkles i { position: absolute; font-style: normal; font-size: 16px; color: #fff; text-shadow: 0 0 6px #fff, 0 0 12px #c9a6ff; animation: twinkle 2.2s infinite; pointer-events: none; }
+@keyframes twinkle { 0%, 100% { opacity: .2; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.1); } }
+
+/* +100 coins chip and VIP club badge */
+.ad-chip { background: radial-gradient(circle at 50% 38%, #ff5a5a, #c4102a 55%, #6e0012); border: 5px solid #ffcf4d; box-shadow: 0 0 0 2px #6a3c00, inset 0 3px 0 rgba(255,255,255,.35), 0 6px 14px rgba(0,0,0,.55); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.ad-chip b { font-size: 32px; } .ad-chip small { font-size: 18px; letter-spacing: 1px; }
+.ad-tag { bottom: -8px; right: 50%; translate: 50% 0; font: 400 13px var(--display); letter-spacing: 1px; padding: 1px 8px; border-radius: 6px; background: #3a3a50; border: 2px solid #fff; }
+.ad-tag.ready { background: linear-gradient(180deg, #34d86b, #0c7a30); animation: pulse 1.4s infinite; }
+.vip-chip { background: radial-gradient(circle at 45% 35%, #8a5cff, #3a0ea8 60%, #1a0560); border: 5px solid #ffcf4d; box-shadow: 0 0 0 2px #6a3c00, 0 0 18px rgba(255,200,61,.55), inset 0 3px 0 rgba(255,255,255,.3); }
+.vip-chip .gold-text { background: linear-gradient(180deg, #fff8d0, #ffd75e 35%, #e09a00 60%, #fff1a0); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 2px 0 #4a2000); }
+.vip-chip small { font-size: 12px; color: #ffe9a8; }
+.vip-stars { position: absolute; top: 4px; font-size: 14px; color: #fff; text-shadow: 0 0 6px #fff; }
+
+/* bottom bar with the Mega Bonus tab */
+.lobby .bottom-nav { grid-template-columns: 1fr 1fr 360px 1fr 1fr; background: linear-gradient(180deg, #0f1236, #06071a); border-top: none; }
+.lobby .bottom-nav::before { content: ''; position: absolute; left: 0; right: 0; top: -5px; height: 5px; background: linear-gradient(180deg, #3c4060, #8a90b0 50%, #f2f4ff); }
+.lobby .bottom-nav > button:not(.mega) + button:not(.mega)::before, .lobby .bottom-nav > .mega + button::before { content: ''; position: absolute; left: 0; top: 22px; bottom: 22px; width: 2px; background: linear-gradient(180deg, transparent, rgba(160,170,255,.35), transparent); }
+.mega { align-self: stretch; margin-top: -28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0 22px;
+  border-radius: 26px 26px 0 0; background: linear-gradient(180deg, #2a2f55, #0d0f2a 60%); border: 4px solid #c9cee6; border-bottom: none; box-shadow: inset 0 3px 0 rgba(255,255,255,.25), 0 -6px 16px rgba(0,0,0,.5); }
+.mega-title { font: 400 26px var(--display); letter-spacing: 2px; color: #e6ecff; white-space: nowrap; }
+.mega-title b { font-weight: 400; font-variant-numeric: tabular-nums; color: #fff; }
+.mega-bar { position: relative; width: 100%; height: 30px; border-radius: 999px; background: #050616; box-shadow: inset 0 2px 6px rgba(0,0,0,.8), 0 0 0 3px #3a3f66; overflow: hidden; }
+.mega-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: linear-gradient(180deg, #9fe8ff, #19a8ff 50%, #0a5fd0); box-shadow: 0 0 12px #19a8ff; transition: width 1s linear; }
+.mega-bar i { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: rgba(5,6,22,.85); }
+.mega.ready .mega-title { color: var(--gold); text-shadow: 0 0 10px rgba(255,200,61,.8); animation: pulse 1.2s infinite; }
+.mega.ready .mega-fill { background: linear-gradient(180deg, #fff1a0, #ffc83d 50%, #d98a00); box-shadow: 0 0 14px #ffc83d; }
+.mega:hover { filter: brightness(1.12); }

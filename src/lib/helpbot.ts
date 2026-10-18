@@ -77,7 +77,7 @@ export const TOPICS: Topic[] = [
 
   // ---- coins & store ----
   { id: 'coins-free', title: 'Free coins', keys: ['free coins', 'free', 'earn coins', 'get coins', 'more coins', 'daily', 'bonus', 'wheel', 'spin', 'gift', 'ad', 'watch'],
-    answer: 'Free coins: the daily gift (2,000 coins, GIFTS), the bonus wheel every 4 hours (the big gold chip), 100 bonus coins every 30 minutes (the +100 BONUS chip), trophy rewards (TROPHY), and weekly leaderboard rewards for the top 100. And of course, winning games!',
+    answer: 'Free coins: the daily gift (2,000 coins, GIFTS), the Mega Bonus wheel every 4 hours (the bar at the bottom of the main screen), 100 bonus coins every 30 minutes (the +100 BONUS chip), trophy rewards (TROPHY), and weekly leaderboard rewards for the top 100. And of course, winning games!',
     related: ['coins-buy', 'leaderboard', 'trophies'] },
   { id: 'coins-buy', title: 'Buy coins', keys: ['buy', 'purchase', 'price', 'cost', 'how much', 'pay', 'payment', 'credit card', 'money', 'store', 'shop', 'pack'],
     answer: 'Tap BUY COINS (or the + next to your balance). Packs go from 25,000 coins for $0.99 up to 8,000,000 for $99.99. VIP members get +20% coins on every pack.',

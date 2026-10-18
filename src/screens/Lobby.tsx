@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
-import { fmt, levelFromXp, suggestedBet, useProfile, profile } from '../lib/profile';
+import { fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel } from '../lib/profile';
+import { GlobeArt, PlayArt, PrivateArt } from '../components/LobbyArt';
+
+const MEGA_MS = 4 * 3600e3;
+const clock = (ms: number) => { const t = Math.ceil(ms / 1000); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map((n) => String(n).padStart(2, '0')).join(':'); };
 import type { OnlineCounts } from '../../shared/protocol';
 import { net, NetStatus } from '../lib/net';
 import { sfx } from '../lib/sound';
@@ -25,7 +29,11 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
   const [status, setStatus] = useState<NetStatus>(net.status);
   const [online, setOnline] = useState<OnlineCounts | null>(null);
   const lvl = levelFromXp(p.xp);
-  const spinReady = Date.now() - p.lastSpin > 4 * 3600e3;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const megaLeft = Math.max(0, p.lastSpin + MEGA_MS - now);
+  const spinReady = megaLeft === 0;
+  const lvlPct = Math.min(100, Math.max(0, ((p.xp - xpForLevel(lvl)) / (xpForLevel(lvl + 1) - xpForLevel(lvl))) * 100));
   const giftReady = p.lastDaily !== new Date().toISOString().slice(0, 10);
 
   useEffect(() => net.onStatus(setStatus), []);
@@ -44,7 +52,11 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
           <button className="plus-btn" aria-label="Get coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}><Icon name="plus" size={20} /></button>
         </div>
         <button className="buy-coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}>BUY COINS</button>
-        <div className="level-pill"><span className="level-star"><Icon name="star" size={34} /></span> LEVEL {lvl}</div>
+        <div className="level-pill" title={`${Math.round(lvlPct)}% to level ${lvl + 1}`}>
+          <span className="level-fill" style={{ width: `${lvlPct}%` }} aria-hidden="true" />
+          <span className="level-star"><Icon name="star" size={34} /></span><span className="level-txt">LEVEL {lvl}</span>
+        </div>
+        <span className="tb-sep" aria-hidden="true" />
         <span className={`net-dot ${status}`} title={`Server ${status}`} aria-label={`Multiplayer ${status}`} />
         <button className="help-btn" onClick={() => { sfx.click(); helpBot.open(); }} aria-label="Help: ask Spade Bot"><span>?</span></button>
         <button className="gear" onClick={() => { sfx.click(); setModal('settings'); }} aria-label="Settings"><Icon name="gear" size={34} /></button>
@@ -53,22 +65,23 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
       <main className="lobby-main">
         <div className="lobby-left">
           <button className="promo" onClick={() => { sfx.click(); setModal(s.k); }}>
+            <span className="promo-sparkles" aria-hidden="true">{[[14, 22], [82, 14], [22, 70], [88, 62], [52, 8], [70, 84]].map(([x, y], i) => <i key={i} style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.35}s` }}>✦</i>)}</span>
             <span className="promo-crown"><Icon name="crown" size={30} /></span>
             <span className="promo-title gold-text">{s.title}</span>
             <span className="promo-sub">{s.sub}</span>
             <span className="dots" aria-hidden="true">{SLIDES.map((_, i) => <i key={i} className={i === slide ? 'on' : ''} />)}</span>
           </button>
           <div className="promo-row">
-            <button className="ad-chip" onClick={() => { sfx.click(); setModal('ad'); }} aria-label="Bonus coins"><b>+100</b><small>BONUS</small>{bonusLeftMs(p.lastAd) === 0 && <span className="ad-tag">READY</span>}</button>
-            <button className="vip-chip" onClick={() => { sfx.click(); setModal('vip'); }} aria-label="VIP Club"><span className="gold-text">VIP</span><small>CLUB</small></button>
+            <button className="ad-chip" onClick={() => { sfx.click(); setModal('ad'); }} aria-label="Bonus coins"><b>+100</b><small>COINS</small><span className={`ad-tag ${bonusLeftMs(p.lastAd) === 0 ? 'ready' : ''}`}>{bonusLeftMs(p.lastAd) === 0 ? 'FREE' : 'SOON'}</span></button>
+            <button className="vip-chip" onClick={() => { sfx.click(); setModal('vip'); }} aria-label="VIP Club"><span className="vip-stars" aria-hidden="true">★</span><span className="gold-text">VIP</span><small>★ CLUB ★</small></button>
           </div>
         </div>
 
         <div className="lobby-rings">
           <RingButton color="green" label="PLAY NOW" onClick={() => setModal('roomtype')}
-            icon={<svg viewBox="0 0 60 60" width="64%" height="64%" aria-hidden="true"><path d="M8 10 L44 30 L8 50 Z" fill="none" stroke="#35f28a" strokeWidth="6" strokeLinejoin="round" /><path d="M20 10 L56 30 L20 50" fill="none" stroke="#1fd16f" strokeWidth="6" strokeLinejoin="round" opacity=".8" /></svg>} />
-          <RingButton color="blue" label="ONLINE LOBBY" onClick={onOnlineLobby} icon={<Icon name="globe" size={84} style={{ color: '#4aa8ff' }} />} />
-          <RingButton color="purple" label="PRIVATE GAME" onClick={() => setModal('private')} icon={<Icon name="lock" size={74} style={{ color: '#c08bff' }} />}
+            icon={<PlayArt />} />
+          <RingButton color="blue" label="ONLINE LOBBY" onClick={onOnlineLobby} icon={<GlobeArt />} />
+          <RingButton color="purple" label="PRIVATE GAME" onClick={() => setModal('private')} icon={<PrivateArt />}
             badge={<span className="now-open">NOW OPEN</span>} />
         </div>
       </main>
@@ -83,8 +96,12 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
       <nav className="bottom-nav" aria-label="Main">
         <button onClick={() => { sfx.click(); setModal('leaders'); }}><Icon name="podium" size={40} /><span>LEADERS</span></button>
         <button onClick={() => { sfx.click(); setModal('trophy'); }}><Icon name="trophy" size={40} /><span>TROPHY</span></button>
-        <button className="chip-btn" onClick={() => { sfx.click(); setModal('spin'); }} aria-label="Daily bonus wheel">
-          <span className="big-chip"><Icon name="spade" size={38} />{spinReady && <span className="badge">!</span>}</span>
+        <button className={`mega ${spinReady ? 'ready' : ''}`} onClick={() => { sfx.click(); setModal('spin'); }} aria-label={spinReady ? 'Mega bonus ready: spin the wheel' : `Mega bonus in ${clock(megaLeft)}`}>
+          <span className="mega-title">{spinReady ? 'MEGA BONUS READY!' : <>MEGA BONUS IN <b>{clock(megaLeft)}</b></>}</span>
+          <span className="mega-bar" aria-hidden="true">
+            <span className="mega-fill" style={{ width: `${(1 - megaLeft / MEGA_MS) * 100}%` }} />
+            {[1, 2, 3, 4].map((i) => <i key={i} style={{ left: `${i * 20}%` }} />)}
+          </span>
         </button>
         <button onClick={() => { sfx.click(); setModal('gifts'); }}><Icon name="gift" size={40} /><span>GIFTS</span>{giftReady && <span className="badge">1</span>}</button>
         <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span></button>
