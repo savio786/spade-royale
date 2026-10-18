@@ -64,6 +64,16 @@ jobs:
           name: spade-royale-play-bundle
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
-      - name: Reminder
+      - name: Check signing secrets
         if: env.HAS_KEY != 'true'
-        run: echo "::notice::Add the ANDROID_* secrets to also build the signed Play Store bundle (.aab)."
+        env:
+          S1: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          S2: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+          S3: ${{ secrets.ANDROID_KEY_ALIAS != '' }}
+          S4: ${{ secrets.ANDROID_KEY_PASSWORD != '' }}
+        run: |
+          echo "ANDROID_KEYSTORE_BASE64 found: $S1"
+          echo "ANDROID_KEYSTORE_PASSWORD found: $S2"
+          echo "ANDROID_KEY_ALIAS found: $S3"
+          echo "ANDROID_KEY_PASSWORD found: $S4"
+          echo "::notice::Signed Play Store bundle skipped: add the missing ANDROID_* repository secrets."
