@@ -25,7 +25,8 @@ function outline({ x0, y0, x1, y1, f, b, bow, nW, nH }: Box) {
 
 const RAIL = 34;   // rail thickness
 
-export function TableShape() {
+export function TableShape({ scale = 1, emblem = true }: { scale?: number; emblem?: boolean } = {}) {
+  const k = scale, R = RAIL * scale;
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -41,9 +42,9 @@ export function TableShape() {
   let svg = null;
   if (size && size.w > 100) {
     const { w: W, h: H } = size;
-    const bow = 14;
-    const outer: Box = { x0: bow + 2, y0: 2, x1: W - bow - 2, y1: H - 2, f: 74, b: 96, bow, nW: 130, nH: 50 };
-    const inner: Box = { x0: outer.x0 + RAIL, y0: outer.y0 + RAIL, x1: outer.x1 - RAIL, y1: outer.y1 - RAIL, f: 56, b: 70, bow: bow * 0.85, nW: 150, nH: 50 };
+    const bow = 14 * k;
+    const outer: Box = { x0: bow + 2, y0: 2, x1: W - bow - 2, y1: H - 2, f: 74 * k, b: 96 * k, bow, nW: 130 * k, nH: 50 * k };
+    const inner: Box = { x0: outer.x0 + R, y0: outer.y0 + R, x1: outer.x1 - R, y1: outer.y1 - R, f: 56 * k, b: 70 * k, bow: bow * 0.85, nW: 150 * k, nH: 50 * k };
     const cx = W / 2, cy = H / 2 - 2;
     const oPath = outline(outer), iPath = outline(inner);
     // pearl inlays follow the bowed sides of the rail
@@ -58,11 +59,11 @@ export function TableShape() {
         const t = 0.2 + (i / 12) * 0.55, m = 1 - t;
         const x = m * m * m * P[0][0] + 3 * m * m * t * P[1][0] + 3 * m * t * t * P[2][0] + t * t * t * P[3][0];
         const y = m * m * m * P[0][1] + 3 * m * m * t * P[1][1] + 3 * m * t * t * P[2][1] + t * t * t * P[3][1];
-        pts.push(`${(x + (left ? RAIL / 2 : -RAIL / 2)).toFixed(1)} ${y.toFixed(1)}`);
+        pts.push(`${(x + (left ? R / 2 : -R / 2)).toFixed(1)} ${y.toFixed(1)}`);
       }
       return `M${pts.join(' L')}`;
     };
-    const ip = { x: inner.x0 + 46, y: inner.y0 + 40, w: inner.x1 - inner.x0 - 92, h: inner.y1 - inner.y0 - inner.nH - 64 };
+    const ip = { x: inner.x0 + 46 * k, y: inner.y0 + 40 * k, w: inner.x1 - inner.x0 - 92 * k, h: inner.y1 - inner.y0 - inner.nH - 64 * k };
     svg = (
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         <defs>
@@ -94,8 +95,8 @@ export function TableShape() {
         </defs>
 
         {/* table edge seen from the front, and the shadow on the floor */}
-        <path d={oPath} transform="translate(0 14)" style={{ fill: 'var(--rail-c)' }} />
-        <path d={oPath} transform="translate(0 14)" fill="#000" opacity=".45" />
+        <path d={oPath} transform={`translate(0 ${14 * k})`} style={{ fill: 'var(--rail-c)' }} />
+        <path d={oPath} transform={`translate(0 ${14 * k})`} fill="#000" opacity=".45" />
         {/* rail: colour, cork grain, light from above */}
         <path d={oPath} fill={u('rl')} />
         <path d={oPath} fill="#000" filter={u('ck')} opacity=".55" />
@@ -105,23 +106,24 @@ export function TableShape() {
         {/* pearl inlays on the sides */}
         {[true, false].map((l) => (
           <g key={String(l)}>
-            <path d={inlay(l)} fill="none" stroke="#000" strokeOpacity=".45" strokeWidth="12" strokeLinecap="round" />
-            <path d={inlay(l)} fill="none" stroke={u('pe')} strokeWidth="9" strokeLinecap="round" />
+            <path d={inlay(l)} fill="none" stroke="#000" strokeOpacity=".45" strokeWidth={12 * k} strokeLinecap="round" />
+            <path d={inlay(l)} fill="none" stroke={u('pe')} strokeWidth={9 * k} strokeLinecap="round" />
           </g>
         ))}
         {/* suit inlays either side of the alcove */}
         {[-1, 1].map((d) => (
-          <text key={d} x={cx + d * (outer.nW + 92)} y={outer.y1 - RAIL / 2 + 6} textAnchor="middle" fontSize="20" letterSpacing="5" fill="#000" fillOpacity=".7" stroke="#fff" strokeOpacity=".25" strokeWidth=".6">{d < 0 ? '♠♥♣♦' : '♦♣♥♠'}</text>
+          <text key={d} x={cx + d * (outer.nW + 92 * k)} y={outer.y1 - R / 2 + 6} textAnchor="middle" fontSize={20 * k} letterSpacing={5 * k} fill="#000" fillOpacity=".7" stroke="#fff" strokeOpacity=".25" strokeWidth=".6">{d < 0 ? '♠♥♣♦' : '♦♣♥♠'}</text>
         ))}
         {/* groove between rail and felt */}
-        <path d={iPath} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth="9" />
+        <path d={iPath} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth={9 * k} />
         {/* felt */}
         <path d={iPath} fill={u('fe')} />
         <g clipPath={u('fc')}>
           {/* inner raised panel and soft vignette */}
-          <path d={iPath} fill="none" stroke="#000" strokeOpacity=".35" strokeWidth="60" filter={u('gl')} />
-          <rect x={ip.x} y={ip.y} width={ip.w} height={ip.h} rx="70" fill="#000" fillOpacity=".1" stroke="#fff" strokeOpacity=".07" strokeWidth="2" />
+          <path d={iPath} fill="none" stroke="#000" strokeOpacity=".35" strokeWidth={60 * k} filter={u('gl')} />
+          <rect x={ip.x} y={ip.y} width={ip.w} height={ip.h} rx={70 * k} fill="#000" fillOpacity=".1" stroke="#fff" strokeOpacity=".07" strokeWidth="2" />
           {/* deco emblem: heart above, spade below */}
+          {emblem && <>
           <g fill="none" style={{ stroke: 'var(--felt-line)' }} strokeOpacity=".28" strokeWidth="3" strokeLinecap="round">
             {[-1, 1].map((d) => (
               <g key={d}>
@@ -135,9 +137,10 @@ export function TableShape() {
             <path transform={`translate(${cx - 16} ${cy - 104}) scale(.32)`} d="M50 90C30 74 8 58 8 36 8 20 20 10 33 10c8 0 14 5 17 11 3-6 9-11 17-11 13 0 25 10 25 26 0 22-22 38-42 54z" />
             <path transform={`translate(${cx - 16} ${cy + 72}) scale(.32)`} d="M50 6C40 24 10 38 10 60c0 14 12 22 24 20 6-1 11-5 13-9-1 9-5 17-11 23h28c-6-6-10-14-11-23 2 4 7 8 13 9 12 2 24-6 24-20 0-22-30-36-40-54z" />
           </g>
+          </>}
         </g>
         {/* neon strip just inside the rail */}
-        <path d={iPath} fill="none" style={{ stroke: 'var(--felt-glow)' }} strokeWidth="12" filter={u('gl')} />
+        <path d={iPath} fill="none" style={{ stroke: 'var(--felt-glow)' }} strokeWidth={12 * k} filter={u('gl')} />
         <path d={iPath} fill="none" style={{ stroke: 'var(--felt-line)' }} strokeWidth="3" />
         <path d={iPath} fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="1" />
       </svg>

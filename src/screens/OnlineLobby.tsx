@@ -1,58 +1,65 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Avatar, Coin, Icon } from '../components/ui';
-import { BET_STEPS, cityForBet, fmt, MAX_STEPS, MIN_STEPS, seeded, short, useProfile } from '../lib/profile';
-import { Mode, prizeFor } from '../../shared/engine';
+import { TableShape } from '../components/TableShape';
+import { cityForBet, fmt, MAX_STEPS, MIN_STEPS, useProfile } from '../lib/profile';
+import type { Mode } from '../../shared/engine';
 import { net, NetStatus } from '../lib/net';
 import type { TableSummary } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
+import { themeById, themeVars } from '../lib/themes';
 import { CreateTableModal, StartRequest } from './modals';
 
-interface Row { id: string; live: boolean; mode: Mode; bet: number; minPoints: number; maxPoints: number; seated: number; avatars: string[] }
+// Each city's tables have their own felt colour and ring gem.
+const CITY_LOOK: Record<string, { theme: string; gem: string }> = {
+  'New York': { theme: 'emerald', gem: '#2ecc71' },
+  Chicago: { theme: 'ocean', gem: '#3aa0ff' },
+  Miami: { theme: 'sunset', gem: '#ff6aa8' },
+  Seattle: { theme: 'royal', gem: '#b07bff' },
+  'Las Vegas': { theme: 'ruby', gem: '#ff3355' },
+  London: { theme: 'neon', gem: '#00e5ff' },
+  Monaco: { theme: 'gold', gem: '#ffd34d' },
+};
+const lookFor = (city: string) => CITY_LOOK[city] ?? CITY_LOOK.Seattle;
+
+/** Order joining players are seated in (matches the server): partners sit across from each other. */
+const joinSeat = (t: TableSummary) => {
+  const order = t.settings.mode === 'partners' ? [0, 2, 1, 3] : [0, 1, 2, 3];
+  return order.find((i) => !t.seats[i]) ?? -1;
+};
 
 export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: (r: StartRequest) => void }) {
   const p = useProfile();
   const [mode, setMode] = useState<Mode>('partners');
   const [minF, setMinF] = useState<number | null>(null);
   const [maxF, setMaxF] = useState<number | null>(null);
-  const [live, setLive] = useState<TableSummary[]>([]);
+  const [live, setLive] = useState<TableSummary[] | null>(null);
   const [status, setStatus] = useState<NetStatus>(net.status);
   const [creating, setCreating] = useState(false);
-  const [tick, setTick] = useState(0);
 
   useEffect(() => net.onStatus(setStatus), []);
   useEffect(() => {
     const off = net.on((m) => { if (m.t === 'tables') setLive(m.tables); });
     net.send({ t: 'list' });
-    const t = setInterval(() => { net.send({ t: 'list' }); setTick((x) => x + 1); }, 5000);
+    const t = setInterval(() => net.send({ t: 'list' }), 3000);
     return () => { off(); clearInterval(t); };
   }, []);
 
-  const rows: Row[] = useMemo(() => {
-    const r = seeded(`${mode}-${Math.floor(Date.now() / 60000)}`);
-    const sim: Row[] = BET_STEPS.slice(0, 12).flatMap((bet, i) => Array.from({ length: i < 6 ? 2 : 1 }, (_, j) => ({
-      id: `sim-${bet}-${j}`, live: false, mode, bet,
-      minPoints: MIN_STEPS[Math.floor(r() * 3)], maxPoints: MAX_STEPS[Math.floor(r() * 5)],
-      seated: 0, avatars: [],
-    })));
-    const liveRows: Row[] = live.filter((t) => t.phase === 'waiting' && t.settings.mode === mode).map((t) => ({
-      id: t.id, live: true, mode: t.settings.mode, bet: t.settings.bet, minPoints: t.settings.minPoints, maxPoints: t.settings.maxPoints, seated: t.players, avatars: ['a2'],
-    }));
-    return [...liveRows, ...sim].filter((x) => (minF === null || x.minPoints === minF) && (maxF === null || x.maxPoints === maxF));
-  }, [mode, live, minF, maxF, tick]);
+  const tables = useMemo(() => (live ?? [])
+    .filter((t) => t.settings.mode === mode && (minF === null || t.settings.minPoints === minF) && (maxF === null || t.settings.maxPoints === maxF))
+    .sort((a, b) => Number(b.phase === 'waiting') - Number(a.phase === 'waiting') || a.settings.bet - b.settings.bet), [live, mode, minF, maxF]);
 
   const cycle = (arr: number[], v: number | null, dir: 1 | -1) => {
     const opts = [null, ...arr];
-    const i = opts.indexOf(v);
-    return opts[(i + dir + opts.length) % opts.length];
+    return opts[(opts.indexOf(v) + dir + opts.length) % opts.length];
   };
 
-  const join = (row: Row) => {
-    if (p.coins < row.bet) { store.open({ tab: 'coins', need: row.bet }); return; }
+  const join = (t: TableSummary) => {
+    if (t.phase !== 'waiting' || joinSeat(t) < 0) return;
+    if (p.coins < t.settings.bet) { store.open({ tab: 'coins', need: t.settings.bet }); return; }
     sfx.click();
-    const base = { mode: row.mode, bet: row.bet, minPoints: row.minPoints, maxPoints: row.maxPoints };
-    if (row.live && status === 'online') onStart({ ...base, via: 'table', tableId: row.id });
-    else onStart({ ...base, via: 'local' });
+    const s = t.settings;
+    onStart({ mode: s.mode, bet: s.bet, minPoints: s.minPoints, maxPoints: s.maxPoints, via: 'table', tableId: t.id });
   };
 
   return (
@@ -83,28 +90,25 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
         <div className="coins-pill small"><Coin size={26} /><span className="coins-num">{fmt(p.coins)}</span></div>
       </header>
 
-      <div className="tables-scroll">
-        <button className="table-tile create" onClick={() => { sfx.click(); setCreating(true); }}>
-          <span className="plus-big"><Icon name="plus" size={56} /></span><span>CREATE TABLE</span>
+      <div className="lt-row">
+        <button className="lt-create" onClick={() => { sfx.click(); setCreating(true); }} aria-label="Create a table">
+          <span className="lt-create-shape"><Icon name="plus" size={64} /></span>
+          <span className="lt-create-txt">CREATE TABLE</span>
         </button>
-        {rows.map((r) => {
-          const poor = p.coins < r.bet;
-          return (
-            <button key={r.id} className={`table-tile ${poor ? 'poor' : ''}`} onClick={() => join(r)} aria-label={`${cityForBet(r.bet)} table, bet ${fmt(r.bet)}`}>
-              {r.live && <span className="live-tag">LIVE</span>}
-              <span className="tt-city">{cityForBet(r.bet)}</span>
-              <span className="tt-felt">
-                {[0, 1, 2, 3].map((i) => (
-                  <span key={i} className={`tt-seat s${i}`}>{i < r.seated ? <Avatar k={r.avatars[i % r.avatars.length] ?? 'a1'} size={34} /> : <span className="tt-empty">+</span>}</span>
-                ))}
-                <span className="tt-bet"><Coin size={18} /> {short(r.bet)}</span>
-              </span>
-              <span className="tt-meta">{r.live ? `${r.seated}/4 seated` : 'vs computer'} · Prize {short(prizeFor({ mode: r.mode, bet: r.bet }))} · {r.minPoints}/{r.maxPoints}</span>
-            </button>
-          );
-        })}
+        {tables.map((t) => <LobbyTable key={t.id} t={t} poor={p.coins < t.settings.bet} onJoin={() => join(t)} />)}
+        {tables.length === 0 && (
+          <div className="lt-empty" role="status">
+            {status !== 'online' ? (
+              <><b>Can’t reach the game server</b><p>Live tables appear here when you’re online. You can still play against the computer from PLAY NOW.</p></>
+            ) : live === null ? (
+              <b>Looking for tables…</b>
+            ) : (
+              <><b>No one is playing {mode === 'partners' ? 'Partners' : 'Solo'} right now</b>
+                <p>Tables with real players show up here as soon as someone sits down. Create one and others can join you.</p></>
+            )}
+          </div>
+        )}
       </div>
-      {status !== 'online' && <p className="ol-note">Offline mode — tables are filled with bots. Run the multiplayer server to see live tables.</p>}
 
       {creating && (
         <CreateTableModal mode={mode} onClose={() => setCreating(false)}
@@ -113,3 +117,63 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
     </div>
   );
 }
+
+function CityRing({ gem }: { gem: string }) {
+  return (
+    <svg viewBox="0 0 60 60" className="lt-ring" aria-hidden="true">
+      <defs>
+        <linearGradient id={`rg${gem.slice(1)}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff6c8" /><stop offset=".4" stopColor="#e2a92e" /><stop offset=".7" stopColor="#8a5a10" /><stop offset="1" stopColor="#f2cf6a" /></linearGradient>
+      </defs>
+      <ellipse cx="30" cy="40" rx="20" ry="14" fill="none" stroke={`url(#rg${gem.slice(1)})`} strokeWidth="7" />
+      <path d="M14 30 L18 12 H42 L46 30 L38 36 H22Z" fill={`url(#rg${gem.slice(1)})`} stroke="#5a3a08" strokeWidth="1.5" />
+      <path d="M21 15 H39 L42 28 L36 32 H24 L18 28Z" fill={gem} stroke="#2a1a00" strokeWidth="1" />
+      <path d="M21 15 L30 23 L39 15 M18 28 L30 23 L42 28 M30 23 V32" stroke="#fff" strokeOpacity=".35" strokeWidth="1" fill="none" />
+      <ellipse cx="26" cy="19" rx="4" ry="2" fill="#fff" opacity=".6" />
+    </svg>
+  );
+}
+
+function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoin: () => void }) {
+  const city = t.settings.city || cityForBet(t.settings.bet);
+  const look = lookFor(city);
+  const waiting = t.phase === 'waiting';
+  const mine = joinSeat(t);
+  // show the table from the seat you'd take: that seat is the PLAY button at the bottom
+  const base = mine >= 0 ? mine : 0;
+  const pos = ['bottom', 'left', 'top', 'right'];
+  const partners = t.settings.mode === 'partners';
+  const humans = t.seats.filter((s) => s && !s.bot).length;
+  return (
+    <div className={`lt ${poor ? 'poor' : ''} ${waiting ? '' : 'busy'}`} style={themeVars(themeById(look.theme))}>
+      <TableShape scale={0.62} emblem={false} />
+      <div className="lt-felt">
+        <div className="lt-city"><span>{city}</span><CityRing gem={look.gem} /></div>
+        <div className="lt-pills">
+          <span className="lt-pill">{fmt(t.settings.bet)} <Coin size={30} /></span>
+          <span className="lt-pill">{t.settings.minPoints}/{t.settings.maxPoints}</span>
+        </div>
+        <span className="lt-status">{waiting ? `${humans} real player${humans === 1 ? '' : 's'} waiting` : 'GAME IN PROGRESS'}</span>
+      </div>
+      {[0, 1, 2, 3].map((seat) => {
+        const rel = (seat - base + 4) % 4;
+        const where = pos[rel];
+        if (rel === 0 && mine >= 0) return null; // your seat = PLAY button
+        const s = t.seats[seat];
+        const friendly = partners ? rel === 2 : false;
+        return (
+          <span key={seat} className={`lt-seat at-${where} ${friendly ? 'blue' : 'red'}`}>
+            {s ? <><span className="bezel" /><Avatar k={s.avatar} size={78} name={s.name} /><small className="lt-name">{s.bot ? `${s.name} · CPU` : s.name}</small></> : <span className="lt-q">?</span>}
+          </span>
+        );
+      })}
+      {waiting && mine >= 0 ? (
+        <button className="lt-play" onClick={onJoin} aria-label={`Play at ${city} table, bet ${fmt(t.settings.bet)}`}>
+          <span className="lt-arrow">↑</span><b>PLAY</b>
+        </button>
+      ) : (
+        <span className="lt-live" aria-label="Game in progress">● LIVE</span>
+      )}
+    </div>
+  );
+}
+

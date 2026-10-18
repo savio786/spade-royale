@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import '@fontsource/bebas-neue/latin-400.css';
+import '@fontsource/lobster/latin-400.css';
 import '@fontsource/rubik/latin-400.css';
 import '@fontsource/rubik/latin-500.css';
 import '@fontsource/rubik/latin-700.css';

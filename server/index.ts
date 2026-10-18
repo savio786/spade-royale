@@ -40,8 +40,11 @@ function onlineCounts(): Record<Mode, number> & { total: number } {
 
 function summaries(): TableSummary[] {
   return [...rooms.values()]
-    .filter((r) => !r.code)
-    .map((r) => ({ id: r.id, settings: r.rt.g.settings, players: r.rt.g.seats.filter(Boolean).length, humans: r.rt.humanCount(), phase: r.rt.g.phase }));
+    .filter((r) => !r.code && r.rt.humanCount() > 0 && r.rt.g.phase !== 'gameOver') // only tables with real people
+    .map((r) => ({
+      id: r.id, settings: r.rt.g.settings, players: r.rt.g.seats.filter(Boolean).length, humans: r.rt.humanCount(), phase: r.rt.g.phase,
+      seats: r.rt.g.seats.map((s) => (s ? { name: s.name, avatar: s.avatar, bot: !!s.bot, level: s.level } : null)),
+    }));
 }
 
 function sanitize(s: TableSettings): TableSettings {

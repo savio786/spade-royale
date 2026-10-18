@@ -121,6 +121,10 @@ Players pick from 16 illustrated people (with matching names for computer player
 
 Eight themes unlock as players level up: Royal Purple (1), Emerald (2), Ocean (4), Ruby (6), Sunset (9), Neon Night (12), Gold Royale (16) and Prism (20). Each changes the felt, rim, panels, card faces and card backs. Ocean, Sunset, Neon Night and Prism use four-color decks. Players switch themes in Settings or at the table (Menu → Table & cards). Players get the newest unlocked theme automatically until they choose one themselves, and a message announces each new unlock. Themes are defined in `src/lib/themes.ts`.
 
+## Online Lobby
+
+The Online Lobby lists only public tables that have at least one real person at them, updated every few seconds. Waiting tables show who is sitting where and a green **PLAY** button for the free seat; games under way are marked **LIVE**. When nobody is playing, the lobby is empty apart from **Create table**. Each city has its own table colours and ring.
+
 ## Waiting for real players
 
 Public online tables wait **2 minutes** after the first person sits down so other real people can join (Quick Play and the Online Lobby send new players to tables that are already waiting). The table shows a countdown; when it runs out, computer players take the empty seats. Anyone at the table can tap **Start now with computer players** to skip the wait. Change the wait with the `FILL_MS` environment variable in Render (milliseconds, e.g. `60000` for 1 minute). Private tables never add computer players on their own — the host decides.

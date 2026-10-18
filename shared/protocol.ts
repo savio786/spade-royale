@@ -11,6 +11,8 @@ export interface TableSummary {
   players: number;   // humans + bots seated
   humans: number;
   phase: string;
+  /** who sits where (null = empty seat) */
+  seats: ({ name: string; avatar: string; bot: boolean; level: number } | null)[];
 }
 
 export type ClientMsg =

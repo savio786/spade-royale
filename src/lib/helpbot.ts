@@ -60,7 +60,7 @@ export const TOPICS: Topic[] = [
     answer: 'Tap PRIVATE GAME → "Join with code", type the 5-letter code your friend sent, and tap Join table. Codes don\'t use the letters O or I, or the digits 0 and 1, so there\'s no mixing them up.',
     related: ['private'] },
   { id: 'lobby', title: 'Online lobby & tables', keys: ['online lobby', 'lobby', 'table', 'tables', 'city', 'new york', 'seattle', 'vegas', 'monaco', 'filter', 'create table', 'bet size'],
-    answer: 'ONLINE LOBBY lists tables by city. The city depends on the bet (New York starts at 100 coins, Monaco at 2 million). Use the arrows at the top to switch Solo/Partners and filter by game-ending points, or tap CREATE TABLE to set your own bet and points.',
+    answer: 'ONLINE LOBBY shows only tables with real people at them — waiting tables have a green PLAY button, and games already under way are marked LIVE. If nobody is playing, the lobby is empty: tap CREATE TABLE and others can join you. The city depends on the bet (New York starts at 100 coins, Monaco at 2 million). Use the arrows at the top to switch Solo/Partners and filter by game-ending points.',
     related: ['play-now', 'coins-buy'] },
   { id: 'play-now', title: 'Quick match', keys: ['play now', 'quick', 'fast game', 'start game', 'matchmaking', 'random'],
     answer: 'PLAY NOW → pick Solo or Partners and you\'re seated at a table with a bet that suits your coin balance. Online tables wait up to 2 minutes for real people to join; after that, computer players take any empty seats. Don\'t want to wait? Tap "Start now with computer players".',
