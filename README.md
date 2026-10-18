@@ -145,3 +145,5 @@ These are wired up in the UI but use placeholders until you add your own account
 - Spades can't be led until they're broken, unless you hold only spades.
 - The game ends when any side reaches the max points or drops to the min points. The highest score wins, and a tie plays another round.
 - Prize: Partners winners get 1.8× the bet each. The Solo winner gets 3.6× the bet. VIP adds 10%.
+
+Live site: https://spade-royale.onrender.com
