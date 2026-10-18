@@ -145,6 +145,8 @@ function handle(c: Client, m: ClientMsg) {
     case 'act': {
       if (!c.room || !c.player) return;
       const seat = c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id);
+      // players may only bid, play, look at their cards or press Continue; the table itself handles the rest
+      if (!m.action || !['bid', 'play', 'reveal', 'ready'].includes(m.action.type)) return send(c, { t: 'error', message: 'Not allowed' });
       const err = c.room.rt.act(seat, m.action);
       if (err) send(c, { t: 'error', message: err });
       return;

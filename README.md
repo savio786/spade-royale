@@ -121,6 +121,12 @@ Players pick from 16 illustrated people (with matching names for computer player
 
 Eight themes unlock as players level up: Royal Purple (1), Emerald (2), Ocean (4), Ruby (6), Sunset (9), Neon Night (12), Gold Royale (16) and Prism (20). Each changes the felt, rim, panels, card faces and card backs. Ocean, Sunset, Neon Night and Prism use four-color decks. Players switch themes in Settings or at the table (Menu → Table & cards). Players get the newest unlocked theme automatically until they choose one themselves, and a message announces each new unlock. Themes are defined in `src/lib/themes.ts`.
 
+## How a game runs
+
+1. When all four seats are filled the table counts down **10 seconds** ("Game will start in …"), then deals.
+2. Cards arrive face down. On your turn choose **See cards** (then pick a bid 0–13, 0 = Nil) or **Bid Blind Nil** without looking (±200). The server keeps your cards hidden until you choose, so a blind nil really is blind.
+3. After each hand the **Round** screen shows Team Red vs Team Blue: bids, books made, bags, nil bonuses, round points, 10-bag penalties and totals. The next hand starts when everyone taps **Continue** (or after 15 seconds).
+
 ## Online Lobby
 
 The Online Lobby lists only public tables that have at least one real person at them, updated every few seconds. Waiting tables show who is sitting where and a green **PLAY** button for the free seat; games under way are marked **LIVE**. When nobody is playing, the lobby is empty apart from **Create table**. Each city has its own table colours and ring.

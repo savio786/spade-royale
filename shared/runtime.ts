@@ -12,6 +12,8 @@ export interface Snapshot {
   missed: number[];              // turns each seat let run out during this game
   maxMissed: number;             // removed from the table when reached
   fillAt: number | null;         // when computer players fill the empty seats (waiting tables)
+  startAt: number | null;        // full table: when the game starts · round summary: when the next hand is dealt
+  ready: boolean[];              // pressed Continue on the round summary
 }
 
 export interface RuntimeOptions {
@@ -24,6 +26,10 @@ export interface RuntimeOptions {
   /** called when a player is removed for inactivity, before their seat goes to a computer player */
   onInactive?: (seat: number, playerId: string) => void;
   botSpeed?: number; // 1 = normal
+  /** countdown before the first deal once all four seats are filled (default 10 s) */
+  startDelayMs?: number;
+  /** longest the round summary stays up if not everyone presses Continue (default 15 s) */
+  summaryMs?: number;
 }
 
 const CARTOON = Array.from({ length: 24 }, (_, i) => `a${i + 1}`);
@@ -46,6 +52,8 @@ export class TableRuntime {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private fillTimer: ReturnType<typeof setTimeout> | null = null;
   private fillAt: number | null = null;
+  private startAt: number | null = null;
+  private ready = [false, false, false, false];
   private deadline: number | null = null;
   private missed = [0, 0, 0, 0];
   private autoActing = false;
@@ -125,7 +133,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));
@@ -153,6 +161,14 @@ export class TableRuntime {
   // ---------- actions ----------
   act(seat: number, a: Action): string | null {
     if ('seat' in a && a.seat !== seat) return 'Not your seat';
+    if (a.type === 'ready') {
+      if (this.g.phase !== 'roundEnd' || this.ready[seat]) return null;
+      this.ready[seat] = true;
+      const humans = this.g.seats.map((s, i) => (s && !s.bot ? i : -1)).filter((i) => i >= 0);
+      if (humans.every((i) => this.ready[i])) { this.startAt = Date.now() + 700; if (this.timer) clearTimeout(this.timer); this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) this.act(-1, { type: 'nextRound' }); }, 700); }
+      this.emit();
+      return null;
+    }
     try {
       this.g = applyAction(this.g, a);
     } catch (e) {
@@ -178,14 +194,22 @@ export class TableRuntime {
     const speed = this.opts.botSpeed ?? 1;
     const later = (ms: number, fn: () => void) => { this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) fn(); }, ms * speed); };
 
+    if (g.phase !== 'roundEnd') this.ready = [false, false, false, false];
     if (g.phase === 'waiting') {
-      if (isFull(g)) later(900, () => { this.g = startRound(this.g); this.system('New game — good luck!'); this.changed(); });
+      if (!isFull(g)) { this.startAt = null; return; }
+      // everyone is seated: count down, then deal
+      const delay = this.opts.startDelayMs ?? 10_000;
+      if (!this.startAt) this.startAt = Date.now() + delay;
+      this.timer = setTimeout(() => { this.timer = null; if (this.destroyed || !isFull(this.g)) return; this.startAt = null; this.g = startRound(this.g); this.system('New game — good luck!'); this.changed(); }, Math.max(0, this.startAt - Date.now()));
       return;
     }
+    if (g.phase !== 'roundEnd') this.startAt = null;
     if (g.phase === 'trickEnd') return later(1150, () => this.act(-1, { type: 'collect' }));
     if (g.phase === 'roundEnd') {
       this.roundChatter();
-      return later(6500, () => this.act(-1, { type: 'nextRound' }));
+      if (!this.startAt) this.startAt = Date.now() + (this.opts.summaryMs ?? 15_000);
+      this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) this.act(-1, { type: 'nextRound' }); }, Math.max(0, this.startAt - Date.now()));
+      return;
     }
     if (g.phase === 'gameOver') {
       this.roundChatter();

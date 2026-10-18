@@ -137,7 +137,16 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           <InfoPanel st={st} />
           <ScorePanel st={st} />
           <div className="felt-center">
-            {st.phase === 'waiting' && (
+            {st.phase === 'waiting' && view.snap!.startAt && (
+              <div className="center-msg" role="timer">
+                <b>GAME WILL START IN</b>
+                <span className="cm-big" key={Math.ceil((view.snap!.startAt - now) / 1000)}>{Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}</span>
+              </div>
+            )}
+            {st.phase === 'bidding' && st.turn !== me && (
+              <div className="center-msg"><b>CHOOSE YOUR BID</b><span className="cm-name">{st.seats[st.turn]?.name}</span></div>
+            )}
+            {st.phase === 'waiting' && !view.snap!.startAt && (
               <div className="waiting">
                 <div className="waiting-text">WAITING FOR PLAYERS<span className="dots3"><i>.</i><i>.</i><i>.</i></span></div>
                 {(view.snap!.fillAt || (view.online && view.host && view.settings.isPrivate)) && (
@@ -160,7 +169,6 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
             <div className={`trick ${st.phase === 'trickEnd' ? `collect to-${rel(st.lastTrickWinner ?? 0)}` : ''}`}>
               {st.trick.map((t) => <CardView key={`${t.card.s}${t.card.r}`} card={t.card} className={`tcard at-${rel(t.seat)}`} />)}
             </div>
-            {st.phase === 'bidding' && st.turn !== me && <div className="status-line">{st.seats[st.turn]?.name} is bidding…</div>}
             {st.phase === 'playing' && st.trick.length === 0 && st.turn === me && <div className="status-line you">Your lead{!st.spadesBroken ? ' — spades not broken yet' : ''}</div>}
           </div>
         </div>
@@ -173,20 +181,33 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         {flying.map((f) => <span key={f.id} className={`flying to-${f.to}`} aria-hidden="true">{f.e}</span>)}
       </div>
 
-      {/* Hand */}
-      <div className="hand" style={{ ['--n' as string]: Math.max(1, st.hand.length) }}>
-        {st.hand.map((c, i) => {
-          const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
-          return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={{ ['--i' as string]: i }} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
-            onClick={() => { if (ok) { vibrate(10); ctl.act({ type: 'play', seat: me, card: c }); } }} disabled={!ok} />;
-        })}
-      </div>
+      {/* Hand: fanned in an arc; face down during bidding until you choose to look */}
+      {(() => {
+        const hidden = st.phase === 'bidding' && st.hand.length === 0 && st.handCounts[me] > 0;
+        const cards: (Card | null)[] = hidden ? Array(st.handCounts[me]).fill(null) : st.hand;
+        const n = cards.length;
+        const gap = Math.min(80, 1060 / Math.max(1, n));
+        return (
+          <div className={`fan ${hidden ? 'hidden' : ''}`}>
+            {cards.map((c, i) => {
+              const off = i - (n - 1) / 2;
+              const pos = { ['--x' as string]: `${off * gap}px`, ['--y' as string]: `${off * off * 1.9}px`, ['--r' as string]: `${off * 2.6}deg`, ['--i' as string]: i, zIndex: i } as React.CSSProperties;
+              if (!c) return <CardView key={`${st.round}-b${i}`} back className="hcard deal" style={pos} />;
+              const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
+              return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
+                onClick={() => { if (ok) { vibrate(10); ctl.act({ type: 'play', seat: me, card: c }); } }} disabled={!ok} />;
+            })}
+          </div>
+        );
+      })()}
 
       {myTurn && secsLeft !== null && st.phase === 'playing' && <div className={`turn-clock ${secsLeft <= 4 ? 'hurry' : ''}`} role="timer">Your turn · {secsLeft}s</div>}
       {missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
         <div className="missed-warning" role="alert"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg> Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
       )}
-      {st.phase === 'bidding' && st.turn === me && <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />}
+      {st.phase === 'bidding' && st.turn === me && st.bids[me] === null && (st.hand.length === 0
+        ? <SeeCards secsLeft={secsLeft} onSee={() => { sfx.click(); ctl.act({ type: 'reveal', seat: me }); }} onBlind={() => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: 0, blind: true }); }} />
+        : <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />)}
       {view.kicked && (
         <div className="modal-backdrop">
           <div className="modal kicked" role="alertdialog" aria-label="Disconnected for inactivity">
@@ -197,7 +218,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           </div>
         </div>
       )}
-      {st.phase === 'roundEnd' && <RoundSummary st={st} canContinue={!view.online} onContinue={() => ctl.act({ type: 'nextRound' })} />}
+      {st.phase === 'roundEnd' && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
+      {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
       {st.phase === 'gameOver' && <GameOver st={st} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
@@ -298,7 +320,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myV
   const active = st.turn === seat && (st.phase === 'bidding' || st.phase === 'playing');
   const remain = active && deadline && total ? Math.max(0, deadline - now) / total : null;
   return (
-    <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} ${st.phase === 'waiting' ? 'is-waiting' : ''}`}>
+    <div className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} ${st.phase === 'waiting' ? 'is-waiting' : 'in-play'}`}>
       <div className="seat-av" style={remain !== null ? { ['--pct' as string]: `${remain * 100}%` } : undefined}>
         {s && <span className="bezel" aria-hidden="true" />}
         {s ? <Avatar k={s.avatar} size={pos === 'bottom' ? 92 : 86} vip={seat === me && myVip} name={s.name} /> : <span className="q-mark">?</span>}
@@ -308,65 +330,129 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, myV
       </div>
       {s && <div className="seat-name">{s.name} {s.bot ? <small className="cpu-tag">CPU</small> : <small>Lv {s.level}</small>}</div>}
       {s && st.phase !== 'waiting' && (
-        <div className="seat-bid">{st.bids[seat] === null ? (active && st.phase === 'bidding' ? '…' : '–') : st.bids[seat] === 0 ? `NIL · ${st.tricks[seat]}` : `${st.tricks[seat]}/${st.bids[seat]}`}</div>
+        <div className="seat-pill" aria-label={`${s.name}: ${st.bids[seat] === null ? 'no bid yet' : `${st.tricks[seat]} of ${st.bids[seat]} books`}`}>
+          {st.bids[seat] === null ? '-/-' : st.bids[seat] === 0 ? <>{st.tricks[seat]}/<small>{st.blind?.[seat] ? 'BN' : 'NIL'}</small></> : `${st.tricks[seat]}/${st.bids[seat]}`}
+        </div>
       )}
-      {seat !== me && st.phase !== 'waiting' && st.phase !== 'gameOver' && <div className="seat-cards" aria-label={`${st.handCounts[seat]} cards`}>{st.handCounts[seat]}</div>}
       {bubble && <div className="bubble">{bubble}</div>}
+    </div>
+  );
+}
+
+function SeeCards({ onSee, onBlind, secsLeft }: { onSee: () => void; onBlind: () => void; secsLeft: number | null }) {
+  return (
+    <div className="dlg see-cards" role="dialog" aria-label="See your cards">
+      <div className="dlg-title">SEE YOUR CARDS?{secsLeft !== null && <span className={`bid-clock ${secsLeft <= 4 ? 'hurry' : ''}`}> {secsLeft}s</span>}</div>
+      <div className="sc-row">
+        <button className="sc-btn green" onClick={onSee}>SEE CARDS</button>
+        <button className="sc-btn blue" onClick={onBlind} title="Bid nil without looking: +200 if you take no tricks, −200 if you take any">BID BLIND NIL<small>±200 points</small></button>
+      </div>
     </div>
   );
 }
 
 function BidPanel({ st, onBid, secsLeft }: { st: PublicState; onBid: (b: number) => void; secsLeft: number | null }) {
   const me = st.mySeat;
+  const mode = st.settings.mode;
   const suggestion = useMemo(() => botBid({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me), [st.round]); // eslint-disable-line react-hooks/exhaustive-deps
-  const partnerBid = st.settings.mode === 'partners' ? st.bids[(me + 2) % 4] : null;
+  const partnerBid = mode === 'partners' ? st.bids[(me + 2) % 4] : null;
+  const mySide = sideOf(mode, me);
+  const oppSide = mode === 'partners' ? 1 - mySide : null;
   return (
-    <div className="bid-panel" role="dialog" aria-label="Place your bid">
-      <div className="bid-title">YOUR BID{secsLeft !== null && <span className={`bid-clock ${secsLeft <= 4 ? 'hurry' : ''}`}> · {secsLeft}s</span>}</div>
-      <div className="bid-hint">Suggested: <b>{suggestion === 0 ? 'Nil' : suggestion}</b>{partnerBid !== null && <> · Partner bid <b>{partnerBid === 0 ? 'Nil' : partnerBid}</b></>}</div>
-      <div className="bid-grid">
-        <button className="bid-btn nil" onClick={() => onBid(0)}>NIL</button>
-        {Array.from({ length: 13 }, (_, i) => i + 1).map((n) => (
-          <button key={n} className={`bid-btn ${n === suggestion ? 'sug' : ''}`} onClick={() => onBid(n)}>{n}</button>
+    <div className="dlg bid-dlg" role="dialog" aria-label="Select your bid">
+      <div className="dlg-title">SELECT YOUR BID{secsLeft !== null && <span className={`bid-clock ${secsLeft <= 4 ? 'hurry' : ''}`}> {secsLeft}s</span>}</div>
+      <div className="bd-pts">
+        {oppSide !== null && <span className="bd-box red"><em>PTS.</em><b>{st.scores[oppSide]} / {st.bags[oppSide]}<i className="bag" aria-label="bags">💰</i></b></span>}
+        <span className="bd-box blue"><em>PTS.</em><b>{st.scores[mySide]} / {st.bags[mySide]}<i className="bag" aria-label="bags">💰</i></b></span>
+      </div>
+      <div className="bd-grid">
+        {Array.from({ length: 14 }, (_, n) => (
+          <button key={n} className={`bd-tile ${n === suggestion ? 'sug' : ''}`} onClick={() => onBid(n)} aria-label={n === 0 ? 'Bid nil' : `Bid ${n}`}>{n}</button>
         ))}
       </div>
+      <div className="bd-hint">0 = Nil · Suggested <b>{suggestion === 0 ? 'Nil' : suggestion}</b>{partnerBid !== null && <> · Partner bid <b>{partnerBid === 0 ? (st.blind?.[(me + 2) % 4] ? 'Blind nil' : 'Nil') : partnerBid}</b></>}</div>
     </div>
   );
 }
 
-function RoundSummary({ st, canContinue, onContinue }: { st: PublicState; canContinue: boolean; onContinue: () => void }) {
+function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt: number | null; now: number; onContinue: () => void }) {
   const h = st.history[st.history.length - 1];
   const mode = st.settings.mode;
   const me = st.mySeat;
-  const n = sideCount(mode);
-  const label = (side: number) => mode === 'partners' ? (side === sideOf(mode, me) ? 'Us' : 'Them') : (st.seats[side]?.name ?? '');
-  const [left, setLeft] = useState(6);
-  useEffect(() => { const t = setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000); return () => clearInterval(t); }, []);
+  const left = nextAt ? Math.max(0, Math.ceil((nextAt - now) / 1000)) : null;
+  const nilPts = (s: number) => (h.nilResults[s] === null ? 0 : (h.blind?.[s] ? 200 : 100) * (h.nilResults[s] ? 1 : -1));
+  const sides = mode === 'partners' ? [1 - sideOf(mode, me), sideOf(mode, me)] : [0, 1, 2, 3];
+  const sideRow = (side: number) => {
+    const seats = seatsOfSide(mode, side);
+    return {
+      bid: seats.reduce((a, s) => a + (h.bids[s] ?? 0), 0), made: seats.reduce((a, s) => a + h.tricks[s], 0),
+      bags: h.bagsAdded[side], bonus: seats.reduce((a, s) => a + nilPts(s), 0), round: h.delta[side],
+      pen: h.bagPenalty[side] ? -100 : 0, totalBags: st.bags[side], total: st.scores[side],
+    };
+  };
+  const ROWS: [keyof ReturnType<typeof sideRow>, string][] = [['bid', 'BID'], ['made', 'MADE'], ['bags', 'ROUND BAGS'], ['bonus', 'BONUS'], ['round', 'ROUND POINTS'], ['pen', '10-BAGS PENALTY'], ['totalBags', 'TOTAL BAGS'], ['total', 'TOTAL POINTS']];
+  const strong = new Set(['round', 'total']);
+
+  if (mode !== 'partners') {
+    return (
+      <div className="modal-backdrop soft">
+        <div className="rs rs-solo" role="dialog" aria-label="Round summary">
+          <div className="rs-head">ROUND {st.round}</div>
+          <table className="rs-grid">
+            <thead><tr><th />{sides.map((s) => <th key={s} className={s === me ? 'me' : ''}><Avatar k={st.seats[s]?.avatar ?? 'a1'} size={54} /><span>{st.seats[s]?.name}</span></th>)}</tr></thead>
+            <tbody>{ROWS.map(([k, l]) => <tr key={k} className={strong.has(k) ? 'strong' : ''}><td className="rs-lbl">{l}</td>{sides.map((s) => <td key={s}>{sideRow(s)[k]}</td>)}</tr>)}</tbody>
+          </table>
+          <div className="rs-foot"><button className="rs-continue" onClick={onContinue}>CONTINUE</button>{left !== null && <span>Next hand in {left}s</span>}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const [red, blue] = sides;
+  const R = sideRow(red), B = sideRow(blue);
+  const lead = R.total === B.total ? null : R.total > B.total ? 'red' : 'blue';
+  const team = (side: number, color: 'red' | 'blue') => (
+    <div className={`rs-team ${color}`}>
+      <div className={`rs-team-head ${lead === color ? 'lead' : ''}`}>{lead === color && <span className="rs-crown" aria-hidden="true">★</span>}TEAM {color.toUpperCase()}</div>
+      <div className="rs-players">
+        {seatsOfSide(mode, side).map((s) => (
+          <div key={s} className="rs-player">
+            <span className="rs-pic"><Avatar k={st.seats[s]?.avatar ?? 'a1'} size={84} name={st.seats[s]?.name} /></span>
+            <span className="rs-pname">{st.seats[s]?.name}</span>
+            <span className="rs-cell">{h.bids[s] === 0 ? (h.blind?.[s] ? 'BN' : 'NIL') : h.bids[s]}</span>
+            <span className="rs-cell">{h.tricks[s]}</span>
+            <span className="rs-cell" />
+            <span className="rs-cell">{nilPts(s)}</span>
+          </div>
+        ))}
+      </div>
+      {color === 'blue' && <button className="rs-continue" onClick={onContinue}>CONTINUE</button>}
+    </div>
+  );
   return (
     <div className="modal-backdrop soft">
-      <div className="modal summary" role="dialog" aria-label="Round summary">
-        <h2 className="modal-title">Round {st.round}</h2>
-        <table className="sum-table">
-          <thead><tr><th></th><th>Bid</th><th>Books</th><th>Round</th><th>Bags</th><th>Total</th></tr></thead>
-          <tbody>
-            {Array.from({ length: n }, (_, side) => {
-              const seats = seatsOfSide(mode, side);
-              const bid = seats.map((s) => (h.bids[s] === 0 ? 'Nil' : h.bids[s])).join(' + ');
-              const tr = seats.reduce((a, s) => a + h.tricks[s], 0);
-              return (
-                <tr key={side} className={side === sideOf(mode, me) ? 'me' : ''}>
-                  <td>{label(side)}</td><td>{bid}</td><td>{tr}</td>
-                  <td className={h.delta[side] >= 0 ? 'pos' : 'neg'}>{h.delta[side] > 0 ? '+' : ''}{h.delta[side]}{h.bagPenalty[side] ? ' (bag −100)' : ''}</td>
-                  <td>{st.bags[side]}</td><td><b>{st.scores[side]}</b></td>
+      <div className="rs" role="dialog" aria-label="Round summary">
+        {team(red, 'red')}
+        <div className="rs-center">
+          <div className="rs-title">ROUND</div>
+          <div className="rs-vs">
+            <div className="rs-sc red"><b>{R.total}</b><small>💰 {R.totalBags}</small></div>
+            <span className="rs-vs-badge">VS</span>
+            <div className="rs-sc blue"><b>{B.total}</b><small>💰 {B.totalBags}</small></div>
+          </div>
+          <div className="rs-hand">HAND {st.round}</div>
+          <table className="rs-table">
+            <tbody>
+              {ROWS.map(([k, l]) => (
+                <tr key={k} className={strong.has(k) ? 'strong' : ''}>
+                  <td className="v red">{R[k]}</td><td className="rs-lbl">{l}</td><td className="v blue">{B[k]}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {h.nilResults.some((x) => x !== null) && (
-          <p className="center small">{h.nilResults.map((r, s) => (r === null ? null : `${st.seats[s]?.name}: nil ${r ? 'made (+100)' : 'failed (−100)'}`)).filter(Boolean).join(' · ')}</p>
-        )}
-        <div className="center">{canContinue ? <Pill color="green" onClick={onContinue}>Next round ({left})</Pill> : <span className="muted">Next round in {left}s…</span>}</div>
+              ))}
+            </tbody>
+          </table>
+          <div className="rs-note">{left !== null ? `PRESS "CONTINUE" — NEXT HAND IN ${left}s` : 'PRESS "CONTINUE" TO CONTINUE GAME'}</div>
+        </div>
+        {team(blue, 'blue')}
       </div>
     </div>
   );
@@ -507,9 +593,9 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
       <div className="rules">
         <p><b>Goal.</b> Win the number of tricks (“books”) you bid. Spades are always trump.</p>
         <p><b>Partners</b>: you sit across from your partner and your bids are added together. <b>Solo</b>: every player is on their own.</p>
-        <p><b>Bidding.</b> Each player bids 1–13 or <b>Nil</b> (promising to win zero tricks). The game suggests a bid from your hand.</p>
+        <p><b>Bidding.</b> Your cards are dealt face down: tap <b>See cards</b> on your turn, then bid 1–13 or <b>0 = Nil</b> (promising to win zero tricks). The game suggests a bid from your hand. Feeling brave? <b>Bid Blind Nil</b> before looking — worth ±200.</p>
         <p><b>Play.</b> Follow the suit that was led if you can. If you can't, you may play any card — a spade wins unless a higher spade is played. Spades can't be led until they've been “broken” (played on another suit), unless you have only spades.</p>
-        <p><b>Scoring.</b> Make your bid: 10 × bid, plus 1 point per extra trick (a “bag”). Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any. Every 10 bags costs 100 points.</p>
+        <p><b>Scoring.</b> Make your bid: 10 × bid, plus 1 point per extra trick (a “bag”). Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points.</p>
         <p><b>Winning.</b> The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize.</p>
       </div>
     </Modal>

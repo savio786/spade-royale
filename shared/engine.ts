@@ -30,6 +30,7 @@ export interface RoundResult {
   bagsAdded: number[];
   bagPenalty: boolean[];
   nilResults: (null | boolean)[]; // per seat: null = no nil
+  blind?: boolean[];              // per seat: nil bid blind (worth ±200)
 }
 
 export interface GameState {
@@ -41,6 +42,8 @@ export interface GameState {
   round: number;
   hands: Card[][];
   bids: (number | null)[];      // 0 = nil
+  blind: boolean[];             // nil bid without looking at the cards
+  revealed: boolean[];          // has looked at their cards this round
   tricks: number[];             // tricks won this round per seat
   trick: { seat: number; card: Card }[];
   leadSeat: number;
@@ -99,6 +102,8 @@ export function createGame(settings: TableSettings, seats: (Seat | null)[] = [nu
     round: 0,
     hands: [[], [], [], []],
     bids: [null, null, null, null],
+    blind: [false, false, false, false],
+    revealed: [false, false, false, false],
     tricks: [0, 0, 0, 0],
     trick: [],
     leadSeat: 0,
@@ -128,6 +133,8 @@ export function startRound(g: GameState, rnd: () => number = Math.random): GameS
     turn: (dealer + 1) % 4,
     hands,
     bids: [null, null, null, null],
+    blind: [false, false, false, false],
+    revealed: [false, false, false, false],
     tricks: [0, 0, 0, 0],
     trick: [],
     leadSeat: (dealer + 1) % 4,
@@ -164,7 +171,9 @@ export function trickWinner(trick: { seat: number; card: Card }[]): number {
 export class RuleError extends Error {}
 
 export type Action =
-  | { type: 'bid'; seat: number; bid: number }
+  | { type: 'bid'; seat: number; bid: number; blind?: boolean }
+  | { type: 'reveal'; seat: number }  // look at your cards (you can no longer bid blind nil)
+  | { type: 'ready'; seat: number }   // done reading the round summary
   | { type: 'play'; seat: number; card: Card }
   | { type: 'collect' }      // clear a finished trick (after the UI pause)
   | { type: 'nextRound' };   // after round summary
@@ -175,11 +184,22 @@ export function applyAction(g: GameState, a: Action, rnd: () => number = Math.ra
       if (g.phase !== 'bidding') throw new RuleError('Not bidding');
       if (g.turn !== a.seat) throw new RuleError('Not your turn');
       if (!Number.isInteger(a.bid) || a.bid < 0 || a.bid > 13) throw new RuleError('Bad bid');
+      const blindNil = !!a.blind;
+      if (blindNil && (a.bid !== 0 || g.revealed?.[a.seat])) throw new RuleError('Blind nil must be bid before looking at your cards');
       const bids = g.bids.slice();
       bids[a.seat] = a.bid;
+      const blind = (g.blind ?? [false, false, false, false]).slice(); blind[a.seat] = blindNil;
+      const revealed = (g.revealed ?? [true, true, true, true]).slice(); revealed[a.seat] = true;
       const done = bids.every((b) => b !== null);
-      return { ...g, bids, turn: (a.seat + 1) % 4, phase: done ? 'playing' : 'bidding', ...(done ? { turn: g.leadSeat } : {}) };
+      return { ...g, bids, blind, revealed, turn: (a.seat + 1) % 4, phase: done ? 'playing' : 'bidding', ...(done ? { turn: g.leadSeat } : {}) };
     }
+    case 'reveal': {
+      if (g.phase !== 'bidding' || g.revealed?.[a.seat]) return g;
+      const revealed = (g.revealed ?? [true, true, true, true]).slice(); revealed[a.seat] = true;
+      return { ...g, revealed };
+    }
+    case 'ready':
+      return g;
     case 'play': {
       if (g.phase !== 'playing') throw new RuleError('Not playing');
       if (g.turn !== a.seat) throw new RuleError('Not your turn');
@@ -226,8 +246,9 @@ export function scoreRound(g: GameState): GameState {
       const b = g.bids[s] ?? 0;
       if (b === 0) {
         const ok = g.tricks[s] === 0;
+        const worth = g.blind?.[s] ? 200 : 100;
         nilResults[s] = ok;
-        delta[side] += ok ? 100 : -100;
+        delta[side] += ok ? worth : -worth;
         won += g.tricks[s]; // a failed nil's tricks still count toward the partner's contract
       } else {
         contract += b;
@@ -255,7 +276,7 @@ export function scoreRound(g: GameState): GameState {
   }
 
   const scores = g.scores.map((s, i) => s + delta[i]);
-  const result: RoundResult = { bids: g.bids.slice(), tricks: g.tricks.slice(), delta, bagsAdded, bagPenalty, nilResults };
+  const result: RoundResult = { bids: g.bids.slice(), tricks: g.tricks.slice(), delta, bagsAdded, bagPenalty, nilResults, blind: (g.blind ?? []).slice() };
   const history = [...g.history, result];
 
   const anyEnd = scores.some((s) => s >= maxPoints || s <= minPoints);
@@ -276,5 +297,7 @@ export interface PublicState extends Omit<GameState, 'hands'> {
 }
 export function viewFor(g: GameState, viewerSeat: number): PublicState {
   const { hands, ...rest } = g;
-  return { ...rest, hand: hands[viewerSeat] ?? [], handCounts: hands.map((h) => h.length), mySeat: viewerSeat };
+  // during bidding your cards stay face down until you choose to look (so a blind nil is really blind)
+  const hidden = g.phase === 'bidding' && g.revealed && !g.revealed[viewerSeat];
+  return { ...rest, hand: hidden ? [] : hands[viewerSeat] ?? [], handCounts: hands.map((h) => h.length), mySeat: viewerSeat };
 }
