@@ -197,7 +197,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         const hidden = st.phase === 'bidding' && st.hand.length === 0 && st.handCounts[me] > 0;
         const cards: (Card | null)[] = hidden ? Array(st.handCounts[me]).fill(null) : st.hand;
         const n = cards.length;
-        const gap = Math.min(76, 900 / Math.max(1, n));
+        const gap = Math.min(74, 860 / Math.max(1, n));
         return (
           <div className={`fan ${hidden ? 'hidden' : ''}`}>
             {cards.map((c, i) => {

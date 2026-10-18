@@ -1259,3 +1259,9 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .status-line { top: 14%; }
 .seat-bottom.in-play { bottom: -116px; }
 .turn-clock { bottom: 254px; }
+/* big cards like the classic app: only the top of the hand shows, clear of every player's bid */
+.fan { left: calc(50% + 86px); bottom: -64px; }
+.fan .hcard { --w: 172px; }
+.fan .hcard.legal { transform: translateY(-40px); }
+.fan .hcard.legal:hover { transform: translateY(-56px); }
+.score-panel .sp-spade { display: none; }
