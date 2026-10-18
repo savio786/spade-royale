@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.spaderoyale.app"
+    namespace "com.spadehaven.app"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.spaderoyale.app"
+        applicationId "com.spadehaven.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // GitHub's build number becomes the version code, so every Play upload is newer than the last

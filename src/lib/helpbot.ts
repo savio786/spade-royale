@@ -1,4 +1,4 @@
-// Spade Royale help bot: free, offline, keyword-matched answers about the game.
+// Spade Haven help bot: free, offline, keyword-matched answers about the game.
 import { useSyncExternalStore } from 'react';
 
 export type BotAction = 'store-coins' | 'store-chat' | 'rules' | 'play';
@@ -15,7 +15,7 @@ const SUPPORT = (import.meta.env?.VITE_SUPPORT_EMAIL as string | undefined) || '
 
 export const TOPICS: Topic[] = [
   { id: 'hello', title: 'Hi', keys: ['hi', 'hello', 'hey', 'yo', 'sup', 'good morning', 'good evening'],
-    answer: "Hi! I'm the Spade Royale helper. Ask me about rules, bidding, coins, the Chat Pass, private tables or the leaderboard.",
+    answer: "Hi! I'm the Spade Haven helper. Ask me about rules, bidding, coins, the Chat Pass, private tables or the leaderboard.",
     related: ['rules', 'coins-free', 'private'] },
   { id: 'thanks', title: 'Thanks', keys: ['thanks', 'thank you', 'thx', 'ty', 'appreciate', 'great', 'cool', 'awesome'],
     answer: "You're welcome. Good luck at the table! ♠", related: ['rules', 'bidding'] },

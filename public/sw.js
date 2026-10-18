@@ -1,4 +1,4 @@
-// Spade Royale service worker: caches the app shell so it opens offline (bots work offline).
+// Spade Haven service worker: caches the app shell so it opens offline (bots work offline).
 const CACHE = 'spade-royale-v1';
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './manifest.webmanifest', './icons/icon.svg'])).then(() => self.skipWaiting()));

@@ -8,7 +8,7 @@ import { sfx } from '../lib/sound';
 interface Msg { id: number; from: 'bot' | 'me'; text: string; topic?: Topic; chips?: Topic[] }
 
 let seq = 0;
-const greeting = (): Msg => ({ id: ++seq, from: 'bot', text: "Hi! I'm Spade Bot. Ask me anything about Spade Royale, or pick a topic below.", chips: starterTopics() });
+const greeting = (): Msg => ({ id: ++seq, from: 'bot', text: "Hi! I'm Spade Bot. Ask me anything about Spade Haven, or pick a topic below.", chips: starterTopics() });
 
 /** variant "stage": inside the scaled game screens; "page": on the landing page with its own launcher button */
 export function HelpBot({ variant }: { variant: 'stage' | 'page' }) {

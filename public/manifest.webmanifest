@@ -1,6 +1,6 @@
 {
-  "name": "Spade Royale — Online Spades",
-  "short_name": "Spade Royale",
+  "name": "Spade Haven — Online Spades",
+  "short_name": "Spade Haven",
   "description": "Play Spades online: Solo and Partners tables, private games, chat and weekly leaderboards.",
   "start_url": "./#play",
   "scope": "./",

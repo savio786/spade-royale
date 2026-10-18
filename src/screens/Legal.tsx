@@ -8,12 +8,12 @@ const EMAIL = env.VITE_SUPPORT_EMAIL || '';
 const UPDATED = 'October 17, 2026';
 
 export function LegalPage({ page }: { page: 'privacy' | 'terms' }) {
-  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Royale' : 'Terms of Service · Spade Royale'; return () => { document.title = 'Spade Royale'; }; }, [page]);
+  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : 'Terms of Service · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
   const back = () => { if (history.length > 1) history.back(); else window.location.hash = ''; };
   return (
     <div className="legal-page">
       <header className="legal-top">
-        <a href="#" className="legal-brand" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>♠ Spade Royale</a>
+        <a href="#" className="legal-brand" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>♠ Spade Haven</a>
         <nav><a href="#privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="#terms" className={page === 'terms' ? 'on' : ''}>Terms</a><button onClick={back}>Back</button></nav>
       </header>
       <article className="legal-body">
@@ -27,7 +27,7 @@ export function LegalPage({ page }: { page: 'privacy' | 'terms' }) {
 function Privacy() {
   return (<>
     <h1>Privacy Policy</h1>
-    <p>This policy explains what information Spade Royale{BY} (“we”) collects when you play, and how it is used.</p>
+    <p>This policy explains what information Spade Haven{BY} (“we”) collects when you play, and how it is used.</p>
     <h2>What we collect</h2>
     <ul>
       <li><b>Game profile:</b> your player name, avatar (and your profile photo, if you upload one — it is shown to other players at your table and on leaderboards), coins, level, game results and settings. Guest accounts receive an automatic name and a recovery code.</li>
@@ -43,7 +43,7 @@ function Privacy() {
     <h2>Retention and deletion</h2>
     <p>Account and leaderboard data is kept while your account is active. To delete your data, contact us{EMAIL ? <> at <a href={`mailto:${EMAIL}`}>{EMAIL}</a></> : ''} with your player name or guest code.</p>
     <h2>Children</h2>
-    <p>Spade Royale is intended for players aged 18 and over and is not directed to children. If you believe a child has given us information, contact us and we will delete it.</p>
+    <p>Spade Haven is intended for players aged 18 and over and is not directed to children. If you believe a child has given us information, contact us and we will delete it.</p>
     <h2>Changes</h2>
     <p>We may update this policy. The date below shows when it last changed.</p>
   </>);
@@ -52,11 +52,11 @@ function Privacy() {
 function Terms() {
   return (<>
     <h1>Terms of Service</h1>
-    <p>By playing Spade Royale{BY} you agree to these terms.</p>
+    <p>By playing Spade Haven{BY} you agree to these terms.</p>
     <h2>Eligibility</h2>
     <p>You must be at least 18 years old to play.</p>
     <h2>Virtual coins — no real-money gambling</h2>
-    <p>Coins, Chat Passes, trophies and other items are virtual and for entertainment only. They have no cash value, cannot be exchanged for money or prizes, and cannot be transferred or sold. Spade Royale is not a real-money gaming or gambling service.</p>
+    <p>Coins, Chat Passes, trophies and other items are virtual and for entertainment only. They have no cash value, cannot be exchanged for money or prizes, and cannot be transferred or sold. Spade Haven is not a real-money gaming or gambling service.</p>
     <h2>Purchases</h2>
     <p>Purchases of coins and Chat Passes are final once delivered, except where refunds are required by law or by the store you purchased through. Prices are shown before you pay.</p>
     <h2>Fair play and conduct</h2>

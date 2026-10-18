@@ -1,4 +1,4 @@
-// Spade Royale multiplayer server: public tables, private tables with invite codes,
+// Spade Haven multiplayer server: public tables, private tables with invite codes,
 // table chat, bots filling empty seats, and turn timers. Run: npm run server
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
@@ -368,7 +368,7 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200); return res.end('ok'); }
   if (req.url?.startsWith('/api/')) return api(req, res);
-  if (!existsSync(DIST)) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('Spade Royale server running. Build the client (npm run build) to serve it here.'); }
+  if (!existsSync(DIST)) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('Spade Haven server running. Build the client (npm run build) to serve it here.'); }
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   let file = normalize(join(DIST, urlPath));
   if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html');
@@ -393,7 +393,7 @@ process.on('SIGTERM', () => {
 });
 
 Promise.all([initLeaderboard(), initPayments()]).then(() => {
-  http.listen(PORT, () => console.log(`Spade Royale server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
+  http.listen(PORT, () => console.log(`Spade Haven server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
 });
 
 // Render's free plan sleeps after 15 idle minutes; with KEEP_AWAKE=1 the server visits itself every 10 minutes.

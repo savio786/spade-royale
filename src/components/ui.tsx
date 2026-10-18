@@ -66,11 +66,11 @@ export function Coin({ size = 22 }: { size?: number }) {
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
-    <div className={`logo ${compact ? 'compact' : ''}`} aria-label="Spade Royale">
+    <div className={`logo ${compact ? 'compact' : ''}`} aria-label="Spade Haven">
       <span className="logo-word">SP</span>
       <span className="logo-spade"><Icon name="spade" size={compact ? 34 : 86} /></span>
       <span className="logo-word">DE</span>
-      <span className="logo-sub">ROYALE</span>
+      <span className="logo-sub">HAVEN</span>
     </div>
   );
 }

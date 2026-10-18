@@ -1,4 +1,4 @@
-package com.spaderoyale.app;
+package com.spadehaven.app;
 
 import com.getcapacitor.BridgeActivity;
 

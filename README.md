@@ -1,4 +1,4 @@
-# Spade Royale — online Spades (Vite + React + TypeScript)
+# Spade Haven — online Spades (Vite + React + TypeScript)
 
 A complete Spades game with a marketing landing page, installable web app (Windows, macOS, iPad), and native Android/iOS shells (Capacitor) for Google Play and the App Store.
 
@@ -77,14 +77,14 @@ If you host the web build somewhere else (e.g. Netlify) and the server separatel
 
 Every push to `main` builds the Android app on GitHub (Actions → **Android app**):
 
-- **spade-royale-android** — a test APK you can install straight onto a phone.
-- **spade-royale-play-bundle** — the signed `.aab` to upload to the Play Console. It is built once these four repository secrets exist (GitHub → Settings → Secrets and variables → Actions → New repository secret): `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Keep the upload key file safe — Play App Signing lets you reset a lost upload key, but it takes a support request.
+- **spade-haven-android** — a test APK you can install straight onto a phone.
+- **spade-haven-play-bundle** — the signed `.aab` to upload to the Play Console. It is built once these four repository secrets exist (GitHub → Settings → Secrets and variables → Actions → New repository secret): `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Keep the upload key file safe — Play App Signing lets you reset a lost upload key, but it takes a support request.
 
 The version code is GitHub's build number, so each new bundle can be uploaded as an update.
 
 **Purchases in the app:** Google requires Google Play Billing for coins, Chat Passes and VIP inside an Android app, so buying is switched off in the app build (the store shows "coming soon"; free coins still work). Once the Play developer account exists and the products are created in the Play Console, connect Google Play Billing (for example with RevenueCat) and turn the store back on.
 
-Publishing checklist: Google Play developer account ($25 one-time) → create the app (package `com.spaderoyale.app`) → enroll in Play App Signing → upload the `.aab` to Internal / Closed testing → store listing, privacy policy `https://spade-royale.onrender.com/#privacy`, content rating (simulated gambling with virtual coins, 18+), data safety → production. New personal accounts may need a closed test with 12+ testers for 14 days first.
+Publishing checklist: Google Play developer account ($25 one-time) → create the app (package `com.spadehaven.app`) → enroll in Play App Signing → upload the `.aab` to Internal / Closed testing → store listing, privacy policy `https://spade-royale.onrender.com/#privacy`, content rating (simulated gambling with virtual coins, 18+), data safety → production. New personal accounts may need a closed test with 12+ testers for 14 days first.
 
 ## Apple App Store (iPhone / iPad)
 
@@ -116,7 +116,7 @@ Players pick from 24 illustrated people (computer players always use one of thes
 
 ## Table & card themes
 
-Eight themes unlock as players level up: Royal Purple (1), Emerald (2), Ocean (4), Ruby (6), Sunset (9), Neon Night (12), Gold Royale (16) and Prism (20). Each changes the felt, rim, panels, card faces and card backs. Ocean, Sunset, Neon Night and Prism use four-color decks. Players switch themes in Settings or at the table (Menu → Table & cards). Players get the newest unlocked theme automatically until they choose one themselves, and a message announces each new unlock. Themes are defined in `src/lib/themes.ts`.
+Eight themes unlock as players level up: Royal Purple (1), Emerald (2), Ocean (4), Ruby (6), Sunset (9), Neon Night (12), Royal Gold (16) and Prism (20). Each changes the felt, rim, panels, card faces and card backs. Ocean, Sunset, Neon Night and Prism use four-color decks. Players switch themes in Settings or at the table (Menu → Table & cards). Players get the newest unlocked theme automatically until they choose one themselves, and a message announces each new unlock. Themes are defined in `src/lib/themes.ts`.
 
 ## How a game runs
 

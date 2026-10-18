@@ -32,7 +32,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
   return (
     <div className="landing">
       <nav className="land-nav">
-        <a href="#top" className="land-brand"><Icon name="spade" size={26} /> SPADE ROYALE</a>
+        <a href="#top" className="land-brand"><Icon name="spade" size={26} /> SPADE HAVEN</a>
         <div className="land-links">
           <a href="#features">Features</a>
           <a href="#modes">Game modes</a>
@@ -131,7 +131,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
       </section>
 
       <footer className="land-foot">
-        <span><Icon name="spade" size={18} /> Spade Royale</span>
+        <span><Icon name="spade" size={18} /> Spade Haven</span>
         <span>Virtual coins only — they have no cash value.</span>
         <span className="land-legal"><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · 18+</span>
         <span>© {new Date().getFullYear()}</span>

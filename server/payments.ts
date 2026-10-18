@@ -30,7 +30,7 @@ export async function createCheckout(productId: string, playerId: string, return
     'line_items[0][quantity]': '1',
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][unit_amount]': String(p.priceCents),
-    'line_items[0][price_data][product_data][name]': `Spade Royale — ${p.name}`,
+    'line_items[0][price_data][product_data][name]': `Spade Haven — ${p.name}`,
     client_reference_id: playerId,
     'metadata[playerId]': playerId,
     'metadata[productId]': p.id,

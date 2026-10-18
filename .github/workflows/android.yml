@@ -1,7 +1,7 @@
 # Builds the Android app on every push to main.
-#  • spade-royale-android     → test APK you can install directly on a phone
-#  • spade-royale-play-bundle → signed .aab to upload to the Google Play Console
-#  • spade-royale-release-apk  → signed .apk for Samsung Galaxy Store and other Android stores
+#  • spade-haven-android     → test APK you can install directly on a phone
+#  • spade-haven-play-bundle → signed .aab to upload to the Google Play Console
+#  • spade-haven-release-apk  → signed .apk for Samsung Galaxy Store and other Android stores
 #    (needs the four ANDROID_* secrets in GitHub → Settings → Secrets and variables → Actions)
 name: Android app
 
@@ -43,7 +43,7 @@ jobs:
       - name: Upload the test APK
         uses: actions/upload-artifact@v4
         with:
-          name: spade-royale-android
+          name: spade-haven-android
           path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
       - name: Build the signed Play Store bundle
@@ -62,14 +62,14 @@ jobs:
         if: env.HAS_KEY == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: spade-royale-play-bundle
+          name: spade-haven-play-bundle
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
       - name: Upload the signed APK (Samsung Galaxy Store, Amazon, Huawei…)
         if: env.HAS_KEY == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: spade-royale-release-apk
+          name: spade-haven-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
       - name: Check signing secrets

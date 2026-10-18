@@ -52,7 +52,7 @@ export const THEMES: Theme[] = [
     felt: ['#1c2541', '#0b132b', '#05070f'], feltLine: '#00e5ff', glow: 'rgba(0,229,255,.75)', rim: 'linear-gradient(135deg, #ff00e6, #7c4dff 45%, #00e5ff)', rimEdge: '#0b0b1a',
     panel: 'rgba(0,10,30,.6)', panelLine: 'rgba(0,229,255,.75)', panelText: '#bdf7ff',
     cardFace: 'linear-gradient(180deg, #f7fbff, #e3ecff)', cardBack: 'repeating-linear-gradient(90deg, #ff00e6 0 3px, #120a2a 3px 10px)', cardBackEdge: '#00e5ff', suits: { S: '#111', H: '#e6007a', D: '#0091ea', C: '#00a152' }, fourColor: true },
-  { id: 'gold', rail: ['#fff6c2', '#ffc83d', '#8a5200'], name: 'Gold Royale', level: 16,
+  { id: 'gold', rail: ['#fff6c2', '#ffc83d', '#8a5200'], name: 'Royal Gold', level: 16,
     felt: ['#3a3a3a', '#1c1c1c', '#070707'], feltLine: '#ffd54f', glow: 'rgba(255,200,61,.65)', rim: 'linear-gradient(135deg, #fff3b0, #ffc83d 40%, #fff1a8 55%, #b06a00)', rimEdge: '#5a3500',
     panel: 'rgba(0,0,0,.45)', panelLine: 'rgba(255,213,79,.75)', panelText: '#fff1c1',
     cardFace: 'linear-gradient(180deg, #fffdf2, #f6ecc8)', cardBack: 'repeating-linear-gradient(45deg, #ffc83d 0 3px, #111 3px 9px)', cardBackEdge: '#ffc83d', suits: { S: '#111', H: '#b8001f', D: '#b8001f', C: '#111' } },
