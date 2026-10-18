@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Avatar, AVATAR_KEYS, Coin, Icon, Modal, Pill } from '../components/ui';
+import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, chatPassLabel, isTestMode, store } from '../lib/payments';
@@ -275,7 +275,7 @@ export function FriendsModal({ onClose, onInvite }: { onClose: () => void; onInv
         e.preventDefault();
         const n = name.trim();
         if (!n) return;
-        profile.set((x) => ({ friends: [...x.friends, { id: Math.random().toString(36).slice(2), name: n.slice(0, 18), avatar: AVATAR_KEYS[Math.floor(Math.random() * 12)], level: 0, online: false }] }));
+        profile.set((x) => ({ friends: [...x.friends, { id: Math.random().toString(36).slice(2), name: n.slice(0, 18), avatar: AVATAR_KEYS[Math.floor(Math.random() * AVATAR_KEYS.length)], level: 0, online: false }] }));
         setName(''); toast(`${n} added to your friends`);
       }}>
         <label className="sr-only" htmlFor="fr-name">Player name</label>
@@ -354,11 +354,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
       <label className="field"><span>Player name</span>
         <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && profile.set({ name: name.trim() })} /></label>
       <div className="field"><span>Avatar</span>
-        <div className="avatar-grid">
-          {AVATAR_KEYS.map((k) => (
-            <button key={k} className={`avatar-pick ${k === p.avatar ? 'on' : ''}`} aria-pressed={k === p.avatar} aria-label={`Avatar ${k}`} onClick={() => profile.set({ avatar: k })}><Avatar k={k} size={44} /></button>
-          ))}
-        </div></div>
+        <AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
       <div className="toggles">
         {([['sound', 'Sound effects'], ['fast', 'Fast bots'], ['vibrate', 'Vibration']] as const).map(([k, l]) => (
           <label key={k} className="toggle"><input type="checkbox" checked={p.settings[k]} onChange={() => toggle(k)} /><span className="tg" /> {l}</label>

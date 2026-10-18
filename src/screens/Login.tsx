@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, AVATAR_KEYS, Icon, Logo, Modal, Pill } from '../components/ui';
+import { AVATAR_KEYS, AvatarPicker, Icon, Logo, Modal, Pill } from '../components/ui';
 import { profile } from '../lib/profile';
 import { sfx } from '../lib/sound';
 
@@ -8,7 +8,7 @@ type Provider = 'facebook' | 'google' | 'guest';
 export function Login() {
   const [step, setStep] = useState<null | Provider>(null);
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState(AVATAR_KEYS[Math.floor(Math.random() * 12)]);
+  const [avatar, setAvatar] = useState(AVATAR_KEYS[Math.floor(Math.random() * AVATAR_KEYS.length)]);
 
   const finish = () => {
     const n = name.trim() || `Guest${Math.floor(1000 + Math.random() * 9000)}`;
@@ -44,14 +44,8 @@ export function Login() {
               <span>Player name</span>
               <input autoFocus maxLength={18} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. ApexSpadeOverlord" />
             </label>
-            <div className="field"><span>Choose an avatar</span>
-              <div className="avatar-grid">
-                {AVATAR_KEYS.map((k) => (
-                  <button type="button" key={k} className={`avatar-pick ${k === avatar ? 'on' : ''}`} onClick={() => { sfx.click(); setAvatar(k); }} aria-label={`Avatar ${k}`} aria-pressed={k === avatar}>
-                    <Avatar k={k} size={52} />
-                  </button>
-                ))}
-              </div>
+            <div className="field"><span>Choose your avatar</span>
+              <AvatarPicker value={avatar} onChange={setAvatar} />
             </div>
             <Pill type="submit" color="green" className="wide-btn"><Icon name="play" size={18} /> Start playing — 50,000 free coins</Pill>
           </form>

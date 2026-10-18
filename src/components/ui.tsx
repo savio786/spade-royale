@@ -1,6 +1,7 @@
 import React, { ReactNode, useEffect } from 'react';
 import { Card, rankLabel, SUIT_SYMBOL } from '../../shared/engine';
 import { sfx } from '../lib/sound';
+import { AvatarArt, avatarName, AVATAR_KEYS as AVATAR_KEYS_LIST } from './avatars';
 
 // ---------------- Icons ----------------
 const P: Record<string, ReactNode> = {
@@ -72,26 +73,30 @@ export function Logo({ compact }: { compact?: boolean }) {
   );
 }
 
-// ---------------- Avatars (original geometric set) ----------------
-const AV: Record<string, [string, string, string]> = {
-  a1: ['#10b981', '#064e3b', '♠'], a2: ['#6366f1', '#1e1b4b', '★'], a3: ['#f59e0b', '#7c2d12', '♛'], a4: ['#ec4899', '#500724', '♥'],
-  a5: ['#06b6d4', '#083344', '♦'], a6: ['#ef4444', '#450a0a', '♣'], a7: ['#a855f7', '#2e1065', '☾'], a8: ['#84cc16', '#1a2e05', '✿'],
-  a9: ['#f97316', '#431407', '☀'], a10: ['#3b82f6', '#172554', '♞'], a11: ['#14b8a6', '#042f2e', '♜'], a12: ['#eab308', '#422006', '✦'],
-};
-export const AVATAR_KEYS = Object.keys(AV);
+// ---------------- Avatars (cartoon animals & characters: ./avatars.tsx) ----------------
+export { AVATAR_KEYS, avatarName } from './avatars';
 export function Avatar({ k, size = 64, vip, name }: { k: string; size?: number; vip?: boolean; name?: string }) {
-  const [a, b, g] = AV[k] ?? AV.a1;
   return (
-    <span className={`avatar ${vip ? 'vip' : ''}`} style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s avatar` : 'avatar'}>
-      <svg viewBox="0 0 64 64" width="100%" height="100%">
-        <defs>
-          <radialGradient id={`av-${k}`} cx="35%" cy="25%" r="85%"><stop offset="0" stopColor={a} /><stop offset="1" stopColor={b} /></radialGradient>
-        </defs>
-        <circle cx="32" cy="32" r="32" fill={`url(#av-${k})`} />
-        <path d="M0 44 Q16 36 32 44 T64 44 V64 H0z" fill="#000" opacity=".18" />
-        <text x="32" y="42" textAnchor="middle" fontSize="30" fill="#fff" fontFamily="'Segoe UI Symbol','Apple Symbols','DejaVu Sans',sans-serif" style={{ filter: 'drop-shadow(0 2px 2px rgba(0,0,0,.4))' }}>{g}{'︎'}</text>
-      </svg>
+    <span className={`avatar ${vip ? 'vip' : ''}`} style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s avatar` : `${avatarName(k)} avatar`}>
+      <AvatarArt k={k} />
     </span>
+  );
+}
+
+/** Big preview + grid of all avatars with their names. */
+export function AvatarPicker({ value, onChange }: { value: string; onChange: (k: string) => void }) {
+  return (
+    <div className="avatar-picker">
+      <div className="ap-preview"><Avatar k={value} size={84} /><b>{avatarName(value)}</b></div>
+      <div className="avatar-grid" role="radiogroup" aria-label="Choose an avatar">
+        {AVATAR_KEYS_LIST.map((k) => (
+          <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`}
+            onClick={() => { sfx.click(); onChange(k); }} aria-label={avatarName(k)} title={avatarName(k)}>
+            <Avatar k={k} size={52} /><small>{avatarName(k)}</small>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
