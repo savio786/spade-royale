@@ -1271,3 +1271,4 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .info-panel { left: 15.5%; } .score-panel { right: 15.5%; }
 .seat-pill { display: flex; align-items: baseline; justify-content: center; align-content: center; padding-top: 0; padding-bottom: 0; line-height: 1; }
 .seat-pill { align-items: center; } .seat-pill small { margin-left: 1px; }
+.seat-pill { cursor: pointer; pointer-events: auto; }

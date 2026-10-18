@@ -355,7 +355,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onP
       </div>
       {s && <div className="seat-name" onClick={onProfile} role="button" tabIndex={-1}>{s.name} {s.bot ? <small className="cpu-tag">CPU</small> : <small>Lv {s.level}</small>}</div>}
       {s && st.phase !== 'waiting' && (
-        <div className="seat-pill" aria-label={`${s.name}: ${st.bids[seat] === null ? 'no bid yet' : `${st.tricks[seat]} of ${st.bids[seat]} books`}`}>
+        <div className="seat-pill" onClick={onProfile} role="button" aria-label={`${s.name}: ${st.bids[seat] === null ? 'no bid yet' : `${st.tricks[seat]} of ${st.bids[seat]} books`}`}>
           {st.bids[seat] === null ? '-/-' : st.bids[seat] === 0 ? <>{st.tricks[seat]}/<small>{st.blind?.[seat] ? 'BN' : 'NIL'}</small></> : `${st.tricks[seat]}/${st.bids[seat]}`}
         </div>
       )}

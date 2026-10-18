@@ -8,7 +8,7 @@ import { sfx } from '../lib/sound';
 
 export interface CardPlayer { name: string; avatar: string; level: number; bot?: boolean; stats?: PublicStats; levelPct?: number }
 
-const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '—');
+const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '0%');
 
 export function PlayerCard({ player, onClose }: { player: CardPlayer; onClose: () => void }) {
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
