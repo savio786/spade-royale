@@ -22,11 +22,11 @@ export interface Theme {
 
 const CLASSIC = { S: '#141428', H: '#c8102e', D: '#c8102e', C: '#141428' };
 const FOUR = { S: '#141428', H: '#d0103a', D: '#1565c0', C: '#1b8a3a' };
-const WOOD = 'linear-gradient(135deg, #f2d9a6, #b88a4a 40%, #f0d6a0 60%, #a07338)';
+const WOOD = 'linear-gradient(180deg, #ffe4a0 0%, #e2ab52 14%, #b9802f 40%, #c99245 62%, #e6b766 82%, #7a4c12 100%)';
 
 export const THEMES: Theme[] = [
   { id: 'royal', name: 'Royal Purple', level: 1,
-    felt: ['#8a4cf2', '#5a24c4', '#3b1394'], feltLine: '#c9a0ff', glow: 'rgba(170,120,255,.7)', rim: WOOD, rimEdge: '#4a2c10',
+    felt: ['#8a4cf2', '#5a24c4', '#3b1394'], feltLine: '#c9a0ff', glow: 'rgba(170,120,255,.7)', rim: WOOD, rimEdge: '#5a3608',
     panel: 'rgba(60,20,140,.45)', panelLine: 'rgba(220,200,255,.6)', panelText: '#e2d6ff',
     cardFace: 'linear-gradient(180deg, #fff, #eeeef4)', cardBack: 'repeating-linear-gradient(45deg, #2a3ad0 0 6px, #1a2390 6px 12px)', cardBackEdge: '#fff', suits: CLASSIC },
   { id: 'emerald', name: 'Emerald', level: 2,

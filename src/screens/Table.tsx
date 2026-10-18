@@ -130,7 +130,9 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       </div>
 
       <div className="felt-wrap">
+        <div className="felt-base" aria-hidden="true" />
         <div className="felt">
+          <span className="rail-inlay l" aria-hidden="true">♠♥♣</span><span className="rail-inlay r" aria-hidden="true">♦♥♠</span>
           <InfoPanel st={st} />
           <ScorePanel st={st} />
           <div className="felt-center">
