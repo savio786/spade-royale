@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 const env = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 const OPERATOR = env.VITE_OPERATOR_NAME || '';
 const BY = OPERATOR ? ` (operated by ${OPERATOR})` : '';
-const EMAIL = env.VITE_SUPPORT_EMAIL || 'support@example.com';
+const EMAIL = env.VITE_SUPPORT_EMAIL || '';
 const UPDATED = 'October 17, 2026';
 
 export function LegalPage({ page }: { page: 'privacy' | 'terms' }) {
@@ -18,7 +18,7 @@ export function LegalPage({ page }: { page: 'privacy' | 'terms' }) {
       </header>
       <article className="legal-body">
         {page === 'privacy' ? <Privacy /> : <Terms />}
-        <p className="legal-meta">Last updated {UPDATED}. Questions: <a href={`mailto:${EMAIL}`}>{EMAIL}</a></p>
+        <p className="legal-meta">Last updated {UPDATED}.{EMAIL && <> Questions: <a href={`mailto:${EMAIL}`}>{EMAIL}</a></>}</p>
       </article>
     </div>
   );
@@ -40,7 +40,7 @@ function Privacy() {
     <h2>Storage on your device</h2>
     <p>Your profile is saved in your browser's local storage so you stay signed in. Clearing your browser data removes it; guests can restore their account with their guest code.</p>
     <h2>Retention and deletion</h2>
-    <p>Account and leaderboard data is kept while your account is active. To delete your data, email us from the address below with your player name or guest code.</p>
+    <p>Account and leaderboard data is kept while your account is active. To delete your data, contact us{EMAIL ? <> at <a href={`mailto:${EMAIL}`}>{EMAIL}</a></> : ''} with your player name or guest code.</p>
     <h2>Children</h2>
     <p>Spade Royale is intended for players aged 18 and over and is not directed to children. If you believe a child has given us information, contact us and we will delete it.</p>
     <h2>Changes</h2>
