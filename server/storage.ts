@@ -5,8 +5,10 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
-const UP_URL = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/$/, '');
-const UP_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+// tolerate values pasted with quotes, spaces or a "Bearer " prefix
+const clean = (v: string | undefined) => (v || '').trim().replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').trim();
+const UP_URL = clean(process.env.UPSTASH_REDIS_REST_URL).replace(/\/$/, '');
+const UP_TOKEN = clean(process.env.UPSTASH_REDIS_REST_TOKEN);
 const DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
 export const storageKind = UP_URL && UP_TOKEN ? 'upstash' : 'files';
 
