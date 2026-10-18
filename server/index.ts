@@ -12,6 +12,7 @@ import { board, credit, initLeaderboard } from './leaderboard';
 import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { createGuest, guestName, loadAccount, restoreByCode, saveProgress } from './accounts';
+import { AuthError, authConfig, changePassword, facebookSignIn, googleSignIn, signIn, signUp } from './auth';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentsEnabled } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -253,6 +254,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   if (req.method === 'OPTIONS') return json(res, 204, null);
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
+  if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled() });
   if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
   if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook')) {
@@ -292,6 +294,31 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
     return;
   }
   return json(res, 404, { error: 'not found' });
+}
+
+// ---- sign-in: email, Google, Facebook ----
+const authTries = new Map<string, { n: number; t: number }>();
+async function authApi(req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) {
+  try {
+    if (req.method === 'GET' && url.pathname === '/api/auth/config') return json(res, 200, authConfig());
+    if (req.method !== 'POST') return json(res, 404, { error: 'not found' });
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    const now = Date.now(), t = authTries.get(ip);
+    if (t && now - t.t < 10 * 60_000 && t.n >= 20) return json(res, 429, { error: 'Too many attempts. Wait a few minutes and try again.' });
+    authTries.set(ip, t && now - t.t < 10 * 60_000 ? { n: t.n + 1, t: t.t } : { n: 1, t: now });
+    const b = JSON.parse((await readBody(req, 8000)) || '{}');
+    const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> = {
+      '/api/auth/signup': signUp, '/api/auth/login': signIn, '/api/auth/password': changePassword,
+      '/api/auth/google': googleSignIn, '/api/auth/facebook': facebookSignIn,
+    };
+    const fn = routes[url.pathname];
+    if (!fn) return json(res, 404, { error: 'not found' });
+    return json(res, 200, await fn(b));
+  } catch (e) {
+    if (e instanceof AuthError) return json(res, e.status, { error: e.message });
+    console.error('auth', e);
+    return json(res, 500, { error: 'Sign-in is unavailable right now. Please try again.' });
+  }
 }
 
 // ---- guest accounts ----

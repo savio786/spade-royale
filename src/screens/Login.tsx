@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { emailSignIn, emailSignUp, facebookSignIn, loadAuthConfig, mountGoogleButton, type AuthConfig } from '../lib/auth';
 import { AVATAR_KEYS, AvatarPicker, Icon, Logo, Modal, Pill } from '../components/ui';
 import { profile } from '../lib/profile';
 import { sfx } from '../lib/sound';
 import { continueAsGuest, deviceGuestName, finishNewGuest, notifyReturning, restoreWithCode } from '../lib/guest';
 
-type Step = null | 'facebook' | 'google' | 'guest-new' | 'restore';
+type Step = null | 'email' | 'guest-new' | 'restore';
 
 export function Login() {
   const [step, setStep] = useState<Step>(null);
@@ -15,6 +16,17 @@ export function Login() {
   const [code, setCode] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const returningName = deviceGuestName();
+  const [cfg, setCfg] = useState<AuthConfig>({ google: null, facebook: null });
+  const googleRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { void loadAuthConfig().then(setCfg); }, []);
+  useEffect(() => {
+    if (cfg.google && googleRef.current) void mountGoogleButton(googleRef.current, cfg.google, (e) => { if (e) setErr(e); else sfx.coins(); }).catch(() => {});
+  }, [cfg.google]);
+  const fb = async () => {
+    if (!cfg.facebook) return;
+    sfx.click(); setBusy(true); setErr(null);
+    try { await facebookSignIn(cfg.facebook); sfx.coins(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  };
 
   const guest = async () => {
     sfx.click();
@@ -24,11 +36,6 @@ export function Login() {
     if (r.returning) { sfx.coins(); notifyReturning(r.name); return; }
     setGuestName(r.name);
     setStep('guest-new');
-  };
-  const social = () => {
-    const n = name.trim() || `Player${Math.floor(1000 + Math.random() * 9000)}`;
-    profile.set({ name: n.slice(0, 18), avatar, provider: step === 'facebook' ? 'facebook' : 'google' });
-    sfx.coins();
   };
   const restore = async () => {
     setBusy(true); setErr(null);
@@ -43,14 +50,17 @@ export function Login() {
         <Logo />
         <div className="login-glow" />
         <div className="login-buttons">
-          <button className="social fb" onClick={() => { sfx.click(); setStep('facebook'); }}>
-            <span className="social-ico">f</span><span>Sign in with Facebook</span>
+          <button className="social em" onClick={() => { sfx.click(); setErr(null); setStep('email'); }}>
+            <span className="social-ico"><Icon name="chat" size={24} /></span><span>Sign in with email</span>
           </button>
-          <button className="social gp" onClick={() => { sfx.click(); setStep('google'); }}>
-            <span className="social-ico"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6" fill="#fff" /><path d="M7 10v4M5 12h4" stroke="#1a7f37" strokeWidth="2" strokeLinecap="round" /><circle cx="16" cy="11" r="1.2" fill="#1a7f37" /><circle cx="18" cy="13" r="1.2" fill="#1a7f37" /></svg></span>
-            <span>Google Play Games</span>
-          </button>
+          {cfg.facebook && (
+            <button className="social fb" onClick={fb} disabled={busy}>
+              <span className="social-ico">f</span><span>Continue with Facebook</span>
+            </button>
+          )}
+          {cfg.google && <div className="google-slot" ref={googleRef} />}
         </div>
+        {err && step === null && <p className="form-error login-err" role="alert">{err}</p>}
         <button className="guest-link" onClick={guest} disabled={busy}>
           {busy ? 'One moment…' : returningName ? `Continue as ${returningName}` : 'Continue as guest'}
         </button>
@@ -84,21 +94,45 @@ export function Login() {
         </Modal>
       )}
 
-      {(step === 'facebook' || step === 'google') && (
-        <Modal title={`Sign in with ${step === 'facebook' ? 'Facebook' : 'Google Play Games'}`} onClose={() => setStep(null)}>
-          <p className="note">Social sign-in needs your own app keys (see README → “Sign-in”). Until they're added, this creates a profile on this device tagged to {step === 'facebook' ? 'Facebook' : 'Google'}.</p>
-          <form className="profile-form" onSubmit={(e) => { e.preventDefault(); social(); }}>
-            <label className="field">
-              <span>Player name</span>
-              <input autoFocus maxLength={18} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. ApexSpadeOverlord" />
-            </label>
-            <div className="field"><span>Choose your avatar</span>
-              <AvatarPicker value={avatar} onChange={setAvatar} />
-            </div>
-            <Pill type="submit" color="green" className="wide-btn"><Icon name="play" size={18} /> Start playing — 50,000 free coins</Pill>
-          </form>
-        </Modal>
-      )}
+      {step === 'email' && <EmailModal avatar={avatar} setAvatar={setAvatar} onClose={() => setStep(null)} />}
     </div>
+  );
+}
+
+function EmailModal({ avatar, setAvatar, onClose }: { avatar: string; setAvatar: (k: string) => void; onClose: () => void }) {
+  const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const submit = async () => {
+    setBusy(true); setErr(null);
+    try {
+      if (mode === 'in') await emailSignIn(email, pw); else await emailSignUp(email, pw, name, avatar);
+      sfx.coins(); notifyReturning(profile.get().name);
+    } catch (e) { setErr((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal title={mode === 'in' ? 'Sign in' : 'Create your account'} onClose={onClose}>
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={mode === 'in'} className={`tab ${mode === 'in' ? 'on' : ''}`} onClick={() => { setMode('in'); setErr(null); }}>Sign in</button>
+        <button role="tab" aria-selected={mode === 'up'} className={`tab ${mode === 'up' ? 'on' : ''}`} onClick={() => { setMode('up'); setErr(null); }}>Create account</button>
+      </div>
+      <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        {mode === 'up' && (
+          <label className="field"><span>Player name</span>
+            <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} placeholder="e.g. ApexSpadeOverlord" autoComplete="nickname" required /></label>
+        )}
+        <label className="field"><span>Email</span>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>
+        <label className="field"><span>Password</span>
+          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>
+        {mode === 'up' && <div className="field"><span>Choose your avatar</span><AvatarPicker value={avatar} onChange={setAvatar} /></div>}
+        {err && <p className="form-error" role="alert">{err}</p>}
+        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'in' ? 'Sign in' : 'Create account — 50,000 free coins'}</Pill>
+        <p className="muted small center">{mode === 'in' ? <>New here? <button type="button" className="linkish" onClick={() => setMode('up')}>Create an account</button></> : 'Your coins, level and stats are saved to your account, so you can sign in on any phone or computer.'}</p>
+      </form>
+    </Modal>
   );
 }

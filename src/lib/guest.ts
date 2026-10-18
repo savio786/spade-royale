@@ -7,7 +7,7 @@ import { serverOrigin } from './config';
 import { toast } from './toast';
 
 interface Vault { id: string; key: string | null; code: string | null; name: string; profile: Profile | null }
-interface Account { id: string; key: string; code: string; name: string; profile: Partial<Profile> | null; updatedAt: number }
+export interface Account { id: string; key: string; code: string; name: string; profile: Partial<Profile> | null; updatedAt: number; kind?: 'guest' | 'email' | 'google' | 'facebook'; email?: string | null }
 
 const VAULT = 'spade-royale-guest';
 const readVault = (): Vault | null => { try { const v = localStorage.getItem(VAULT); return v ? JSON.parse(v) : null; } catch { return null; } };
@@ -26,17 +26,19 @@ async function api<T>(path: string, init?: RequestInit): Promise<T | null> {
   } catch { return null; }
 }
 
-function applyAccount(a: Account, base?: Profile | null) {
+export function applyAccount(a: Account, base?: Profile | null) {
   const local = base ?? profile.get();
   const server = a.profile as Profile | null;
   const useServer = server && (a.updatedAt || 0) > (local.updatedAt || 0);
+  const kind = a.kind ?? 'guest';
   const next: Profile = {
     ...(useServer ? { ...local, ...server } : local),
-    id: a.id, name: a.name, provider: 'guest', guestKey: a.key, guestCode: a.code,
+    id: a.id, name: a.name, provider: kind, email: a.email ?? null, guestKey: a.key, guestCode: a.code,
     updatedAt: useServer ? a.updatedAt : local.updatedAt,
   };
   profile.replace(next);
-  writeVault({ id: a.id, key: a.key, code: a.code, name: a.name, profile: next });
+  if (kind === 'guest') writeVault({ id: a.id, key: a.key, code: a.code, name: a.name, profile: next });
+  else if (readVault()?.id === a.id) { try { localStorage.removeItem(VAULT); } catch { /* ignore */ } } // the guest became a real account
 }
 
 const randomGuestName = () => `Guest${10000 + Math.floor(Math.random() * 90000)}`;
@@ -108,8 +110,8 @@ export async function registerExistingGuest() {
 /** On startup: pull newer progress from the server (e.g. played on another device). */
 export async function pullGuestProgress() {
   const p = profile.get();
-  if (p.provider !== 'guest') return;
-  if (!p.guestKey) return registerExistingGuest();
+  if (!p.provider) return;
+  if (!p.guestKey) return p.provider === 'guest' ? registerExistingGuest() : undefined;
   const a = await api<Account>(`/api/guest?id=${encodeURIComponent(p.id)}&key=${encodeURIComponent(p.guestKey)}`);
   if (a) applyAccount(a);
 }
@@ -119,8 +121,8 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let lastSent = 0;
 async function push() {
   const p = profile.get();
-  if (p.provider !== 'guest' || p.updatedAt <= lastSent) return;
-  writeVault({ id: p.id, key: p.guestKey, code: p.guestCode, name: p.name, profile: p });
+  if (!p.provider || p.updatedAt <= lastSent) return;
+  if (p.provider === 'guest') writeVault({ id: p.id, key: p.guestKey, code: p.guestCode, name: p.name, profile: p });
   if (!p.guestKey) return;
   const base = serverOrigin();
   if (!base) return;
@@ -132,7 +134,7 @@ async function push() {
 }
 export function startGuestSync() {
   profile.subscribe(() => {
-    if (profile.get().provider !== 'guest') return;
+    if (!profile.get().provider || !profile.get().guestKey) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => { timer = null; void push(); }, 2500);
   });

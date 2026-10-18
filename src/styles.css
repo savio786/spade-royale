@@ -1275,3 +1275,13 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .conn-banner { position: absolute; left: 50%; top: 86px; translate: -50% 0; z-index: 40; display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 999px; background: rgba(120,10,30,.92); border: 2px solid #ff8a96; color: #fff; font-size: 17px; font-weight: 600; box-shadow: 0 6px 16px rgba(0,0,0,.5); }
 .conn-spin { width: 18px; height: 18px; border-radius: 50%; border: 3px solid rgba(255,255,255,.3); border-top-color: #fff; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.social.em { background: linear-gradient(180deg, #34d86b, #0c7a30); }
+.google-slot { display: flex; justify-content: center; min-height: 44px; }
+.login-err { max-width: 420px; text-align: center; }
+.linkish { background: none; border: none; color: var(--gold); text-decoration: underline; font: inherit; cursor: pointer; padding: 0; }
+.save-acct { margin-top: 10px; }
+/* tall forms (sign-up, settings) scroll inside the window so the buttons are always reachable */
+.modal { max-height: calc(100% - 24px); display: flex; flex-direction: column; }
+.modal .modal-body { overflow-y: auto; min-height: 0; }
+.profile-form .avatar-grid { max-height: 150px; }
+.modal-backdrop { display: flex; align-items: center; justify-content: center; }

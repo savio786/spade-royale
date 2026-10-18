@@ -143,6 +143,17 @@ Computer players play at **high** skill at tables with a bet of 25,000 coins or 
 - After **3 missed turns in the same game** (they don't need to be in a row) the player is disconnected from the table. A computer player takes the seat and the bet is lost. The count starts fresh with each new game.
 - To change these on the server, set `TURN_MS` (milliseconds) and `MAX_MISSED_TURNS` in Render → Environment. For games against computer players, change `TURN_MS` and `MAX_MISSED` in `src/lib/controller.ts`.
 
+## Sign-in (email, Google, Facebook)
+
+Players can sign out and sign back in on any phone or computer and keep their coins, level and stats:
+
+- **Email + password** — works now, no setup. Passwords are stored as scrypt hashes; accounts and progress are saved in Upstash. Guests can turn their guest into an account from **Settings → Save your progress** and keep everything.
+- **Google** — create an OAuth client: Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID → *Web application*, add `https://spade-royale.onrender.com` under *Authorized JavaScript origins*. Put the client ID in Render as `GOOGLE_CLIENT_ID`. The Google button appears on the sign-in screen automatically (website; Google doesn't allow its button inside Android app web views).
+- **Facebook** — developers.facebook.com → Create app → *Authenticate and request data from users with Facebook Login*, add the website `https://spade-royale.onrender.com/`, then put `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in Render. Switch the app to *Live* when ready.
+- **Instagram** — Meta no longer offers Instagram sign-in for other apps; Facebook Login covers the same accounts.
+
+Not yet included: "forgot password" emails (needs an email-sending service such as Resend).
+
 ## Guest accounts
 
 "Continue as guest" gives each new guest an automatic, permanent name such as **Guest48213**. Guest names can't be changed.

@@ -5,7 +5,8 @@ export interface Profile {
   id: string;
   name: string;
   avatar: string;
-  provider: 'guest' | 'facebook' | 'google' | 'apple' | null;
+  provider: 'guest' | 'email' | 'facebook' | 'google' | 'apple' | null;
+  email?: string | null;        // signed-in email (email / Google / Facebook accounts)
   coins: number;
   xp: number;
   vip: boolean;

@@ -3,6 +3,7 @@ import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../c
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, chatPassLabel, isTestMode, nativeStoreOff, store } from '../lib/payments';
+import { emailSignUp } from '../lib/auth';
 import { PRODUCTS, priceLabel } from '../../shared/products';
 import { activeTheme, THEMES, themeVars } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
@@ -383,11 +384,41 @@ export function ThemeModal({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------- Settings ----------------
+function SaveAccountModal({ onClose }: { onClose: () => void }) {
+  const p = useProfile();
+  const [email, setEmail] = useState('');
+  const [pw, setPw] = useState('');
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const submit = async () => {
+    setBusy(true); setErr(null);
+    try { await emailSignUp(email, pw, name || p.name); sfx.coins(); toast('Account created — your progress is saved'); onClose(); }
+    catch (e) { setErr((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal title="Save your progress" onClose={onClose}>
+      <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <p className="center">Keep your <b>{fmt(p.coins)}</b> coins, level and stats, and sign in on any phone or computer.</p>
+        <label className="field"><span>Player name</span>
+          <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} placeholder={p.name} autoComplete="nickname" /></label>
+        <label className="field"><span>Email</span>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>
+        <label className="field"><span>Password</span>
+          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" required minLength={6} /></label>
+        {err && <p className="form-error" role="alert">{err}</p>}
+        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : 'Create account'}</Pill>
+      </form>
+    </Modal>
+  );
+}
+
 export function SettingsModal({ onClose, installPrompt }: { onClose: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
   const [name, setName] = useState(p.name);
   const [status, setStatus] = useState<NetStatus>(net.status);
   const [confirmOut, setConfirmOut] = useState(false);
+  const [saving, setSaving] = useState(false);
   useEffect(() => net.onStatus(setStatus), []);
   const toggle = (k: keyof typeof p.settings) => profile.set((x) => ({ settings: { ...x.settings, [k]: !x.settings[k] } }));
   return (
@@ -403,11 +434,19 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
               <small className="muted">Keep it private. Enter it on another phone or computer ("Have a guest code?") to continue as {p.name}.</small>
             </div>
           )}
+          <Pill color="gold" className="wide-btn save-acct" onClick={() => setSaving(true)}><Icon name="star" size={16} /> Save your progress — create an account</Pill>
+          <small className="muted">Sign in with email on any phone or computer and keep your coins, level and stats.</small>
+        </div>
+      ) : p.provider && p.guestKey ? (
+        <div className="field"><span>Your account</span>
+          <div className="locked-name"><Icon name="lock" size={18} /><b>{p.name}</b></div>
+          <small className="muted">Signed in with {p.provider === 'email' ? 'email' : p.provider === 'google' ? 'Google' : 'Facebook'}{p.email ? ` · ${p.email}` : ''}. Your progress is saved to your account.</small>
         </div>
       ) : (
         <label className="field"><span>Player name</span>
           <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onBlur={() => name.trim() && profile.set({ name: name.trim() })} /></label>
       )}
+      {saving && <SaveAccountModal onClose={() => setSaving(false)} />}
       <div className="field"><span>Avatar</span>
         <AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
       <div className="field"><span>Table & cards (unlock more by leveling up)</span><ThemePicker /></div>
@@ -421,7 +460,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
       <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b> · Signed in: {p.provider}</p>
       <div className="btn-row">
         {installPrompt && <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill>}
-        <Pill color="red" onClick={() => { if (confirmOut) { profile.reset(); onClose(); } else setConfirmOut(true); }}><Icon name="exit" size={16} /> {confirmOut ? (p.provider === 'guest' ? `Tap again (you'll stay saved as ${p.name})` : 'Tap again to reset profile') : 'Sign out'}</Pill>
+        <Pill color="red" onClick={() => { if (confirmOut) { profile.reset(); onClose(); } else setConfirmOut(true); }}><Icon name="exit" size={16} /> {confirmOut ? (p.provider === 'guest' ? `Tap again (you'll stay saved as ${p.name})` : p.guestKey ? 'Tap again to sign out' : 'Tap again to reset profile') : 'Sign out'}</Pill>
       </div>
     </Modal>
   );

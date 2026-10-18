@@ -11,13 +11,17 @@ export interface Account {
   profile: Record<string, unknown> | null;
   createdAt: number;
   updatedAt: number;
+  kind?: 'guest' | 'email' | 'google' | 'facebook';
+  email?: string;
+  pass?: string;      // scrypt hash "salt:hash" (email accounts)
 }
 
 const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const rand = (n: number) => Array.from(randomBytes(n), (b) => ALPHA[b % ALPHA.length]).join('');
 const acctKey = (id: string) => `acct-${id.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 const codeKey = (code: string) => `code-${code.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
-const pub = (a: Account) => ({ id: a.id, key: a.key, code: a.code, name: a.name, profile: a.profile, updatedAt: a.updatedAt });
+export const pub = (a: Account) => ({ id: a.id, key: a.key, code: a.code, name: a.name, profile: a.profile, updatedAt: a.updatedAt, kind: a.kind ?? 'guest', email: a.email ?? null });
+export { acctKey, codeKey, rand };
 
 /** Creates a guest, or adopts an existing device profile (keeps its id and name) when `adopt` is given. */
 export async function createGuest(adopt?: { id: string; name: string }) {
@@ -49,7 +53,7 @@ export async function saveProgress(id: string, key: string, profile: Record<stri
   if (!a || a.key !== key) return { ok: false as const, status: 403 };
   if (updatedAt < a.updatedAt) return { ok: false as const, status: 409, account: pub(a) }; // server has newer progress
   // the name always stays the guest's permanent name
-  a.profile = { ...profile, id: a.id, name: a.name, provider: 'guest' };
+  a.profile = { ...profile, id: a.id, name: a.name, provider: a.kind ?? 'guest' };
   a.updatedAt = updatedAt;
   await putRecord(acctKey(id), a);
   return { ok: true as const, status: 200 };
