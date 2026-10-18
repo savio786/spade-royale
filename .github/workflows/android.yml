@@ -76,4 +76,4 @@ jobs:
           echo "ANDROID_KEYSTORE_PASSWORD found: $S2"
           echo "ANDROID_KEY_ALIAS found: $S3"
           echo "ANDROID_KEY_PASSWORD found: $S4"
-          echo "::notice::Signed Play Store bundle skipped: add the missing ANDROID_* repository secrets."
+          echo "::notice::Signing secrets found -> KEYSTORE_BASE64=$S1 KEYSTORE_PASSWORD=$S2 KEY_ALIAS=$S3 KEY_PASSWORD=$S4"
