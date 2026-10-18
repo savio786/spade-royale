@@ -17,7 +17,7 @@ import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymen
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
 // Public tables wait this long for real people before computer players take the empty seats.
-const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 30_000);
+const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 15_000);
 const TURN_MS = Number(process.env.TURN_MS || 12000);
 const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 

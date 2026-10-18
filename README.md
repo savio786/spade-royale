@@ -133,7 +133,7 @@ The Online Lobby lists only public tables that have at least one real person at 
 
 ## Waiting for real players
 
-Public online tables wait **30 seconds** after the first person sits down so other real people can join (Quick Play and the Online Lobby send new players to tables that are already waiting). The table shows a countdown; when it runs out, computer players take the empty seats. Anyone at the table can tap **Start now with computer players** to skip the wait. Change the wait with the `FILL_MS` environment variable in Render (milliseconds, default `30000` = 30 seconds). Private tables never add computer players on their own — the host decides.
+Public online tables wait **15 seconds** after the first person sits down so other real people can join (Quick Play and the Online Lobby send new players to tables that are already waiting). The table shows a countdown; when it runs out, computer players take the empty seats. Anyone at the table can tap **Start now with computer players** to skip the wait. Change the wait with the `FILL_MS` environment variable in Render (milliseconds, default `15000` = 15 seconds). Private tables never add computer players on their own — the host decides.
 
 ## Computer player skill
 
