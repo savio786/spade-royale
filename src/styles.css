@@ -1304,3 +1304,19 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .login-buttons .google-slot { align-items: center; }
 .social.reg { background: linear-gradient(180deg, #ffd75e, #e09a00 55%, #a86400); color: #3a1d00; text-shadow: 0 1px 0 rgba(255,255,255,.4); }
 .vip-buy { display: flex; flex-direction: column; gap: 10px; }
+
+/* ============ Aurora tables: drifting colour curtains + light flashing in from the four sides ============ */
+.table-shape .aurora { opacity: .9; }
+.table-shape .au { transform-box: fill-box; transform-origin: center; will-change: transform, opacity; animation: auDrift 18s ease-in-out infinite alternate; }
+.table-shape .au1 { animation-duration: 23s; animation-delay: -6s; animation-name: auDrift2; }
+.table-shape .au2 { animation-duration: 20s; animation-delay: -11s; }
+.table-shape .au3 { animation-duration: 26s; animation-delay: -3s; animation-name: auDrift2; }
+.table-shape .au4 { animation-duration: 15s; animation-delay: -8s; }
+@keyframes auDrift { 0% { transform: translate(-9%, -5%) scale(1) rotate(-4deg); opacity: .75; } 50% { transform: translate(5%, 4%) scale(1.18) rotate(3deg); opacity: 1; } 100% { transform: translate(12%, -3%) scale(.94) rotate(-6deg); opacity: .85; } }
+@keyframes auDrift2 { 0% { transform: translate(8%, 4%) scale(1.1) rotate(4deg); opacity: .9; } 50% { transform: translate(-6%, -5%) scale(.92) rotate(-3deg); opacity: .7; } 100% { transform: translate(-12%, 3%) scale(1.15) rotate(5deg); opacity: 1; } }
+.table-shape .flash { opacity: 0; transform-box: fill-box; transform-origin: center; animation: edgeFlash 6s ease-out infinite; }
+.table-shape .f-right { animation-delay: 1.5s; } .table-shape .f-bottom { animation-delay: 3s; } .table-shape .f-left { animation-delay: 4.5s; }
+@keyframes edgeFlash { 0%, 100% { opacity: 0; } 5% { opacity: 1; } 10% { opacity: .35; } 15% { opacity: .9; } 34% { opacity: 0; } }
+.table-shape .rail-neon { animation: neonPulse 1.5s ease-in-out infinite; }
+@keyframes neonPulse { 0%, 100% { stroke-opacity: .65; } 12% { stroke-opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .table-shape .au, .table-shape .flash, .table-shape .rail-neon { animation: none; } .table-shape .flash { opacity: 0; } }

@@ -24,6 +24,8 @@ function outline({ x0, y0, x1, y1, f, b, bow, nW, nH }: Box) {
 }
 
 const RAIL = 34;   // rail thickness
+/** Aurora colours blended over every table's own felt: green, cyan, violet, pink (the fifth ribbon uses the table's accent). */
+const AURORA = ['#36f5a8', '#2ad4ff', '#a85cff', '#ff5ecf'];
 
 export function TableShape({ scale = 1, emblem = true }: { scale?: number; emblem?: boolean } = {}) {
   const k = scale, R = RAIL * scale;
@@ -91,6 +93,22 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
             <feComposite in="s" in2="SourceGraphic" operator="in" />
           </filter>
           <filter id={id('gl')} x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="6" /></filter>
+          {/* aurora ribbons (soft-edged so no blur filter is needed) and the edge flashes */}
+          {AURORA.map((c, i) => (
+            <radialGradient key={c} id={id(`au${i}`)} cx=".5" cy=".5" r=".5">
+              <stop offset="0" stopColor={c} stopOpacity=".85" /><stop offset=".5" stopColor={c} stopOpacity=".5" /><stop offset="1" stopColor={c} stopOpacity="0" />
+            </radialGradient>
+          ))}
+          <radialGradient id={id('au4')} cx=".5" cy=".5" r=".5">
+            <stop offset="0" style={{ stopColor: 'var(--felt-line)' }} stopOpacity=".9" /><stop offset="1" style={{ stopColor: 'var(--felt-line)' }} stopOpacity="0" />
+          </radialGradient>
+          {([['ft', 0, 0, 0, 1, 0.3], ['fr', 1, 0, 0, 0, 0.16], ['fb', 0, 1, 0, 0, 0.3], ['fl', 0, 0, 1, 0, 0.16]] as const).map(([n, x1, y1, x2, y2, reach]) => (
+            <linearGradient key={n} id={id(n)} x1={x1} y1={y1} x2={x2} y2={y2}>
+              <stop offset="0" stopColor="#ffffff" stopOpacity=".95" />
+              <stop offset={reach * 0.3} style={{ stopColor: 'var(--felt-line)' }} stopOpacity=".75" />
+              <stop offset={reach} style={{ stopColor: 'var(--felt-glow)' }} stopOpacity="0" />
+            </linearGradient>
+          ))}
           <clipPath id={id('fc')}><path d={iPath} /></clipPath>
         </defs>
 
@@ -119,6 +137,27 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
         {/* felt */}
         <path d={iPath} fill={u('fe')} />
         <g clipPath={u('fc')}>
+          {/* aurora: slow drifting curtains of green, cyan, violet and pink blended into the felt */}
+          <g className="aurora">
+            {[
+              { x: 0.3, y: 0.32, rx: 0.42, ry: 0.2, r: -16 },
+              { x: 0.68, y: 0.4, rx: 0.4, ry: 0.18, r: 12 },
+              { x: 0.45, y: 0.68, rx: 0.46, ry: 0.17, r: -8 },
+              { x: 0.78, y: 0.72, rx: 0.32, ry: 0.2, r: 20 },
+              { x: 0.2, y: 0.62, rx: 0.3, ry: 0.22, r: 6 },
+            ].map((a, i) => (
+              <g key={i} className={`au au${i}`}>
+                <ellipse cx={a.x * W} cy={a.y * H} rx={a.rx * W} ry={a.ry * H} fill={u(`au${i}`)} transform={`rotate(${a.r} ${a.x * W} ${a.y * H})`} />
+              </g>
+            ))}
+          </g>
+          {/* light flashing in from the four sides, one after another */}
+          <g className="edge-flash" style={{ mixBlendMode: 'screen' }}>
+            <rect className="flash f-top" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('ft')} />
+            <rect className="flash f-right" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('fr')} />
+            <rect className="flash f-bottom" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('fb')} />
+            <rect className="flash f-left" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('fl')} />
+          </g>
           {/* inner raised panel and soft vignette */}
           <path d={iPath} fill="none" stroke="#000" strokeOpacity=".35" strokeWidth={60 * k} filter={u('gl')} />
           <rect x={ip.x} y={ip.y} width={ip.w} height={ip.h} rx={70 * k} fill="#000" fillOpacity=".1" stroke="#fff" strokeOpacity=".07" strokeWidth="2" />
@@ -140,7 +179,7 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
           </>}
         </g>
         {/* neon strip just inside the rail */}
-        <path d={iPath} fill="none" style={{ stroke: 'var(--felt-glow)' }} strokeWidth={12 * k} filter={u('gl')} />
+        <path className="rail-neon" d={iPath} fill="none" style={{ stroke: 'var(--felt-glow)' }} strokeWidth={12 * k} filter={u('gl')} />
         <path d={iPath} fill="none" style={{ stroke: 'var(--felt-line)' }} strokeWidth="3" />
         <path d={iPath} fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="1" />
       </svg>
