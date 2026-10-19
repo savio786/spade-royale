@@ -186,11 +186,9 @@ What players can buy is listed in `shared/products.ts`:
 **Taking real payments on the website (Stripe)**
 
 1. Create a Stripe account at https://dashboard.stripe.com.
-2. In Stripe go to *Developers → Webhooks → Add endpoint*. Use the URL `https://YOUR-SITE/api/stripe-webhook` and select the event `checkout.session.completed`.
-3. On your server (for example Render → *Environment*), set:
-   - `STRIPE_SECRET_KEY` = your secret key (`sk_live_…`, or `sk_test_…` to try it with test cards)
-   - `STRIPE_WEBHOOK_SECRET` = the signing secret of the webhook from step 2 (`whsec_…`)
-4. Redeploy. Until both keys are set, nothing can be bought on the live site (the Buy buttons say purchases are not available yet). With them, the store and VIP Club use Stripe Checkout. After paying, players return to the game and their coins, Chat Pass or VIP are added within seconds. Every payment is verified with Stripe's signature, and each one is delivered only once. Chat Pass and VIP are checked on the server, so they can't be unlocked by editing the browser.
+2. On your server (for example Render → *Environment*), set `STRIPE_SECRET_KEY` to your secret key (`sk_live_…`, or `sk_test_…` to try it with test cards). A restricted key (`rk_…`) with **Checkout Sessions: Write** permission also works and is safer.
+3. Redeploy. Until a key is set, nothing can be bought on the live site (the Buy buttons say purchases are not available yet). With it, the store and VIP Club use Stripe Checkout. When the player comes back from paying, the server asks Stripe whether that checkout was paid, checks the amount, and delivers it once. Chat Pass and VIP are checked on the server, so they can't be unlocked by editing the browser.
+4. Optional backup (delivers a purchase even if the player closes the page before coming back): *Developers → Webhooks → Add endpoint*, URL `https://YOUR-SITE/api/stripe-webhook`, event `checkout.session.completed`, then set `STRIPE_WEBHOOK_SECRET` to its signing secret (`whsec_…`). If both Stripe and PayPal keys are set, Stripe is used.
 
 ### PayPal (alternative to Stripe)
 

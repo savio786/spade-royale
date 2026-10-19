@@ -8,14 +8,15 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { loadJSON, saveJSON } from './storage';
 import { productById } from '../shared/products';
 
-const KEY = process.env.STRIPE_SECRET_KEY || '';
+const KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
+const STRIPE_BASE = (process.env.STRIPE_API_BASE || 'https://api.stripe.com').replace(/\/+$/, '');
 const WH_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const stripeOn = () => !!KEY && !!WH_SECRET;
+const stripeOn = () => /^(sk|rk)_(live|test)_/.test(KEY); // the webhook secret is optional: payments are confirmed when the player returns
 const PP_ID = process.env.PAYPAL_CLIENT_ID || '';
 const PP_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 const PP_BASE = (process.env.PAYPAL_API_BASE || (process.env.PAYPAL_ENV === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com')).replace(/\/+$/, '');
 const paypalOn = () => !!PP_ID && !!PP_SECRET;
-export const paymentProvider = (): 'paypal' | 'stripe' | null => (paypalOn() ? 'paypal' : stripeOn() ? 'stripe' : null);
+export const paymentProvider = (): 'paypal' | 'stripe' | null => (stripeOn() ? 'stripe' : paypalOn() ? 'paypal' : null);
 export const paymentsEnabled = () => paymentProvider() !== null;
 
 interface Grant { session: string; playerId: string; productId: string; at: number; claimed: boolean }
@@ -49,10 +50,10 @@ export async function createCheckout(productId: string, playerId: string, return
     client_reference_id: playerId,
     'metadata[playerId]': playerId,
     'metadata[productId]': p.id,
-    success_url: backTo(returnUrl, 'success'),
+    success_url: backTo(returnUrl, 'success') + '&session_id={CHECKOUT_SESSION_ID}',
     cancel_url: backTo(returnUrl, 'cancel'),
   });
-  const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+  const r = await fetch(`${STRIPE_BASE}/v1/checkout/sessions`, {
     method: 'POST',
     headers: { authorization: `Bearer ${KEY}`, 'content-type': 'application/x-www-form-urlencoded' },
     body: form,
@@ -95,6 +96,21 @@ function record(session: string, playerId: string, productId: string) {
     store.vipUntil[playerId] = cur === -1 ? -1 : Math.max(cur, Date.now()) + p.vipDays! * 864e5;
   }
   save();
+}
+
+/** After the player returns from Stripe Checkout: ask Stripe whether that session was paid, and record it once. */
+export async function stripeConfirm(sessionId: string): Promise<{ ok: boolean; pending?: boolean; error?: string }> {
+  if (!stripeOn() || !/^cs_(live|test)_[A-Za-z0-9]{10,200}$/.test(sessionId)) return { ok: false, error: 'Bad request' };
+  if (store.grants.some((g) => g.session === sessionId)) return { ok: true };
+  const r = await fetch(`${STRIPE_BASE}/v1/checkout/sessions/${sessionId}`, { headers: { authorization: `Bearer ${KEY}` } });
+  const s = (await r.json().catch(() => ({}))) as any;
+  if (!r.ok) { console.warn('stripe confirm', r.status, s.error?.message); return { ok: false, error: 'Could not check the payment with Stripe' }; }
+  if (s.payment_status !== 'paid') return { ok: false, pending: s.status === 'complete', error: 'The payment has not completed' };
+  const p = productById(s.metadata?.productId);
+  const playerId = s.metadata?.playerId;
+  if (!p || !playerId || s.currency !== 'usd' || s.amount_total !== p.priceCents) { console.warn('stripe: session did not match a product', sessionId); return { ok: false, error: 'The payment could not be matched to an item' }; }
+  record(s.id, playerId, p.id);
+  return { ok: true };
 }
 
 // ---------- PayPal ----------

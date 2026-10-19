@@ -13,7 +13,7 @@ import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { createGuest, guestName, loadAccount, restoreByCode, saveProgress } from './accounts';
 import { AuthError, authConfig, changePassword, facebookSignIn, googleSignIn, signIn, signUp } from './auth';
-import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture } from './payments';
+import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
@@ -257,12 +257,16 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled(), provider: paymentProvider() });
   if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
-  if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook' || url.pathname === '/api/paypal/capture')) {
+  if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook' || url.pathname === '/api/paypal/capture' || url.pathname === '/api/stripe/confirm')) {
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 200_000) req.destroy(); });
     req.on('end', async () => {
       if (url.pathname === '/api/stripe-webhook') { const code = handleWebhook(raw, req.headers['stripe-signature'] as string | undefined); return json(res, code, { received: code === 200 }); }
       if (!paymentsEnabled()) return json(res, 503, { error: 'Payments are not set up yet' });
+      if (url.pathname === '/api/stripe/confirm') {
+        try { const r = await stripeConfirm(String(JSON.parse(raw).sessionId || '')); return json(res, r.ok ? 200 : 400, r); }
+        catch (e) { console.warn('stripe confirm', (e as Error).message); return json(res, 502, { ok: false, error: 'Stripe is unavailable right now' }); }
+      }
       if (url.pathname === '/api/paypal/capture') {
         try { const r = await paypalCapture(String(JSON.parse(raw).orderId || '')); return json(res, r.ok ? 200 : 400, r); }
         catch (e) { console.warn('paypal capture', (e as Error).message); return json(res, 502, { ok: false, error: 'PayPal is unavailable right now' }); }

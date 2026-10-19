@@ -116,7 +116,22 @@ export async function afterCheckoutReturn() {
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.ok) { toast(j.error || 'The payment did not go through. You have not been charged.', 'error'); return; }
     } catch { toast('Could not reach the game server. If you were charged, your purchase will appear shortly.', 'error'); return; }
-  } else toast('Payment received — adding it to your account…');
+  } else {
+    toast('Payment received — adding it to your account…');
+    // ask the server to confirm the Stripe payment right away (a webhook, if set up, does the same)
+    const sessionId = q.get('session_id');
+    if (sessionId) {
+      for (let i = 0; i < 4; i++) {
+        try {
+          const r = await fetch(`${apiBase()}/api/stripe/confirm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId }) });
+          const j = await r.json().catch(() => ({}));
+          if (r.ok && j.ok) break;
+          if (!j.pending && r.status === 400) { toast(j.error || 'The payment did not go through', 'error'); return; }
+        } catch { /* try again */ }
+        await new Promise((res) => setTimeout(res, 2500));
+      }
+    }
+  }
   for (let i = 0; i < 6; i++) {
     if ((await syncPurchases()) > 0) return;
     await new Promise((r) => setTimeout(r, 2500));
