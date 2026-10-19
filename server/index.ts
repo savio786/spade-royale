@@ -367,6 +367,9 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
 
 const http = createServer((req, res) => {
   if (req.url === '/health') { res.writeHead(200); return res.end('ok'); }
+  // Old address: send everyone to the new one (set REDIRECT_TO on the old service)
+  const REDIRECT_TO = (process.env.REDIRECT_TO || '').replace(/\/+$/, '');
+  if (REDIRECT_TO) { res.writeHead(301, { location: REDIRECT_TO + (req.url || '/'), 'cache-control': 'no-store' }); return res.end(); }
   if (req.url?.startsWith('/api/')) return api(req, res);
   if (!existsSync(DIST)) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('Spade Haven server running. Build the client (npm run build) to serve it here.'); }
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
