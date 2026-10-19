@@ -32,7 +32,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
   return (
     <div className="landing">
       <nav className="land-nav">
-        <a href="#top" className="land-brand"><Icon name="spade" size={26} /> SPADE HAVEN</a>
+        <a href="#top" className="land-brand"><img src="./brand/emblem.svg" alt="" width={34} height={36} /> SPADE HAVEN</a>
         <div className="land-links">
           <a href="#features">Features</a>
           <a href="#modes">Game modes</a>

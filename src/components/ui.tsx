@@ -66,11 +66,9 @@ export function Coin({ size = 22 }: { size?: number }) {
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
-    <div className={`logo ${compact ? 'compact' : ''}`} aria-label="Spade Haven">
-      <span className="logo-word">SP</span>
-      <span className="logo-spade"><Icon name="spade" size={compact ? 34 : 86} /></span>
-      <span className="logo-word">DE</span>
-      <span className="logo-sub">HAVEN</span>
+    <div className={`logo ${compact ? 'compact' : ''}`} role="img" aria-label="Spade Haven">
+      <img className="logo-emblem" src="./brand/emblem.svg" alt="" draggable={false} />
+      <span className="logo-name" aria-hidden="true"><span>SPADE</span><span>HAVEN</span></span>
     </div>
   );
 }
