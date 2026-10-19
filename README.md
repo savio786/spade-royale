@@ -192,6 +192,14 @@ What players can buy is listed in `shared/products.ts`:
    - `STRIPE_WEBHOOK_SECRET` = the signing secret of the webhook from step 2 (`whsec_…`)
 4. Redeploy. Until both keys are set, nothing can be bought on the live site (the Buy buttons say purchases are not available yet). With them, the store and VIP Club use Stripe Checkout. After paying, players return to the game and their coins, Chat Pass or VIP are added within seconds. Every payment is verified with Stripe's signature, and each one is delivered only once. Chat Pass and VIP are checked on the server, so they can't be unlocked by editing the browser.
 
+### PayPal (alternative to Stripe)
+
+1. Open a free PayPal Business account, then go to https://developer.paypal.com → Apps & Credentials → **Live** → Create App.
+2. Copy the app's **Client ID** and **Secret** into the Render service's Environment as `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`, then Save and deploy.
+3. To try it with fake money first, use the **Sandbox** tab's keys instead and add `PAYPAL_ENV=sandbox`; remove it (and switch to the Live keys) when you're ready.
+
+No webhook is needed: after the player approves on PayPal, the server takes the payment itself, checks the amount, and delivers the item once. If both PayPal and Stripe are set, PayPal is used.
+
 Purchases are stored in `DATA_DIR/purchases.json` next to the leaderboard, so keep the Render disk from `render.yaml`.
 
 ## Turning the demo hooks into production features

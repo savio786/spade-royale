@@ -1,5 +1,7 @@
-// Real payments on the website through Stripe Checkout (no SDK needed).
-// Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to switch them on; without them nothing can be bought
+// Real payments on the website through PayPal Checkout or Stripe Checkout (no SDKs needed).
+// PayPal: set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET (and PAYPAL_ENV=sandbox while testing).
+// Stripe: set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET. If both are set, PayPal is used.
+// Without either, nothing can be bought
 // (ALLOW_TEST_PURCHASES=1 lets a local test server accept free chat passes).
 // Purchases are recorded here and handed to the player's device the next time it checks in.
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -8,7 +10,13 @@ import { productById } from '../shared/products';
 
 const KEY = process.env.STRIPE_SECRET_KEY || '';
 const WH_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-export const paymentsEnabled = () => !!KEY && !!WH_SECRET;
+const stripeOn = () => !!KEY && !!WH_SECRET;
+const PP_ID = process.env.PAYPAL_CLIENT_ID || '';
+const PP_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
+const PP_BASE = (process.env.PAYPAL_API_BASE || (process.env.PAYPAL_ENV === 'sandbox' ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com')).replace(/\/+$/, '');
+const paypalOn = () => !!PP_ID && !!PP_SECRET;
+export const paymentProvider = (): 'paypal' | 'stripe' | null => (paypalOn() ? 'paypal' : stripeOn() ? 'stripe' : null);
+export const paymentsEnabled = () => paymentProvider() !== null;
 
 interface Grant { session: string; playerId: string; productId: string; at: number; claimed: boolean }
 interface Store { grants: Grant[]; chatUntil: Record<string, number>; vipUntil: Record<string, number> } // ms epoch, -1 = lifetime
@@ -25,9 +33,13 @@ export function hasChatPass(playerId: string) {
   return active(store.chatUntil[playerId]) || isVip(playerId);
 }
 
+const backTo = (returnUrl: string, status: string) => `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}purchase=${status}`;
+
 export async function createCheckout(productId: string, playerId: string, returnUrl: string): Promise<string> {
   const p = productById(productId);
   if (!p) throw new Error('Unknown product');
+  if (!/^https?:\/\/[^\s]+$/.test(returnUrl) || !playerId) throw new Error('Bad request');
+  if (paymentProvider() === 'paypal') return paypalCheckout(p.id, playerId, returnUrl);
   const form = new URLSearchParams({
     mode: 'payment',
     'line_items[0][quantity]': '1',
@@ -37,8 +49,8 @@ export async function createCheckout(productId: string, playerId: string, return
     client_reference_id: playerId,
     'metadata[playerId]': playerId,
     'metadata[productId]': p.id,
-    success_url: `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}purchase=success`,
-    cancel_url: `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}purchase=cancel`,
+    success_url: backTo(returnUrl, 'success'),
+    cancel_url: backTo(returnUrl, 'cancel'),
   });
   const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -65,8 +77,15 @@ export function handleWebhook(raw: string, sigHeader: string | undefined): numbe
   if (s.payment_status !== 'paid') return 200;
   const playerId = s.metadata?.playerId, productId = s.metadata?.productId;
   const p = productById(productId);
-  if (!playerId || !p || store.grants.some((g) => g.session === s.id)) return 200;
-  store.grants.push({ session: s.id, playerId, productId, at: Date.now(), claimed: false });
+  if (!playerId || !p) return 200;
+  record(s.id, playerId, p.id);
+  return 200;
+}
+
+function record(session: string, playerId: string, productId: string) {
+  const p = productById(productId);
+  if (!p || store.grants.some((g) => g.session === session)) return;
+  store.grants.push({ session, playerId, productId, at: Date.now(), claimed: false });
   if (p.kind === 'chat') {
     const cur = store.chatUntil[playerId] ?? 0;
     store.chatUntil[playerId] = p.chatDays === 0 || cur === -1 ? -1 : Math.max(cur, Date.now()) + p.chatDays! * 864e5;
@@ -76,7 +95,62 @@ export function handleWebhook(raw: string, sigHeader: string | undefined): numbe
     store.vipUntil[playerId] = cur === -1 ? -1 : Math.max(cur, Date.now()) + p.vipDays! * 864e5;
   }
   save();
-  return 200;
+}
+
+// ---------- PayPal ----------
+let ppToken = { value: '', until: 0 };
+async function paypalToken() {
+  if (ppToken.value && ppToken.until > Date.now() + 60_000) return ppToken.value;
+  const r = await fetch(`${PP_BASE}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: { authorization: 'Basic ' + Buffer.from(`${PP_ID}:${PP_SECRET}`).toString('base64'), 'content-type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials',
+  });
+  const j = (await r.json()) as { access_token?: string; expires_in?: number };
+  if (!r.ok || !j.access_token) throw new Error('PayPal is unavailable right now');
+  ppToken = { value: j.access_token, until: Date.now() + (j.expires_in ?? 300) * 1000 };
+  return ppToken.value;
+}
+async function pp(path: string, init: { method: string; body?: unknown; requestId?: string }) {
+  const headers: Record<string, string> = { authorization: `Bearer ${await paypalToken()}`, 'content-type': 'application/json' };
+  if (init.requestId) headers['PayPal-Request-Id'] = init.requestId;
+  const r = await fetch(`${PP_BASE}${path}`, { method: init.method, headers, body: init.body ? JSON.stringify(init.body) : undefined });
+  return { ok: r.ok, status: r.status, j: (await r.json().catch(() => ({}))) as any };
+}
+const usd = (cents: number) => (cents / 100).toFixed(2);
+
+async function paypalCheckout(productId: string, playerId: string, returnUrl: string) {
+  const p = productById(productId)!;
+  const { ok, j } = await pp('/v2/checkout/orders', {
+    method: 'POST',
+    body: {
+      intent: 'CAPTURE',
+      purchase_units: [{ reference_id: p.id, custom_id: `${playerId}|${p.id}`, description: `Spade Haven — ${p.name}`, amount: { currency_code: 'USD', value: usd(p.priceCents) } }],
+      payment_source: { paypal: { experience_context: { brand_name: 'Spade Haven', shipping_preference: 'NO_SHIPPING', user_action: 'PAY_NOW', return_url: backTo(returnUrl, 'paypal'), cancel_url: backTo(returnUrl, 'cancel') } } },
+    },
+  });
+  const link = (j.links as { rel: string; href: string }[] | undefined)?.find((l) => l.rel === 'payer-action' || l.rel === 'approve');
+  if (!ok || !link) throw new Error(j.message || 'PayPal checkout failed');
+  return link.href;
+}
+
+/** After the player approves on PayPal: take the money (server side), check it, and record the purchase once. */
+export async function paypalCapture(orderId: string): Promise<{ ok: boolean; error?: string }> {
+  if (!paypalOn() || !/^[A-Z0-9-]{5,40}$/i.test(orderId)) return { ok: false, error: 'Bad request' };
+  if (store.grants.some((g) => g.session === `pp:${orderId}`)) return { ok: true }; // already delivered
+  let { ok, status, j } = await pp(`/v2/checkout/orders/${orderId}/capture`, { method: 'POST', requestId: `cap-${orderId}` });
+  if (!ok && status === 422) ({ ok, j } = await pp(`/v2/checkout/orders/${orderId}`, { method: 'GET' })); // e.g. captured on an earlier try
+  if (!ok || j.status !== 'COMPLETED') return { ok: false, error: 'The payment was not completed' };
+  const unit = j.purchase_units?.[0];
+  const cap = unit?.payments?.captures?.[0];
+  const [playerId, productId] = String(cap?.custom_id || unit?.custom_id || '').split('|');
+  const p = productById(productId);
+  if (!p || !playerId || cap?.status !== 'COMPLETED' || cap.amount?.currency_code !== 'USD' || cap.amount?.value !== usd(p.priceCents)) {
+    console.warn('paypal: capture did not match a product', orderId);
+    return { ok: false, error: 'The payment could not be matched to an item' };
+  }
+  record(`pp:${orderId}`, playerId, p.id);
+  return { ok: true };
 }
 
 /** Hands over purchases the device hasn't received yet (each only once). */

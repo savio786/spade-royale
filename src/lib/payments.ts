@@ -72,11 +72,11 @@ export async function buy(productId: string): Promise<void> {
   }
   const base = apiBase()!;
   try {
-    const returnUrl = `${window.location.origin}${window.location.pathname}#play`;
+    const returnUrl = `${window.location.origin}${window.location.pathname}`; // no #hash: the payment page adds ?purchase=… (and PayPal ?token=…)
     const r = await fetch(`${base}/api/checkout`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ productId, playerId: profile.get().id, returnUrl }) });
     const j = await r.json();
     if (!r.ok || !j.url) throw new Error(j.error || 'Checkout is unavailable');
-    window.location.href = j.url; // Stripe Checkout
+    window.location.href = j.url; // PayPal or Stripe checkout page
   } catch (e) {
     toast((e as Error).message || 'Checkout is unavailable right now', 'error');
   }
@@ -105,9 +105,18 @@ export async function afterCheckoutReturn() {
   const q = new URLSearchParams(window.location.search);
   const status = q.get('purchase');
   if (!status) return;
-  history.replaceState(null, '', window.location.pathname + window.location.hash);
+  history.replaceState(null, '', window.location.pathname + (window.location.hash || '#play'));
   if (status === 'cancel') { toast('Purchase cancelled'); return; }
-  toast('Payment received — adding it to your account…');
+  if (status === 'paypal') {
+    // the player approved on PayPal: the server now takes the payment and records it
+    const orderId = q.get('token') || '';
+    toast('Confirming your PayPal payment…');
+    try {
+      const r = await fetch(`${apiBase()}/api/paypal/capture`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ orderId }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) { toast(j.error || 'The payment did not go through. You have not been charged.', 'error'); return; }
+    } catch { toast('Could not reach the game server. If you were charged, your purchase will appear shortly.', 'error'); return; }
+  } else toast('Payment received — adding it to your account…');
   for (let i = 0; i < 6; i++) {
     if ((await syncPurchases()) > 0) return;
     await new Promise((r) => setTimeout(r, 2500));

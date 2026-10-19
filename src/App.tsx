@@ -24,6 +24,9 @@ type Screen = 'lobby' | 'online' | 'table';
 
 interface BIPEvent extends Event { prompt: () => Promise<void> }
 
+// coming back from a PayPal/Stripe payment page (…/?purchase=…): open the game, not the welcome page
+if (/[?&]purchase=/.test(window.location.search) && !window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search + '#play');
+
 const isAppShell = () => Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
 function useHashRoute() {
