@@ -23,6 +23,7 @@ export interface Profile {
   settings: { sound: boolean; fast: boolean; vibrate: boolean; chatOff?: boolean; music?: boolean };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
   chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
+  vipUntil: number;             // VIP Club: ms epoch it runs until (paid on Stripe), 0 = none
   guestKey: string | null;      // guest account secret (server-side saved progress)
   guestCode: string | null;     // guest restore code shown to the player, e.g. K7QM-4XPT
   updatedAt: number;            // last local change (ms), used to sync with the server
@@ -59,6 +60,7 @@ function fresh(): Profile {
     settings: { sound: true, fast: false, vibrate: true },
     lastTable: null,
     chatUntil: 0,
+    vipUntil: 0,
     guestKey: null,
     guestCode: null,
     updatedAt: 0,
@@ -71,6 +73,8 @@ function load(): Profile {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const p = { ...fresh(), ...JSON.parse(raw) } as Profile;
+      // VIP is a paid membership with an end date
+      p.vip = p.vipUntil === -1 || p.vipUntil > Date.now();
       // weekly rollover
       if (p.weekKey !== weekKey()) {
         p.weekEarnings = 0;

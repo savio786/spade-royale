@@ -1,5 +1,6 @@
 // Real payments on the website through Stripe Checkout (no SDK needed).
-// Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to switch them on; without them the store runs in test mode.
+// Set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET to switch them on; without them nothing can be bought
+// (ALLOW_TEST_PURCHASES=1 lets a local test server accept free chat passes).
 // Purchases are recorded here and handed to the player's device the next time it checks in.
 import { createHmac, timingSafeEqual } from 'crypto';
 import { loadJSON, saveJSON } from './storage';
@@ -10,16 +11,18 @@ const WH_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 export const paymentsEnabled = () => !!KEY && !!WH_SECRET;
 
 interface Grant { session: string; playerId: string; productId: string; at: number; claimed: boolean }
-interface Store { grants: Grant[]; chatUntil: Record<string, number> } // chatUntil: ms epoch, -1 = lifetime
+interface Store { grants: Grant[]; chatUntil: Record<string, number>; vipUntil: Record<string, number> } // ms epoch, -1 = lifetime
 
-let store: Store = { grants: [], chatUntil: {} };
-export async function initPayments() { store = await loadJSON('purchases', store); }
+let store: Store = { grants: [], chatUntil: {}, vipUntil: {} };
+export async function initPayments() { store = { ...store, ...(await loadJSON('purchases', store)) }; store.vipUntil ??= {}; }
 const save = () => saveJSON('purchases', () => store);
 
 /** Server-side truth for chat when real payments are on. */
+const active = (u: number | undefined) => u === -1 || (typeof u === 'number' && u > Date.now());
+export const isVip = (playerId: string) => active(store.vipUntil[playerId]);
+/** A paid Chat Pass, or VIP membership (which includes chat). */
 export function hasChatPass(playerId: string) {
-  const u = store.chatUntil[playerId];
-  return u === -1 || (typeof u === 'number' && u > Date.now());
+  return active(store.chatUntil[playerId]) || isVip(playerId);
 }
 
 export async function createCheckout(productId: string, playerId: string, returnUrl: string): Promise<string> {
@@ -68,6 +71,10 @@ export function handleWebhook(raw: string, sigHeader: string | undefined): numbe
     const cur = store.chatUntil[playerId] ?? 0;
     store.chatUntil[playerId] = p.chatDays === 0 || cur === -1 ? -1 : Math.max(cur, Date.now()) + p.chatDays! * 864e5;
   }
+  if (p.kind === 'vip') {
+    const cur = store.vipUntil[playerId] ?? 0;
+    store.vipUntil[playerId] = cur === -1 ? -1 : Math.max(cur, Date.now()) + p.vipDays! * 864e5;
+  }
   save();
   return 200;
 }
@@ -75,8 +82,9 @@ export function handleWebhook(raw: string, sigHeader: string | undefined): numbe
 /** Hands over purchases the device hasn't received yet (each only once). */
 export function claim(playerId: string) {
   const out = store.grants.filter((g) => g.playerId === playerId && !g.claimed);
-  if (!out.length) return { grants: [], chatUntil: store.chatUntil[playerId] ?? 0 };
+  const paid = { chatUntil: store.chatUntil[playerId] ?? 0, vipUntil: store.vipUntil[playerId] ?? 0 };
+  if (!out.length) return { grants: [], ...paid };
   out.forEach((g) => (g.claimed = true));
   save();
-  return { grants: out.map((g) => ({ productId: g.productId, session: g.session })), chatUntil: store.chatUntil[playerId] ?? 0 };
+  return { grants: out.map((g) => ({ productId: g.productId, session: g.session })), ...paid };
 }

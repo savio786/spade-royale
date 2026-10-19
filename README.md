@@ -190,7 +190,7 @@ What players can buy is listed in `shared/products.ts`:
 3. On your server (for example Render → *Environment*), set:
    - `STRIPE_SECRET_KEY` = your secret key (`sk_live_…`, or `sk_test_…` to try it with test cards)
    - `STRIPE_WEBHOOK_SECRET` = the signing secret of the webhook from step 2 (`whsec_…`)
-4. Redeploy. The store switches from test mode to Stripe Checkout automatically. After paying, players return to the game and their coins or Chat Pass are added within seconds. Every payment is verified with Stripe's signature, and each one is delivered only once.
+4. Redeploy. Until both keys are set, nothing can be bought on the live site (the Buy buttons say purchases are not available yet). With them, the store and VIP Club use Stripe Checkout. After paying, players return to the game and their coins, Chat Pass or VIP are added within seconds. Every payment is verified with Stripe's signature, and each one is delivered only once. Chat Pass and VIP are checked on the server, so they can't be unlocked by editing the browser.
 
 Purchases are stored in `DATA_DIR/purchases.json` next to the leaderboard, so keep the Render disk from `render.yaml`.
 
@@ -199,7 +199,7 @@ Purchases are stored in `DATA_DIR/purchases.json` next to the leaderboard, so ke
 These are wired up in the UI but use placeholders until you add your own accounts and keys:
 
 - **Sign-in**: the Facebook and Google Play Games buttons create a local profile. For real accounts, add Firebase Authentication (web) or `@capacitor-firebase/authentication` (native), then send the verified user id in the server `hello` message.
-- **Payments in the phone apps**: Apple and Google require their own billing for coins and Chat Passes inside apps. Use Google Play Billing and StoreKit, for example through RevenueCat (`@revenuecat/purchases-capacitor`). Until then the apps' store runs in test mode.
+- **Payments in the phone apps**: Apple and Google require their own billing for coins and Chat Passes inside apps. Use Google Play Billing and StoreKit, for example through RevenueCat (`@revenuecat/purchases-capacitor`). Until then buying is switched off in the apps.
 - **Rewarded ads**: the “+100 coins AD” slot is a 5-second placeholder. Use `@capacitor-community/admob` on mobile.
 - **Wallet security**: coins, XP and stats are stored on the device (`src/lib/profile.ts`). Before launch, move the wallet and leaderboard into a database on the server (for example Postgres or Firestore), and settle bets and prizes there. That way players can't edit their own balance.
 - **Store policy**: coins are virtual and can't be cashed out. Google Play and Apple treat purchasable coins for card games as “simulated gambling”, so you'll need the matching age rating (17+ on iOS, an IARC rating on Play). Real-money tournaments like Skillz's need gambling licenses and a different integration.

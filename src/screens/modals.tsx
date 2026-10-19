@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
-import { buy, chatPassLabel, isTestMode, nativeStoreOff, store } from '../lib/payments';
+import { buy, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, type AuthConfig } from '../lib/auth';
 import { EmailModal } from './Login';
 import { PRODUCTS, priceLabel } from '../../shared/products';
@@ -166,8 +166,9 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
         })}
       </div>
       <p className="muted small center store-foot">{appOff ? 'In-app purchases will use Google Play billing.' : isTestMode()
-        ? 'Test mode: purchases are free and instant. Add your Stripe keys to the server to take real payments (README → Payments).'
-        : 'Secure checkout by Stripe. Purchases are added to your account as soon as payment completes.'}</p>
+        ? 'Development build: purchases are free and instant here only.'
+        : paymentsReady() ? 'Secure checkout by Stripe. Purchases are added to your account as soon as payment completes.'
+        : 'Purchases are not available yet. Free coins: the daily gift, the Mega Bonus wheel and +100 coins every 30 minutes.'}</p>
     </Modal>
   );
 }
@@ -175,6 +176,7 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
 // ---------------- VIP ----------------
 export function VipModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
+  const [busy, setBusy] = useState<string | null>(null);
   return (
     <Modal title={<span className="gold-text">VIP CLUB</span>} onClose={onClose}>
       <ul className="perks">
@@ -182,10 +184,19 @@ export function VipModal({ onClose }: { onClose: () => void }) {
         <li><Icon name="star" /> +10% on every prize you win</li>
         <li><Icon name="gift" /> +20% coins on every store pack</li>
         <li><Icon name="bolt" /> Double daily-spin rewards</li>
+        <li><Icon name="chat" /> Chat Pass included: type your own messages</li>
       </ul>
-      {p.vip ? <p className="center gold-text">You're a VIP member.</p> : nativeStoreOff()
-        ? <Pill color="gold" className="wide-btn" disabled>VIP Club — coming soon to the app</Pill>
-        : <Pill color="gold" className="wide-btn" onClick={() => { profile.set({ vip: true }); sfx.win(); toast('Welcome to the VIP Club!'); onClose(); }}>Join VIP — $4.99/week (test mode)</Pill>}
+      {p.vip && <p className="center gold-text">You're a VIP member{p.vipUntil > 0 ? ` until ${new Date(p.vipUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}.{nativeStoreOff() ? '' : ' Buying more adds to it.'}</p>}
+      {nativeStoreOff()
+        ? (!p.vip && <Pill color="gold" className="wide-btn" disabled>VIP Club — coming soon to the app</Pill>)
+        : <div className="vip-buy">
+            {PRODUCTS.filter((x) => x.kind === 'vip').map((k) => (
+              <Pill key={k.id} color="gold" className="wide-btn" disabled={busy !== null}
+                onClick={async () => { setBusy(k.id); await buy(k.id); setBusy(null); }}>
+                {busy === k.id ? 'Opening…' : `${k.vipDays} days — ${priceLabel(k.priceCents)}`}
+              </Pill>))}
+          </div>}
+      {!nativeStoreOff() && !paymentsReady() && !isTestMode() && <p className="muted small center">VIP purchases are not available yet.</p>}
     </Modal>
   );
 }

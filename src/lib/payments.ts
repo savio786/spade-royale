@@ -1,5 +1,6 @@
-// Store purchases. On the website with Stripe configured on the server, buying goes through Stripe Checkout
-// and the purchase is delivered when the player returns. Otherwise the store runs in test mode (instant, free).
+// Store purchases. On the website, buying goes through Stripe Checkout and the purchase is delivered when the
+// player returns. If Stripe isn't configured on the server nothing can be bought (free test purchases only
+// happen on a local development build).
 import { useSyncExternalStore } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { serverOrigin } from './config';
@@ -24,6 +25,9 @@ function apply(p: Product) {
     const bonus = profile.get().vip ? Math.round(p.coins! * 0.2) : 0;
     profile.addCoins(p.coins! + bonus);
     toast(`+${fmt(p.coins! + bonus)} coins`, 'coins');
+  } else if (p.kind === 'vip') {
+    profile.set((x) => { const vipUntil = Math.max(x.vipUntil, Date.now()) + p.vipDays! * 864e5; return { vipUntil, vip: true }; });
+    toast('Welcome to the VIP Club!');
   } else {
     profile.set((x) => ({
       chatUntil: p.chatDays === 0 || x.chatUntil === -1 ? -1 : Math.max(x.chatUntil, Date.now()) + p.chatDays! * 864e5,
@@ -35,12 +39,25 @@ function apply(p: Product) {
 
 // ---------- mode ----------
 let realPayments = false;
+/** Free, instant purchases: only on a local development build, never on the live site or in the apps. */
+const devTest = () => !!import.meta.env?.DEV && !Capacitor.isNativePlatform();
 export async function loadPaymentConfig() {
   const base = apiBase();
   if (!base || Capacitor.isNativePlatform()) return; // native apps must use Google Play / Apple billing (see README)
-  try { const r = await fetch(`${base}/api/payments`); realPayments = r.ok && !!(await r.json()).enabled; } catch { /* test mode */ }
+  try {
+    const r = await fetch(`${base}/api/payments`);
+    if (!r.ok) return;
+    realPayments = !!(await r.json()).enabled;
+    // the server is sure nothing has ever been paid: remove anything handed out by the old free test store
+    if (!realPayments && !devTest()) revokeUnpaid();
+  } catch { /* offline: keep what we have until the server can confirm */ }
 }
-export const isTestMode = () => !realPayments;
+function revokeUnpaid() {
+  const p = profile.get();
+  if (p.chatUntil || p.vip || p.vipUntil) profile.set({ chatUntil: 0, vip: false, vipUntil: 0 });
+}
+export const isTestMode = () => !realPayments && devTest();
+export const paymentsReady = () => realPayments;
 /** The Android/iPhone apps may only sell through Google Play / Apple billing. Until that is connected, buying is switched off in the apps. */
 export const nativeStoreOff = () => Capacitor.isNativePlatform() || import.meta.env?.VITE_NATIVE_STORE === 'play';
 
@@ -48,7 +65,11 @@ export async function buy(productId: string): Promise<void> {
   const p = productById(productId);
   if (!p) return;
   if (nativeStoreOff()) { toast('Purchases in the app are coming soon'); return; }
-  if (!realPayments) { apply(p); return; } // test mode
+  if (!realPayments) {
+    if (devTest()) { apply(p); return; } // local development only
+    toast('Purchases are not available yet — check back soon', 'error');
+    return;
+  }
   const base = apiBase()!;
   try {
     const returnUrl = `${window.location.origin}${window.location.pathname}#play`;
@@ -68,10 +89,13 @@ export async function syncPurchases() {
   try {
     const r = await fetch(`${base}/api/purchases?id=${encodeURIComponent(profile.get().id)}`);
     if (!r.ok) return 0;
-    const j = (await r.json()) as { grants: { productId: string }[]; chatUntil: number };
+    const j = (await r.json()) as { grants: { productId: string }[]; chatUntil: number; vipUntil?: number };
     for (const g of j.grants) { const p = productById(g.productId); if (p && p.kind === 'coins') apply(p); }
-    if (j.chatUntil) profile.set({ chatUntil: j.chatUntil });
+    // the server's record of what was paid is the truth for Chat Pass and VIP
+    const vipUntil = j.vipUntil ?? 0, vip = vipUntil === -1 || vipUntil > Date.now(), cur = profile.get();
+    if (cur.chatUntil !== j.chatUntil || cur.vipUntil !== vipUntil || cur.vip !== vip) profile.set({ chatUntil: j.chatUntil, vipUntil, vip });
     if (j.grants.some((g) => productById(g.productId)?.kind === 'chat')) toast('Chat unlocked');
+    if (j.grants.some((g) => productById(g.productId)?.kind === 'vip')) toast('Welcome to the VIP Club!');
     return j.grants.length;
   } catch { return 0; }
 }

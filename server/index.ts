@@ -183,8 +183,8 @@ function handle(c: Client, m: ClientMsg) {
     case 'chat': {
       if (!c.room || !c.player) return;
       const isGift = String(m.text).startsWith('🎁:');
-      // quick phrases and emoji are free; typed messages need a Chat Pass (verified purchases when Stripe is on, otherwise the device's test-mode pass)
-      const allowed = isGift || isFreeChat(String(m.text)) || (paymentsEnabled() ? hasChatPass(c.player.id) : !!c.player.chat);
+      // quick phrases and emoji are free; typed messages need a paid Chat Pass or VIP, checked against the server's purchase records
+      const allowed = isGift || isFreeChat(String(m.text)) || hasChatPass(c.player.id) || (!paymentsEnabled() && process.env.ALLOW_TEST_PURCHASES === '1' && !!c.player.chat);
       if (!allowed) return send(c, { t: 'error', message: 'Get a Chat Pass to type your own messages — quick phrases and emoji are free' });
     }
       return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);

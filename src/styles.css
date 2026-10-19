@@ -1316,3 +1316,4 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .login-buttons .register-link { grid-column: 1 / -1; justify-self: center; }
 .login-buttons .google-slot { align-items: center; }
 .social.reg { background: linear-gradient(180deg, #ffd75e, #e09a00 55%, #a86400); color: #3a1d00; text-shadow: 0 1px 0 rgba(255,255,255,.4); }
+.vip-buy { display: flex; flex-direction: column; gap: 10px; }
