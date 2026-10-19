@@ -85,7 +85,8 @@ export function Avatar({ k, size = 64, vip, name }: { k: string; size?: number; 
 
 function PhotoImg({ k }: { k: string }) {
   const [bad, setBad] = React.useState(false);
-  if (bad) return <AvatarArt k="p3" />;
+  // the photo couldn't be loaded: a plain silhouette (never someone else's face)
+  if (bad) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><rect width="100" height="100" fill="#4a3a6a" /><circle cx="50" cy="40" r="17" fill="#b9add6" /><path d="M16 100 C18 76 32 66 50 66 C68 66 82 76 84 100Z" fill="#b9add6" /></svg>;
   return <img src={photoUrl(k)} alt="" draggable={false} onError={() => setBad(true)} />;
 }
 

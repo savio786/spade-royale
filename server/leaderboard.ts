@@ -40,12 +40,27 @@ function rollover() {
   save();
 }
 
+/** Picture keys the game can show: drawn avatars and portraits, or an uploaded photo (u: + 24 hex). */
+const okAvatar = (v: unknown) => { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : null; };
+
+/** Keeps a ranked player's name and picture up to date when they change them (not only when they next win). */
+export function touch(p: { id: string; name: string; avatar: string }) {
+  const e = store.players[p.id];
+  if (!e) return;
+  const avatar = okAvatar(p.avatar) ?? e.avatar, name = String(p.name || e.name).slice(0, 20);
+  let changed = false;
+  if (e.avatar !== avatar) { e.avatar = avatar; changed = true; }
+  if (e.name !== name) { e.name = name; changed = true; }
+  for (const f of store.fame) if (f.name === e.name && f.avatar.startsWith('u:') && f.avatar.length < 26) { f.avatar = avatar; changed = true; }
+  if (changed) save();
+}
+
 export function credit(p: { id: string; name: string; avatar: string }, amount: number) {
   if (!p.id || !(amount > 0)) return;
   rollover();
   const e = store.players[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
   e.name = String(p.name).slice(0, 20);
-  e.avatar = String(p.avatar).slice(0, 8);
+  e.avatar = okAvatar(p.avatar) ?? e.avatar;
   e.earnings += Math.round(amount);
   store.players[p.id] = e;
   save();

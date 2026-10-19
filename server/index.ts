@@ -8,7 +8,7 @@ import { TableRuntime } from '../shared/runtime';
 import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
-import { board, credit, initLeaderboard } from './leaderboard';
+import { board, credit, initLeaderboard, touch } from './leaderboard';
 import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { createGuest, guestName, loadAccount, restoreByCode, saveProgress } from './accounts';
@@ -144,7 +144,7 @@ function handle(c: Client, m: ClientMsg) {
   switch (m.t) {
     case 'hello':
       c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat, stats: cleanStats(m.player.stats) };
-      guestName(c.player.id).then((n) => { if (n && c.player) c.player.name = n; });
+      guestName(c.player.id).then((n) => { if (n && c.player) c.player.name = n; if (c.player) touch(c.player); });
       return send(c, { t: 'welcome', online: onlineCounts() });
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
