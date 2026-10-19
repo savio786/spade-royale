@@ -447,21 +447,15 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .invite { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink-2); }
 .invite .code { display: flex; align-items: center; gap: 10px; font: 400 48px var(--display); letter-spacing: 10px; color: #fff; padding: 4px 20px; border-radius: 12px; background: rgba(0,0,0,.35); border: 2px dashed #c08bff; }
 .trick { position: absolute; inset: 0; pointer-events: none; }
-.tcard { position: absolute; left: 50%; top: 50%; width: 92px; height: 130px; margin: -65px 0 0 -46px; animation: dropIn .22s ease-out; transition: transform .45s ease-in .35s, opacity .45s ease-in .35s; }
+.tcard { position: absolute; left: 50%; top: 50%; width: 92px; height: 130px; margin: -65px 0 0 -46px; will-change: transform; }
 .tcard.at-bottom { transform: translate(0, 52px); } .tcard.at-top { transform: translate(0, -52px); }
 .tcard.at-left { transform: translate(-74px, 0) rotate(-8deg); } .tcard.at-right { transform: translate(74px, 0) rotate(8deg); }
-.trick.collect.to-bottom .tcard { transform: translate(0, 320px) scale(.5); opacity: 0; }
-.trick.collect.to-top .tcard { transform: translate(0, -320px) scale(.5); opacity: 0; }
-.trick.collect.to-left .tcard { transform: translate(-480px, 0) scale(.5); opacity: 0; }
-.trick.collect.to-right .tcard { transform: translate(480px, 0) scale(.5); opacity: 0; }
 @keyframes dropIn { from { opacity: 0; scale: 1.3; } }
-/* Played cards slide in from the player's seat */
-.tcard.at-bottom { animation: fromBottom .32s cubic-bezier(.2,.8,.3,1); } .tcard.at-top { animation: fromTop .32s cubic-bezier(.2,.8,.3,1); }
-.tcard.at-left { animation: fromLeft .32s cubic-bezier(.2,.8,.3,1); } .tcard.at-right { animation: fromRight .32s cubic-bezier(.2,.8,.3,1); }
 @keyframes fromBottom { from { transform: translate(0, 300px) scale(.8); opacity: .3; } }
 @keyframes fromTop { from { transform: translate(0, -280px) scale(.6); opacity: .3; } }
 @keyframes fromLeft { from { transform: translate(-460px, 0) scale(.6) rotate(-20deg); opacity: .3; } }
 @keyframes fromRight { from { transform: translate(460px, 0) scale(.6) rotate(20deg); opacity: .3; } }
+/* Played cards glide from the player's seat (animated in Table.tsx → TrickCards) */
 /* Cards are dealt into the hand at the start of each round */
 .hcard.deal { animation: dealIn .38s cubic-bezier(.2,.8,.3,1) both; animation-delay: calc(var(--i, 0) * 45ms); }
 @keyframes dealIn { from { translate: 0 -380px; rotate: -12deg; opacity: 0; } }

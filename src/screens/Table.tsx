@@ -1,5 +1,5 @@
 import { TableShape } from '../components/TableShape';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
@@ -181,9 +181,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
 
               </div>
             )}
-            <div className={`trick ${st.phase === 'trickEnd' ? `collect to-${rel(st.lastTrickWinner ?? 0)}` : ''}`}>
-              {st.trick.map((t) => <CardView key={`${t.card.s}${t.card.r}`} card={t.card} className={`tcard at-${rel(t.seat)}`} />)}
-            </div>
+            <TrickCards st={st} rel={rel} />
             {st.phase === 'playing' && st.trick.length === 0 && st.turn === me && <div className="status-line you">Your lead{!st.spadesBroken ? ' — spades not broken yet' : ''}</div>}
           </div>
         </div>
@@ -209,9 +207,9 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
               const pos = { ['--x' as string]: `${off * gap}px`, ['--y' as string]: `${off * off * 1.2}px`, ['--r' as string]: `${off * 2.2}deg`, ['--i' as string]: i, zIndex: i } as React.CSSProperties;
               if (!c) return <CardView key={`${st.round}-b${i}`} back className="hcard deal" style={pos} />;
               const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
-              return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
+              return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} dataCard={`${c.s}${c.r}`} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
                 onClick={() => {
-                  if (ok) { vibrate(10); ctl.act({ type: 'play', seat: me, card: c }); return; }
+                  if (ok) { vibrate(10); { const h = document.querySelector(`.fan [data-card="${c.s}${c.r}"]`); if (h) Object.assign(playedFrom, screenCenter(h), { at: Date.now() }); } ctl.act({ type: 'play', seat: me, card: c }); return; }
                   // explain why this card can't be played right now
                   if (st.phase !== 'playing') return;
                   if (!myTurn) return toast(`Wait for your turn — ${st.seats[st.turn]?.name ?? 'another player'} is playing`);
@@ -352,6 +350,83 @@ function ScorePanel({ st }: { st: PublicState }) {
 }
 
 const fmtClock = (ms: number) => { const t = Math.ceil(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+
+// ---------------- Cards in the middle of the table ----------------
+/** Where on screen the hand card you just tapped was, so your card flies from exactly there. */
+const playedFrom: { x: number; y: number; at: number } = { x: 0, y: 0, at: 0 };
+const screenCenter = (el: Element) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+const seatEl = (pos: string) => document.querySelector<HTMLElement>(`.seat-${pos} .seat-av`);
+const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const translationOf = (el: HTMLElement) => { const t = getComputedStyle(el).transform; const m = t && t !== 'none' ? new DOMMatrixReadOnly(t) : new DOMMatrixReadOnly(); return { t: t && t !== 'none' ? t : 'none', x: m.e, y: m.f }; };
+
+/** Converts a distance measured on screen into the table's own coordinates (the table is scaled, tilted, and turned sideways on phones). */
+function screenToLocal(root: HTMLElement) {
+  const probe = (x: number, y: number) => {
+    const p = document.createElement('i');
+    p.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:0;height:0`;
+    root.appendChild(p); const r = p.getBoundingClientRect(); p.remove();
+    return { x: r.left, y: r.top };
+  };
+  const o = probe(0, 0), ex = probe(100, 0), ey = probe(0, 100);
+  const a = (ex.x - o.x) / 100, b = (ex.y - o.y) / 100, c = (ey.x - o.x) / 100, d = (ey.y - o.y) / 100;
+  const det = a * d - b * c || 1;
+  return (dx: number, dy: number) => ({ x: (d * dx - c * dy) / det, y: (-b * dx + a * dy) / det });
+}
+
+/** Each played card glides from the player who played it to the middle; the finished trick slides to its winner. */
+function TrickCards({ st, rel }: { st: PublicState; rel: (seat: number) => string }) {
+  const box = useRef<HTMLDivElement>(null);
+  const seen = useRef(new Set<string>());
+  const collected = useRef('');
+  useLayoutEffect(() => {
+    const root = box.current;
+    if (!root || reduceMotion()) return;
+    const els = Array.from(root.querySelectorAll<HTMLElement>(':scope > .tcard'));
+    let toLocal: ReturnType<typeof screenToLocal> | null = null;
+    const local = () => (toLocal ??= screenToLocal(root));
+    st.trick.forEach((t, i) => {
+      const id = `${st.round}-${t.card.s}${t.card.r}`;
+      const el = els[i];
+      if (!el || seen.current.has(id)) return;
+      seen.current.add(id);
+      const pos = rel(t.seat);
+      const mine = pos === 'bottom' && Date.now() - playedFrom.at < 3000;
+      const seat = seatEl(pos);
+      const from = mine ? playedFrom : seat ? screenCenter(seat) : null;
+      if (!from) return;
+      const to = screenCenter(el), end = translationOf(el);
+      const d = local()(from.x - to.x, from.y - to.y);
+      const tilt = pos === 'left' ? -24 : pos === 'right' ? 24 : pos === 'top' ? 12 : 0;
+      el.animate([
+        { transform: `translate(${d.x + end.x}px, ${d.y + end.y}px) rotate(${tilt}deg) scale(${mine ? 1 : 0.5})`, boxShadow: '0 4px 8px rgba(0,0,0,.3)' },
+        { offset: 0.7, boxShadow: '0 22px 34px rgba(0,0,0,.45)' },
+        { transform: end.t, boxShadow: '0 6px 14px rgba(0,0,0,.35)' },
+      ], { duration: mine ? 380 : 480, easing: 'cubic-bezier(.22,.85,.3,1)' });
+      if (mine) playedFrom.at = 0;
+    });
+    // trick won: after a short look, the four cards slide to the winner
+    const key = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
+    if (st.phase === 'trickEnd' && st.lastTrickWinner !== null && collected.current !== key) {
+      collected.current = key;
+      const target = seatEl(rel(st.lastTrickWinner));
+      if (target) {
+        const c = screenCenter(target);
+        els.forEach((el, i) => {
+          const b = screenCenter(el), end = translationOf(el), d = local()(c.x - b.x, c.y - b.y);
+          el.animate([
+            { transform: end.t, opacity: 1 },
+            { transform: `translate(${d.x + end.x}px, ${d.y + end.y}px) scale(.4)`, opacity: 0 },
+          ], { duration: 420, delay: 560 + i * 30, easing: 'cubic-bezier(.5,0,.75,.4)', fill: 'forwards' });
+        });
+      }
+    }
+  }, [st.trick, st.phase, st.round, st.lastTrickWinner, rel]);
+  return (
+    <div className="trick" ref={box}>
+      {st.trick.map((t) => <CardView key={`${st.round}-${t.card.s}${t.card.r}`} card={t.card} className={`tcard at-${rel(t.seat)}`} />)}
+    </div>
+  );
+}
 
 function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onProfile, myVip }: {
   st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; onGift: () => void; onProfile: () => void; myVip: boolean;

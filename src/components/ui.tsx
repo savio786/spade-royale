@@ -172,8 +172,8 @@ function CourtEmblem({ r }: { r: number }) {
     </svg>);
 }
 
-export function CardView({ card, small, back, className, onClick, disabled, style }: {
-  card?: Card; small?: boolean; back?: boolean; className?: string; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties;
+export function CardView({ card, small, back, className, onClick, disabled, style, dataCard }: {
+  card?: Card; small?: boolean; back?: boolean; className?: string; onClick?: () => void; disabled?: boolean; style?: React.CSSProperties; dataCard?: string;
 }) {
   if (back || !card) return <div className={`pcard back ${small ? 'small' : ''} ${className ?? ''}`} style={style} aria-hidden="true"><span className="pc-back-mark"><SuitIcon s="S" /></span></div>;
   const red = card.s === 'H' || card.s === 'D';
@@ -198,7 +198,7 @@ export function CardView({ card, small, back, className, onClick, disabled, styl
     </span>
   );
   return (
-    <Tag className={`pcard ${red ? 'red' : 'black'} s-${card.s} ${small ? 'small' : ''} ${className ?? ''}`} style={style}
+    <Tag className={`pcard ${red ? 'red' : 'black'} s-${card.s} ${small ? 'small' : ''} ${className ?? ''}`} style={style} data-card={dataCard}
       onClick={onClick} disabled={onClick ? disabled : undefined} aria-label={label}>
       <span className="pc-corner">{corner}</span>
       {body}
