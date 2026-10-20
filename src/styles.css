@@ -1325,3 +1325,17 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .seat-av.won-trick { animation: wonTrick 1.2s ease-out; }
 @keyframes wonTrick { 0% { box-shadow: 0 0 0 0 rgba(255,214,90,0); } 25% { box-shadow: 0 0 0 6px rgba(255,214,90,.95), 0 0 34px 12px rgba(255,200,61,.75); } 100% { box-shadow: 0 0 0 0 rgba(255,214,90,0); } }
 @media (prefers-reduced-motion: reduce) { .seat-av.won-trick { animation: none; } }
+
+/* ===== Your picture stays at the bottom centre the whole game; the hand fans evenly behind it ===== */
+.fan { left: 50%; bottom: -64px; }
+.seat-bottom, .seat-bottom.in-play, .seat-bottom.is-waiting { left: 50%; translate: -50% 0; bottom: -40px; transition: none; z-index: 12; }
+.seat-bottom.in-play { bottom: -92px; }
+.seat-bottom .seat-av .avatar { width: 100px !important; height: 100px !important; }
+.seat-bottom.in-play { pointer-events: none; }
+.seat-bottom.in-play .seat-av, .seat-bottom.in-play .gift-mini { pointer-events: auto; }
+.seat-bottom .seat-av .avatar { width: 108px !important; height: 108px !important; }
+.seat-bottom.in-play .seat-av { box-shadow: 0 8px 22px rgba(0,0,0,.6); border-radius: 50%; }
+/* bid tag to the right of your picture, like the other seats */
+.seat-bottom.in-play .seat-pill { left: calc(100% - 22px); right: auto; top: 50%; bottom: auto; translate: 0 -50%; padding: 0 18px 0 40px; min-width: 110px; height: 60px; font-size: 40px; }
+.seat-bottom .bubble { left: 50%; translate: -50% 0; }
+.turn-clock { left: 50%; translate: -50% 0; bottom: 270px; }
