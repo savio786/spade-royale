@@ -383,6 +383,12 @@ const http = createServer((req, res) => {
   if (req.url?.startsWith('/api/')) return api(req, res);
   if (!existsSync(DIST)) { res.writeHead(200, { 'content-type': 'text/plain' }); return res.end('Spade Haven server running. Build the client (npm run build) to serve it here.'); }
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  // Google Play app (Trusted Web Activity) ↔ website link. Set ANDROID_PACKAGE and ANDROID_CERT_SHA256 (comma-separated if several) in Render.
+  if (urlPath === '/.well-known/assetlinks.json' && process.env.ANDROID_PACKAGE && process.env.ANDROID_CERT_SHA256) {
+    const fingerprints = process.env.ANDROID_CERT_SHA256.split(',').map((f) => f.trim().toUpperCase()).filter(Boolean);
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'max-age=300' });
+    return res.end(JSON.stringify([{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: process.env.ANDROID_PACKAGE.trim(), sha256_cert_fingerprints: fingerprints } }]));
+  }
   let file = normalize(join(DIST, urlPath));
   if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html');
   const type = urlPath === '/.well-known/windows-app-web-link' ? 'application/json' : MIME[extname(file)] || 'application/octet-stream';

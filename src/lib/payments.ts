@@ -66,8 +66,15 @@ export const isMsStoreApp = (() => {
     return localStorage.getItem('sh-msstore') === '1' && window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: window-controls-overlay)').matches;
   } catch { return false; }
 })();
+/** Running as the Google Play app (a Trusted Web Activity: start address carries ?app=play, or it was opened by the Android app). */
+export const isPlayApp = (() => {
+  try {
+    if (/[?&]app=play\b/.test(window.location.search) || document.referrer.startsWith('android-app://')) localStorage.setItem('sh-play', '1');
+    return localStorage.getItem('sh-play') === '1' && window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+  } catch { return false; }
+})();
 /** Store apps (Google Play, Apple, Microsoft) must sell through their own billing, so buying is switched off there for now. */
-export const nativeStoreOff = () => Capacitor.isNativePlatform() || import.meta.env?.VITE_NATIVE_STORE === 'play' || isMsStoreApp;
+export const nativeStoreOff = () => Capacitor.isNativePlatform() || import.meta.env?.VITE_NATIVE_STORE === 'play' || isMsStoreApp || isPlayApp;
 
 export async function buy(productId: string): Promise<void> {
   const p = productById(productId);
