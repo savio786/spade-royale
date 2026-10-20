@@ -2,24 +2,27 @@
 // alcove at the bottom centre for your seat. Colours come from the table theme (CSS variables).
 import { useEffect, useId, useRef, useState } from 'react';
 
-interface Box { x0: number; y0: number; x1: number; y1: number; f: number; b: number; bow: number; nW: number; nH: number }
+interface Box { x0: number; y0: number; x1: number; y1: number; rx: number; ry: number; bow: number; arch: number; nW: number; nH: number }
 
-function outline({ x0, y0, x1, y1, f, b, bow, nW, nH }: Box) {
-  const H = y1 - y0, cx = (x0 + x1) / 2;
+const K = 0.5523; // bezier handle length for a quarter ellipse
+
+/** An oval card table: big elliptical ends, gently bowed sides and top/bottom, and an alcove at the bottom centre for your seat. */
+function outline({ x0, y0, x1, y1, rx, ry, bow, arch, nW, nH }: Box) {
+  const cx = (x0 + x1) / 2;
   const p = (n: number) => n.toFixed(1);
   return [
-    `M${p(x0 + f * 1.6)} ${p(y0)}`,
-    `L${p(x1 - f * 1.6)} ${p(y0)}`,
-    `C${p(x1 - f * 0.6)} ${p(y0)} ${p(x1 - f * 0.2)} ${p(y0 + f * 0.3)} ${p(x1 - f * 0.15)} ${p(y0 + f)}`,
-    `C${p(x1 + bow)} ${p(y0 + H * 0.3)} ${p(x1 + bow)} ${p(y0 + H * 0.68)} ${p(x1)} ${p(y1 - b)}`,
-    `C${p(x1)} ${p(y1 - b * 0.35)} ${p(x1 - b * 0.35)} ${p(y1)} ${p(x1 - b)} ${p(y1)}`,
-    `L${p(cx + nW)} ${p(y1)}`,
+    `M${p(x0 + rx)} ${p(y0)}`,
+    `C${p(cx - (cx - x0 - rx) * 0.4)} ${p(y0 - arch)} ${p(cx + (x1 - rx - cx) * 0.4)} ${p(y0 - arch)} ${p(x1 - rx)} ${p(y0)}`,
+    `C${p(x1 - rx + rx * K)} ${p(y0)} ${p(x1)} ${p(y0 + ry - ry * K)} ${p(x1)} ${p(y0 + ry)}`,
+    `C${p(x1 + bow)} ${p(y0 + ry + (y1 - y0 - 2 * ry) * 0.3)} ${p(x1 + bow)} ${p(y1 - ry - (y1 - y0 - 2 * ry) * 0.3)} ${p(x1)} ${p(y1 - ry)}`,
+    `C${p(x1)} ${p(y1 - ry + ry * K)} ${p(x1 - rx + rx * K)} ${p(y1)} ${p(x1 - rx)} ${p(y1)}`,
+    `C${p(x1 - rx - (x1 - rx - cx - nW) * 0.5)} ${p(y1 + arch * 0.6)} ${p(cx + nW + 20)} ${p(y1 + arch * 0.3)} ${p(cx + nW)} ${p(y1)}`,
     `C${p(cx + nW * 0.55)} ${p(y1)} ${p(cx + nW * 0.62)} ${p(y1 - nH)} ${p(cx)} ${p(y1 - nH)}`,
     `C${p(cx - nW * 0.62)} ${p(y1 - nH)} ${p(cx - nW * 0.55)} ${p(y1)} ${p(cx - nW)} ${p(y1)}`,
-    `L${p(x0 + b)} ${p(y1)}`,
-    `C${p(x0 + b * 0.35)} ${p(y1)} ${p(x0)} ${p(y1 - b * 0.35)} ${p(x0)} ${p(y1 - b)}`,
-    `C${p(x0 - bow)} ${p(y0 + H * 0.68)} ${p(x0 - bow)} ${p(y0 + H * 0.3)} ${p(x0 + f * 0.15)} ${p(y0 + f)}`,
-    `C${p(x0 + f * 0.2)} ${p(y0 + f * 0.3)} ${p(x0 + f * 0.6)} ${p(y0)} ${p(x0 + f * 1.6)} ${p(y0)}Z`,
+    `C${p(cx - nW - 20)} ${p(y1 + arch * 0.3)} ${p(x0 + rx + (cx - nW - x0 - rx) * 0.5)} ${p(y1 + arch * 0.6)} ${p(x0 + rx)} ${p(y1)}`,
+    `C${p(x0 + rx - rx * K)} ${p(y1)} ${p(x0)} ${p(y1 - ry + ry * K)} ${p(x0)} ${p(y1 - ry)}`,
+    `C${p(x0 - bow)} ${p(y1 - ry - (y1 - y0 - 2 * ry) * 0.3)} ${p(x0 - bow)} ${p(y0 + ry + (y1 - y0 - 2 * ry) * 0.3)} ${p(x0)} ${p(y0 + ry)}`,
+    `C${p(x0)} ${p(y0 + ry - ry * K)} ${p(x0 + rx - rx * K)} ${p(y0)} ${p(x0 + rx)} ${p(y0)}Z`,
   ].join(' ');
 }
 
@@ -45,22 +48,25 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
   if (size && size.w > 100) {
     const { w: W, h: H } = size;
     const bow = 14 * k;
-    const outer: Box = { x0: bow + 2, y0: 2, x1: W - bow - 2, y1: H - 2, f: 74 * k, b: 96 * k, bow, nW: 130 * k, nH: 50 * k };
-    const inner: Box = { x0: outer.x0 + R, y0: outer.y0 + R, x1: outer.x1 - R, y1: outer.y1 - R, f: 56 * k, b: 70 * k, bow: bow * 0.85, nW: 150 * k, nH: 50 * k };
+    // big rounded ends: the corner ellipse takes up to ~45% of the height, so the table reads as an oval
+    const ry = Math.min((H - 4) * 0.44, 240 * k), rx = Math.min(ry * 1.35, (W - 2 * bow) * 0.2), arch = 10 * k;
+    const outer: Box = { x0: bow + 2, y0: 2 + arch, x1: W - bow - 2, y1: H - 2 - arch * 0.6, rx, ry, bow, arch, nW: 130 * k, nH: 50 * k };
+    const inner: Box = { x0: outer.x0 + R, y0: outer.y0 + R, x1: outer.x1 - R, y1: outer.y1 - R, rx: Math.max(10, rx - R * 0.9), ry: Math.max(10, ry - R * 0.9), bow: bow * 0.85, arch: arch * 0.8, nW: 150 * k, nH: 50 * k };
     const cx = W / 2, cy = H / 2 - 2;
     const oPath = outline(outer), iPath = outline(inner);
     // pearl inlays follow the bowed sides of the rail
     const inlay = (left: boolean) => {
-      // walk along the side curve of the outer edge and step half a rail inwards
-      const { x0, x1, y0, y1, f, b } = outer, Hh = y1 - y0;
+      // walk along the bowed side of the outer edge and step half a rail inwards
+      const { x0, x1, y0, y1, ry } = outer, side = y1 - y0 - 2 * ry;
       const P = left
-        ? [[x0, y1 - b], [x0 - bow, y0 + Hh * 0.68], [x0 - bow, y0 + Hh * 0.3], [x0 + f * 0.15, y0 + f]]
-        : [[x1, y1 - b], [x1 + bow, y0 + Hh * 0.68], [x1 + bow, y0 + Hh * 0.3], [x1 - f * 0.15, y0 + f]];
+        ? [[x0, y1 - ry], [x0 - bow, y1 - ry - side * 0.3], [x0 - bow, y0 + ry + side * 0.3], [x0, y0 + ry]]
+        : [[x1, y1 - ry], [x1 + bow, y1 - ry - side * 0.3], [x1 + bow, y0 + ry + side * 0.3], [x1, y0 + ry]];
       const pts: string[] = [];
       for (let i = 0; i <= 12; i++) {
-        const t = 0.2 + (i / 12) * 0.55, m = 1 - t;
-        const x = m * m * m * P[0][0] + 3 * m * m * t * P[1][0] + 3 * m * t * t * P[2][0] + t * t * t * P[3][0];
-        const y = m * m * m * P[0][1] + 3 * m * m * t * P[1][1] + 3 * m * t * t * P[2][1] + t * t * t * P[3][1];
+        const t = -0.25 + (i / 12) * 1.5, tt = Math.max(0, Math.min(1, t)), m = 1 - tt;
+        let x = m * m * m * P[0][0] + 3 * m * m * tt * P[1][0] + 3 * m * tt * tt * P[2][0] + tt * tt * tt * P[3][0];
+        let y = m * m * m * P[0][1] + 3 * m * m * tt * P[1][1] + 3 * m * tt * tt * P[2][1] + tt * tt * tt * P[3][1];
+        if (t < 0 || t > 1) { const e = (t < 0 ? -t : t - 1) * ry * 0.9; y += t < 0 ? e : -e; x += (left ? 1 : -1) * e * e / (ry * 1.6); } // follow into the rounded ends
         pts.push(`${(x + (left ? R / 2 : -R / 2)).toFixed(1)} ${y.toFixed(1)}`);
       }
       return `M${pts.join(' L')}`;
@@ -160,7 +166,7 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
           </g>
           {/* inner raised panel and soft vignette */}
           <path d={iPath} fill="none" stroke="#000" strokeOpacity=".35" strokeWidth={60 * k} filter={u('gl')} />
-          <rect x={ip.x} y={ip.y} width={ip.w} height={ip.h} rx={70 * k} fill="#000" fillOpacity=".1" stroke="#fff" strokeOpacity=".07" strokeWidth="2" />
+          <rect x={ip.x} y={ip.y} width={ip.w} height={ip.h} rx={Math.min(inner.ry * 0.9, ip.h / 2)} fill="#000" fillOpacity=".1" stroke="#fff" strokeOpacity=".07" strokeWidth="2" />
           {/* deco emblem: heart above, spade below */}
           {emblem && <>
           <g fill="none" style={{ stroke: 'var(--felt-line)' }} strokeOpacity=".28" strokeWidth="3" strokeLinecap="round">
