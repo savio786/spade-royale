@@ -130,9 +130,9 @@ export function botPlay(g: GameState, seat: number): Card {
 
 // ---------------- Chatter ----------------
 export const BOT_NAMES = [
-  'AceHunter', 'NilQueen', 'BagMaster', 'SpadeSlinger', 'TrumpTight', 'LuckyLuna', 'Big Joker', 'CardSharkJo',
-  'RookieRay', 'Mrs. Bids', 'SetEmUp', 'BookKeeper', 'NoBagsNeil', 'Dee Diamond', 'ClubCaptain', 'HeartBreaker',
-  'Sir Trick', 'Kenji', 'Amara', 'Diego', 'Priya', 'Tomasz', 'Leilani', 'Oskar',
+  'Nina Patel', 'Tyler Grant', 'Maya Johnson', 'Diego Ramirez', 'Leilani Kahale', 'Oskar Lindqvist', 'Amara Nwosu', 'Tomasz Nowak',
+  'Chloe Martin', 'Isaac Reed', 'Jasmine Price', 'Noah Kim', 'Elena Petrova', 'Malik Robinson', 'Sienna Clarke', 'Victor Santos',
+  'Keisha Moore', 'Liam Walsh', 'Yuki Sato', 'Hector Ruiz', 'Olivia Parker', 'Samir Khan', 'Ruby Foster', 'Felix Wagner',
 ];
 export const BOT_LINES = {
   greet: ['Hi all! 👋', 'Good luck everyone', 'Let\'s gooo', 'gl hf', 'Hey partner!'],

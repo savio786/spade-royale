@@ -69,7 +69,7 @@ export const TOPICS: Topic[] = [
     answer: 'PLAY NOW → pick Solo or Partners and you\'re seated at a table with a bet that suits your coin balance. Each empty seat waits 15 seconds for a real player; if nobody joins, a computer player takes it and the next seat gets its own 15 seconds. Don\'t want to wait? Tap "Start now with computer players".',
     actions: [{ label: 'Start playing', action: 'play' }], related: ['bots', 'lobby'] },
   { id: 'bots', title: 'Computer players', keys: ['bot', 'bots', 'cpu', 'computer', 'ai player', 'fake', 'real', 'other players', 'real people', 'real players', 'are they real'],
-    answer: 'Players marked CPU are computer players. They take empty seats after a table has waited 15 seconds for real people (or straight away if someone taps "Start now"). Real people show their level (Lv) instead. Computer players never appear on the leaderboard.',
+    answer: 'Some players are computer players (tap a player to see their profile; computer players say COMPUTER PLAYER). They take empty seats after a table has waited 15 seconds for real people (or straight away if someone taps "Start now"). Computer players never appear on the leaderboard.',
     related: ['private', 'leaderboard'] },
   { id: 'leave', title: 'Leaving a table', keys: ['leave', 'leave the table', 'leave table', 'quit', 'exit', 'forfeit', 'get out', 'stop playing'],
     answer: 'Open the menu (☰, top right) → Leave table. Leaving before the game starts is free; leaving during a game forfeits your bet, and a computer player takes your seat.',

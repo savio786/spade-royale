@@ -339,7 +339,7 @@ function ScorePanel({ st }: { st: PublicState }) {
         <tbody>
           {[0, 1, 2, 3].map((s) => (
             <tr key={s} className={s === me ? 'me' : ''}>
-              <td>{st.seats[s]?.name.slice(0, 9) ?? '—'}</td><td>{st.scores[s]}</td><td>{st.bags[s]}</td>
+              <td>{st.seats[s]?.name.split(' ')[0].slice(0, 9) ?? '—'}</td><td>{st.scores[s]}</td><td>{st.bags[s]}</td>
               <td>{st.phase === 'waiting' ? '-' : `${st.tricks[s]}/${st.bids[s] ?? '-'}`}</td>
             </tr>
           ))}
@@ -444,7 +444,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onP
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
         {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}
       </div>
-      {s && <div className="seat-name" onClick={onProfile} role="button" tabIndex={-1}>{s.name} {s.bot ? <small className="cpu-tag">CPU</small> : <small>Lv {s.level}</small>}</div>}
+      {s && <div className="seat-name" onClick={onProfile} role="button" tabIndex={-1}>{s.name} <small>Lv {s.level}</small></div>}
       {s && st.phase !== 'waiting' && (
         <div className="seat-pill" onClick={onProfile} role="button" aria-label={`${s.name}: ${st.bids[seat] === null ? 'no bid yet' : `${st.tricks[seat]} of ${st.bids[seat]} books`}`}>
           {st.bids[seat] === null ? '-/-' : st.bids[seat] === 0 ? <>{st.tricks[seat]}/<small>{st.blind?.[seat] ? 'BN' : 'NIL'}</small></> : `${st.tricks[seat]}/${st.bids[seat]}`}

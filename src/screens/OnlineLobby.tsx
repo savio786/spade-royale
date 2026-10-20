@@ -136,7 +136,7 @@ function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoi
         const friendly = partners ? rel === 2 : false;
         return (
           <span key={seat} className={`lt-seat at-${where} ${friendly ? 'blue' : 'red'}`}>
-            {s ? <><span className="bezel" /><Avatar k={s.avatar} size={78} name={s.name} /><small className="lt-name">{s.bot ? `${s.name} · CPU` : s.name}</small></> : <span className="lt-q">?</span>}
+            {s ? <><span className="bezel" /><Avatar k={s.avatar} size={78} name={s.name} /><small className="lt-name">{s.name}</small></> : <span className="lt-q">?</span>}
           </span>
         );
       })}

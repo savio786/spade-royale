@@ -34,7 +34,9 @@ export interface RuntimeOptions {
 
 const CARTOON = Array.from({ length: 24 }, (_, i) => `a${i + 1}`);
 // Human portraits p1–p24 and the names that match them (keep in step with src/components/people.tsx).
-const PEOPLE_NAMES = ['Marcus', 'Sofia', 'Jake', 'Aiyana', 'Mei', 'Andre', 'Priya', 'Carlos', 'Grace', 'Ethan', 'Hana', 'Omar', 'Rosa', 'Luca', 'Kenji', 'Lena', 'Bella', 'Jordan', 'Camila', 'Ryan', 'Zara', 'Mateo', 'Ava', 'Dante'];
+const PEOPLE_NAMES = ['Marcus Bennett', 'Sofia Romano', 'Jake Mitchell', 'Aiyana Begay', 'Mei Chen', 'Andre Williams', 'Priya Sharma', 'Carlos Mendoza',
+  'Grace Okafor', 'Ethan Carter', 'Hana Sullivan', 'Omar Haddad', 'Rosa Delgado', 'Luca Moretti', 'Kenji Tanaka', 'Lena Fischer',
+  'Bella Russo', 'Jordan Hayes', 'Camila Torres', 'Ryan Cooper', 'Zara Mensah', 'Mateo Alvarez', 'Ava Thompson', 'Dante Brooks'];
 let botCounter = 0;
 /** Computer players are always one of the illustrated people, with the matching name. */
 function botStats(level: number): PublicStats {
