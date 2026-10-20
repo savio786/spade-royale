@@ -59,18 +59,18 @@ export function vibrate(ms = 20) {
   if (profile.get().settings.vibrate && 'vibrate' in navigator) try { navigator.vibrate(ms); } catch { /* ignore */ }
 }
 
-// ---------------- Background music: six original tracks, played live with Web Audio (no files to download) ----------------
+// ---------------- Background music: eight original tracks, played live with Web Audio (no files to download) ----------------
 // Every track was composed for Spade Haven. Each one is a 16-bar form: an 8-bar melody hook, then 8 bars of groove
 // with a light riff, then it loops. Players pick a track in the table menu or in Settings.
 const midi = (n: number) => 440 * 2 ** ((n - 69) / 12);
 type Note = [number, number, number, number];            // [bar, 16th step, midi note, length in 16ths]
-type Drums = 'lounge' | 'brush' | 'disco' | 'reggae' | 'shuffle' | 'bossa';
-type LeadT = 'square' | 'vibes' | 'saw' | 'marimba' | 'brass' | 'flute';
-type KeysT = 'ep' | 'pad' | 'organ' | 'pluck' | 'brass';
+type Drums = 'lounge' | 'brush' | 'disco' | 'reggae' | 'shuffle' | 'bossa' | 'dhol' | 'tabla';
+type LeadT = 'square' | 'vibes' | 'saw' | 'marimba' | 'brass' | 'flute' | 'sitar' | 'bansuri';
+type KeysT = 'ep' | 'pad' | 'organ' | 'pluck' | 'brass' | 'harmonium';
 interface Song {
   id: string; name: string; mood: string; bpm: number; swing: number;
   chords: number[][];                                     // four chords: [bass, ...voicing]
-  drums: Drums; bass: [number, number, number][] | 'walk' | 'octaves'; keys: KeysT; stabs: number[]; pad: boolean;
+  drums: Drums; bass: [number, number, number][] | 'walk' | 'octaves'; keys: KeysT; stabs: number[]; pad: boolean; drone?: number;
   lead: LeadT; hook: Note[];
 }
 /** 4-bar hooks are played twice; the second time the last bar resolves on a long note. */
@@ -130,6 +130,24 @@ export const SONGS: Song[] = [
       [2, 0, 71, 4], [2, 4, 72, 2], [2, 6, 74, 2], [2, 8, 79, 4], [2, 12, 76, 4],
       [3, 0, 73, 4], [3, 4, 76, 2], [3, 6, 79, 2], [3, 8, 77, 4], [3, 12, 76, 4],
     ], 74) },
+  { id: 'masala', name: 'Mumbai Masala', mood: 'Bollywood dance · dhol & sitar', bpm: 104, swing: 0.22, drums: 'dhol',
+    bass: [[0, 0, 2], [3, 0, 1], [6, 7, 2], [8, 0, 2], [11, 0, 1], [14, 7, 2]], keys: 'harmonium', stabs: [2, 6, 10, 14], pad: false, lead: 'sitar',
+    chords: [[38, 62, 65, 69], [36, 60, 64, 67], [34, 62, 65, 70], [33, 61, 64, 69]],
+    hook: twice([
+      [0, 0, 69, 2], [0, 2, 69, 1], [0, 3, 70, 1], [0, 4, 69, 2], [0, 6, 67, 2], [0, 8, 65, 2], [0, 10, 67, 2], [0, 12, 69, 4],
+      [1, 0, 72, 2], [1, 2, 70, 2], [1, 4, 69, 2], [1, 6, 67, 2], [1, 8, 64, 4], [1, 12, 67, 4],
+      [2, 0, 70, 3], [2, 3, 69, 1], [2, 4, 70, 2], [2, 6, 72, 2], [2, 8, 74, 4], [2, 12, 72, 2], [2, 14, 70, 2],
+      [3, 0, 69, 2], [3, 2, 70, 1], [3, 3, 69, 1], [3, 4, 73, 2], [3, 6, 70, 2], [3, 8, 69, 8],
+    ], 62) },
+  { id: 'monsoon', name: 'Monsoon Dil', mood: 'Bollywood romance · tabla & flute', bpm: 78, swing: 0.12, drums: 'tabla',
+    bass: [[0, 0, 6], [8, 7, 4], [12, 0, 4]], keys: 'pluck', stabs: [0, 3, 6, 8, 11, 14], pad: true, drone: 45, lead: 'bansuri',
+    chords: [[45, 64, 69, 72], [41, 65, 69, 72], [43, 62, 67, 71], [40, 64, 67, 71]],
+    hook: twice([
+      [0, 0, 76, 6], [0, 6, 74, 2], [0, 8, 72, 2], [0, 10, 74, 2], [0, 12, 76, 4],
+      [1, 0, 77, 4], [1, 4, 76, 2], [1, 6, 74, 2], [1, 8, 72, 8],
+      [2, 0, 74, 4], [2, 4, 76, 2], [2, 6, 79, 2], [2, 8, 81, 6], [2, 14, 79, 2],
+      [3, 0, 76, 4], [3, 4, 74, 2], [3, 6, 72, 2], [3, 8, 71, 8],
+    ], 69) },
 ];
 export const songById = (id?: string) => SONGS.find((x) => x.id === id) ?? SONGS[0];
 
@@ -140,6 +158,7 @@ class Music {
   private timer: ReturnType<typeof setInterval> | null = null;
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private next = 0;
+  private lastLead = 0;
   private step = 0;
   private song: Song = SONGS[0];
   /** true while the player is at a table (music keeps playing there); previews elsewhere stop by themselves */
@@ -205,6 +224,12 @@ class Music {
   private brush(t: number, v = 1) { this.noiseHit(t, 0.32, 0.07 * v, 'bandpass', 3200, 0.6, 0.04); }
   private rim(t: number, v = 1) { this.noiseHit(t, 0.035, 0.22 * v, 'bandpass', 3800, 6); this.tone(1700, t, 0.03, 0.05 * v, 'square', this.bus!.drums); }
   private shaker(t: number, v = 1) { this.noiseHit(t, 0.07, 0.035 * v, 'highpass', 6000, 1, 0.02); }
+  private drum(t: number, f0: number, f1: number, dur: number, v: number) {
+    const a = ac()!, o = a.createOscillator(), g = a.createGain();
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.6);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(this.bus!.drums); o.start(t); o.stop(t + dur + 0.02);
+  }
   private tone(freq: number, t: number, dur: number, vol: number, type: OscillatorType, out: AudioNode) {
     const a = ac()!, o = a.createOscillator(), g = a.createGain();
     o.type = type; o.frequency.value = freq;
@@ -239,6 +264,19 @@ class Music {
         if (st % 4 === 0 || st % 4 === 2) this.ride(ts, st % 4 === 0 ? 1 : 0.65);
         if (st === 4 || st === 12) this.hat(t, false, 0.8);
         break;
+      case 'dhol':                                                     // bhangra-style chaal: low dagga + high tilli, filmi claps
+        if (st === 0 || st === 6 || st === 8 || (st === 14 && bar % 2 === 1)) this.drum(t, 120, 62, 0.32, st === 0 ? 0.95 : 0.8);
+        if ([3, 4, 7, 10, 11, 12, 15].includes(st)) { this.drum(ts, 420, 360, 0.09, st % 4 === 0 ? 0.32 : 0.2); this.noiseHit(ts, 0.03, 0.08, 'highpass', 3000); }
+        if (st === 4 || st === 12) this.clap(t, 0.8);
+        if (st % 2 === 0) this.shaker(ts, 0.7);
+        break;
+      case 'tabla': {                                                  // keherwa feel: bayan with its pitch bend, ringing dayan "na", ti-ka taps
+        const na = midi((this.song.drone ?? 45) + 24);
+        if (st === 0 || st === 6 || (st === 8 && bar % 2 === 0)) this.drum(t, 75, 110, 0.45, 0.55);
+        if ([2, 4, 10, 12, 14].includes(st)) { this.tone(na, ts, 0.35, st === 4 || st === 12 ? 0.11 : 0.07, 'sine', this.bus!.drums); this.tone(na * 2.7, ts, 0.08, 0.025, 'sine', this.bus!.drums); }
+        if (st === 5 || st === 11 || st === 15) this.noiseHit(ts, 0.04, 0.09, 'bandpass', 3400, 3);
+        break;
+      }
       case 'bossa':
         if (st === 0 || st === 6 || st === 8 || st === 14) this.kick(t, st % 8 === 0 ? 0.6 : 0.45);
         if ([0, 3, 6, 10, 12].includes(st)) this.rim(t, 0.7);
@@ -249,7 +287,7 @@ class Music {
   // ---- bass ----
   private bassNote(n: number, t: number, len: number) {
     const a = ac()!, o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain(), six = this.six();
-    const round = this.song.drums === 'brush' || this.song.drums === 'shuffle' || this.song.drums === 'bossa';  // upright-style bass
+    const round = ['brush', 'shuffle', 'bossa', 'tabla'].includes(this.song.drums);  // upright-style bass
     o.type = round ? 'triangle' : 'sawtooth'; o.frequency.value = midi(n);
     f.type = 'lowpass'; f.Q.value = round ? 1 : 6; f.frequency.setValueAtTime(round ? 900 : 1100, t); f.frequency.exponentialRampToValueAtTime(round ? 300 : 180, t + 0.18);
     const d = Math.max(0.12, len * six * 0.92), v = round ? 0.36 : 0.32;
@@ -272,15 +310,26 @@ class Music {
         : kind === 'pad' ? [['sawtooth', 1, 0.35], ['sawtooth', 1.005, 0.35]]
         : kind === 'organ' ? [['sine', 1, 0.8], ['sine', 2, 0.4], ['sine', 3, 0.2]]
         : kind === 'pluck' ? [['triangle', 1, 1], ['sine', 2, 0.3]]
+        : kind === 'harmonium' ? [['square', 1, 0.45], ['sawtooth', 1.003, 0.35], ['square', 2, 0.12]]
         : [['sawtooth', 1, 0.5], ['square', 0.5, 0.15]];                                      // brass section
       for (const [type, mul, v] of parts) {
         const o = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
         o.type = type; o.frequency.value = midi(n) * mul; o.detune.value = (Math.random() - 0.5) * 8;
-        f.type = 'lowpass'; f.frequency.value = kind === 'pad' ? 1400 : kind === 'brass' ? 2600 : 5000;
-        const att = kind === 'pad' ? 0.25 : kind === 'brass' ? 0.02 : 0.006;
+        f.type = 'lowpass'; f.frequency.value = kind === 'pad' ? 1400 : kind === 'brass' ? 2600 : kind === 'harmonium' ? 1700 : 5000;
+        const att = kind === 'pad' ? 0.25 : kind === 'brass' || kind === 'harmonium' ? 0.03 : 0.006;
         g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol * v, t + att); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         o.connect(f).connect(g).connect(this.bus!.inst); o.start(t); o.stop(t + dur + 0.02);
       }
+    }
+  }
+  /** tanpura-style drone: root and fifth, slowly swelling */
+  private drone(n: number, t: number, dur: number) {
+    const a = ac()!;
+    for (const [m, v] of [[n - 12, 0.03], [n - 5, 0.02], [n, 0.018]] as const) {
+      const o = a.createOscillator(), f = a.createBiquadFilter(), g = a.createGain();
+      o.type = 'sawtooth'; o.frequency.value = midi(m); f.type = 'lowpass'; f.frequency.value = 900;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.8); g.gain.setValueAtTime(v, t + dur - 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.4);
+      o.connect(f).connect(g).connect(this.bus!.inst); o.start(t); o.stop(t + dur + 0.5);
     }
   }
   // ---- lead ----
@@ -295,13 +344,22 @@ class Music {
     else if (kind === 'vibes') { add('sine', 1); add('sine', 4, 0, 0.25); f.frequency.value = 6000; peak = 0.16; sustain = 0.04; release = 0.9; vib = 0; }
     else if (kind === 'marimba') { add('sine', 1); add('sine', 4, 0, 0.35); add('triangle', 2, 0, 0.15); f.frequency.value = 5000; peak = 0.17; sustain = 0.008; release = 0.25; vib = 0; }
     else if (kind === 'brass') { add('sawtooth', 1); add('sawtooth', 0.5, 4, 0.4); f.frequency.setValueAtTime(900, t); f.frequency.linearRampToValueAtTime(2800, t + 0.06); f.frequency.exponentialRampToValueAtTime(1600, t + 0.3); peak = 0.085; sustain = 0.07; }
-    else { add('sine', 1); add('sine', 2, 0, 0.12); f.frequency.value = 3500; peak = 0.14; sustain = 0.11; vib = 7; }       // flute
+    else if (kind === 'sitar') {                                                    // plucked, bright, with a little meend (slide) into each note
+      add('sawtooth', 1); add('sawtooth', 2, 3, 0.35); add('sawtooth', 3, -4, 0.15);
+      oscs.forEach((o) => { o.detune.setValueAtTime(-90, t); o.detune.exponentialRampToValueAtTime(-1, t + 0.07); });
+      f.frequency.setValueAtTime(5200, t); f.frequency.exponentialRampToValueAtTime(1300, t + 0.45); f.Q.value = 3;
+      peak = 0.07; sustain = 0.012; release = 0.5; vib = 0;
+    }
+    else { add('sine', 1); add('sine', 2, 0, 0.12); f.frequency.value = 3500; peak = 0.14; sustain = 0.11; vib = 7;     // flute / bansuri
+      if (kind === 'bansuri') { vib = 9; const last = this.lastLead; if (last && Math.abs(last - n) <= 5) oscs.forEach((o) => { const to = o.frequency.value; o.frequency.setValueAtTime(to * midi(last) / midi(n), t); o.frequency.exponentialRampToValueAtTime(to, t + 0.09); }); }
+    }
+    this.lastLead = n;
     if (vib) { const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 5.3; lg.gain.value = vib; lfo.connect(lg); oscs.forEach((o) => lg.connect(o.detune)); oscs.push(lfo); }
-    if (kind === 'flute') this.noiseHit(t, 0.12, 0.012, 'bandpass', 2500, 1, 0.03);                                // breath
+    if (kind === 'flute' || kind === 'bansuri') this.noiseHit(t, 0.12, 0.012, 'bandpass', 2500, 1, 0.03);                                // breath
     const hold = Math.max(0.03, d - 0.05);
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + (kind === 'flute' ? 0.05 : 0.012));
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, sustain), t + Math.min(hold, kind === 'vibes' || kind === 'marimba' ? 0.08 : hold));
-    g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'vibes' || kind === 'marimba' ? Math.max(d, release) : d + release));
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, sustain), t + Math.min(hold, kind === 'vibes' || kind === 'marimba' || kind === 'sitar' ? 0.08 : hold));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'vibes' || kind === 'marimba' || kind === 'sitar' ? Math.max(d, release) : d + release));
     f.connect(g).connect(this.bus!.lead);
     const end = t + d + Math.max(release, 0.1) + 0.05;
     for (const o of oscs) { o.start(t); o.stop(end); }
@@ -316,6 +374,7 @@ class Music {
       this.drums(st, bar, t, ts);
       this.bass(st, bar, st % 4 === 2 ? ts : t);
       const tones = chord.slice(1);
+      if (st === 0 && song.drone && bar % 2 === 0) this.drone(song.drone, t, six * 32);
       if (st === 0 && song.pad) this.keys(tones, t, six * (song.keys === 'pad' ? 15 : 7), song.keys === 'pad' ? 0.03 : 0.035);
       if (song.stabs.includes(st) || (song.drums === 'lounge' && st === 10 && bar % 2 === 0)) this.keys(tones, st % 4 === 2 ? ts : t, six * (song.keys === 'pluck' ? 2.5 : 1.3), song.keys === 'pluck' ? 0.06 : 0.05);
       if (bar < 8) { for (const [b, s, n, len] of song.hook) if (b === bar && s === st) this.lead(n, st % 4 === 2 ? ts : t, len); }

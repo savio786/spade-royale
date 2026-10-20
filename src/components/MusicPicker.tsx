@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { profile, useProfile } from '../lib/profile';
 import { music, SONGS } from '../lib/sound';
 
-/** Six background tracks. At a table the pick switches straight away; in Settings it plays a short preview. */
+/** Background tracks. At a table the pick switches straight away; in Settings it plays a short preview. */
 export function MusicPicker({ compact = false }: { compact?: boolean }) {
   const p = useProfile();
   const cur = p.settings.track ?? SONGS[0].id;
