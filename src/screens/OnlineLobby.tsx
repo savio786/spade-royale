@@ -8,7 +8,8 @@ import type { TableSummary } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
 import { themeById, themeVars } from '../lib/themes';
-import { CreateTableModal, StartRequest } from './modals';
+import { CreateTableModal, RoomTypeModal, StartRequest } from './modals';
+import type { OnlineCounts } from '../../shared/protocol';
 import { CityRing, lookFor } from '../components/CityRing';
 
 /** Order joining players are seated in (matches the server): partners sit across from each other. */
@@ -24,11 +25,12 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
   const [maxF, setMaxF] = useState<number | null>(null);
   const [live, setLive] = useState<TableSummary[] | null>(null);
   const [status, setStatus] = useState<NetStatus>(net.status);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<null | 'pick' | Mode>(null);
+  const [online, setOnline] = useState<OnlineCounts | null>(null);
 
   useEffect(() => net.onStatus(setStatus), []);
   useEffect(() => {
-    const off = net.on((m) => { if (m.t === 'tables') setLive(m.tables); });
+    const off = net.on((m) => { if (m.t === 'tables') { setLive(m.tables); setOnline(m.online); } if (m.t === 'welcome') setOnline(m.online); });
     net.send({ t: 'list' });
     const t = setInterval(() => net.send({ t: 'list' }), 3000);
     return () => { off(); clearInterval(t); };
@@ -80,7 +82,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
       </header>
 
       <div className="lt-row">
-        <button className="lt-create" onClick={() => { sfx.click(); setCreating(true); }} aria-label="Create a table">
+        <button className="lt-create" onClick={() => { sfx.click(); setCreating('pick'); }} aria-label="Create a table">
           <span className="lt-create-shape"><Icon name="plus" size={64} /></span>
           <span className="lt-create-txt">CREATE TABLE</span>
         </button>
@@ -99,9 +101,12 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
         )}
       </div>
 
-      {creating && (
-        <CreateTableModal mode={mode} onClose={() => setCreating(false)}
-          onCreate={(s) => { setCreating(false); onStart({ ...s, mode, via: status === 'online' ? 'quick' : 'local' }); }} />
+      {creating === 'pick' && (
+        <RoomTypeModal title="CHOOSE YOUR TABLE" online={status === 'online' ? online : null} onClose={() => setCreating(null)} onPick={(m) => { setMode(m); setCreating(m); }} />
+      )}
+      {(creating === 'solo' || creating === 'partners') && (
+        <CreateTableModal mode={creating} onClose={() => setCreating(null)}
+          onCreate={(s) => { const m = creating; setCreating(null); onStart({ ...s, mode: m, via: status === 'online' ? 'quick' : 'local' }); }} />
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import { PartnersArt, SoloArt } from '../components/ModeArt';
 import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -467,26 +468,60 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
 }
 
 // ---------------- Room type (Solo / Partners) ----------------
-export function RoomTypeModal({ onPick, onClose, online }: { onPick: (m: Mode) => void; onClose: () => void; online: OnlineCounts | null }) {
-  const count = (m: Mode) => (online ? `${online[m]} playing now` : 'Play vs computer');
+export function RoomTypeModal({ onPick, onClose, online, title }: { onPick: (m: Mode) => void; onClose: () => void; online: OnlineCounts | null; title?: string }) {
+  const [rules, setRules] = useState<Mode | null>(null);
+  const count = (m: Mode) => (online ? `${online[m]} PLAYERS` : 'PLAY VS COMPUTER');
+  const card = (m: Mode, name: string, sub: string, art: JSX.Element) => (
+    <div className={`mode-card2 ${m}`}>
+      <button className="mode-help" onClick={() => { sfx.click(); setRules(m); }} aria-label={`${name} rules`}>?</button>
+      <button className="mode-pick" onClick={() => { sfx.click(); onPick(m); }}>
+        <span className="mode-title2">{name}</span>
+        <span className="mode-sub2">{sub}</span>
+        <span className="mode-art2">{art}<span className="mode-count2"><Icon name="users" size={18} /> {count(m)}</span></span>
+      </button>
+    </div>
+  );
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="roomtype" role="dialog" aria-modal="true" aria-label="Choose room type">
-        <button className="mode-card" onClick={() => { sfx.click(); onPick('solo'); }}>
-          <span className="mode-title">SOLO</span>
-          <span className="mode-sub">Play against all other players</span>
-          <span className="mode-art solo"><Icon name="spade" size={84} /><span className="laurel" /></span>
-          <span className="mode-count"><Icon name="users" size={16} /> {count('solo')}</span>
-        </button>
-        <button className="mode-card" onClick={() => { sfx.click(); onPick('partners'); }}>
-          <span className="mode-title">PARTNERS</span>
-          <span className="mode-sub">Play classic spades</span>
-          <span className="mode-art partners"><Icon name="spade" size={70} /><Icon name="spade" size={70} /></span>
-          <span className="mode-count"><Icon name="users" size={16} /> {count('partners')}</span>
-        </button>
+      <div className="roomtype2" role="dialog" aria-modal="true" aria-label="Choose room type">
+        {title && <div className="roomtype2-title">{title}</div>}
+        <div className="roomtype2-cards">
+          {card('solo', 'SOLO', 'Every player for themselves', <SoloArt />)}
+          {card('partners', 'PARTNERS', 'Classic team spades, 2 vs 2', <PartnersArt />)}
+        </div>
         <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="close" size={20} /></button>
       </div>
+      {rules && <ModeRulesModal mode={rules} onClose={() => setRules(null)} />}
     </div>
+  );
+}
+
+// ---------------- Rules for each room type ----------------
+export function ModeRulesModal({ mode, onClose }: { mode: Mode; onClose: () => void }) {
+  const solo = mode === 'solo';
+  const sec = (h: string, body: JSX.Element) => <section><h3><i />{h}<i /></h3>{body}</section>;
+  return (
+    <Modal onClose={onClose} wide className="mode-rules">
+      <h2 className="mode-rules-title">{solo ? 'SOLO' : 'PARTNERS'} RULES</h2>
+      {sec('The basics', <p>{solo
+        ? 'Four players, and nobody is on your side: every point you score is yours alone. '
+        : 'Four players in two teams. Your partner sits across the table from you, and the two of you win or lose together. '}
+        A normal 52-card deck is dealt out, 13 cards each. Spades always beat the other suits. Cards rank Ace (highest), King, Queen, Jack, 10 down to 2.</p>)}
+      {sec('Bidding', <p>The player on the dealer's left bids first, then the bid goes around the table. Bid how many tricks you think you'll win, from 1 to 13.
+        {solo ? ' Your bid is your own target, so count only on your own cards.' : ' Your bid and your partner\'s bid are added together into one team target.'}{' '}
+        Bid <b>Nil</b> (0) if you're sure you won't win a single trick. Feeling brave? Bid <b>Blind Nil</b> before you even look at your cards.</p>)}
+      {sec('Playing the cards', <p>The player on the dealer's left leads the first card. Everyone else must play the same suit if they have it. If you don't, you can play any card, including a spade to steal the trick.
+        The highest spade wins the trick; if no spade was played, the highest card of the suit that was led wins. You can't lead spades until someone has played one on another suit
+        (“breaking spades”), unless spades are all you have left. Whoever wins a trick leads the next one.</p>)}
+      {sec('Scoring', <p>{solo
+        ? 'Win at least as many tricks as you bid and you score 10 points for every trick you bid, plus 1 point for each extra trick. Fall short and you lose 10 points for every trick you bid. '
+        : 'Your team adds up its tricks. Make your team bid and you score 10 points per trick bid, plus 1 point for each extra trick. Fall short and the team loses 10 points per trick bid. If a nil bidder gets caught, the tricks they took still count toward their partner\'s bid. '}
+        A successful Nil is worth <b>+100</b> and a failed one <b>−100</b>. Blind Nil doubles that to <b>±200</b>.</p>)}
+      {sec('Bags', <p>Every extra trick over your bid is a “bag”. {solo ? 'Your bags' : 'Your team\'s bags'} keep adding up from hand to hand, and every time they reach 10 you lose <b>100 points</b>, so don't win more than you need!</p>)}
+      {sec('Winning', <p>The game ends when a {solo ? 'player' : 'team'} reaches the table's top score or drops to its lowest score. The highest score wins
+        {solo ? <>, and the winner takes <b>3.6×</b> the bet.</> : <>, and <b>both partners</b> on the winning team take <b>1.8×</b> the bet.</>} If two {solo ? 'players' : 'teams'} are tied at the top, you play another hand.</p>)}
+      <Pill color="green" className="wide-btn" onClick={onClose}>GOT IT</Pill>
+    </Modal>
   );
 }
 
