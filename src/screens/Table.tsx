@@ -401,24 +401,22 @@ function TrickCards({ st, rel }: { st: PublicState; rel: (seat: number) => strin
         { transform: `translate(${d.x + end.x}px, ${d.y + end.y}px) rotate(${tilt}deg) scale(${mine ? 1 : 0.5})`, boxShadow: '0 4px 8px rgba(0,0,0,.3)' },
         { offset: 0.7, boxShadow: '0 22px 34px rgba(0,0,0,.45)' },
         { transform: end.t, boxShadow: '0 6px 14px rgba(0,0,0,.35)' },
-      ], { duration: mine ? 380 : 480, easing: 'cubic-bezier(.22,.85,.3,1)' });
+      ], { duration: mine ? 520 : 680, easing: 'cubic-bezier(.25,.8,.3,1)' });
       if (mine) playedFrom.at = 0;
     });
-    // trick won: after a short look, the four cards slide to the winner
+    // trick won: after a short look the four cards gather in the middle and fade, and the winner's picture glows
     const key = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
     if (st.phase === 'trickEnd' && st.lastTrickWinner !== null && collected.current !== key) {
       collected.current = key;
-      const target = seatEl(rel(st.lastTrickWinner));
-      if (target) {
-        const c = screenCenter(target);
-        els.forEach((el, i) => {
-          const b = screenCenter(el), end = translationOf(el), d = local()(c.x - b.x, c.y - b.y);
-          el.animate([
-            { transform: end.t, opacity: 1 },
-            { transform: `translate(${d.x + end.x}px, ${d.y + end.y}px) scale(.4)`, opacity: 0 },
-          ], { duration: 420, delay: 560 + i * 30, easing: 'cubic-bezier(.5,0,.75,.4)', fill: 'forwards' });
-        });
-      }
+      const winner = seatEl(rel(st.lastTrickWinner));
+      if (winner) { winner.classList.remove('won-trick'); void winner.offsetWidth; winner.classList.add('won-trick'); }
+      els.forEach((el) => {
+        const end = translationOf(el);
+        el.animate([
+          { transform: end.t, opacity: 1 },
+          { transform: `translate(${end.x * 0.25}px, ${end.y * 0.25}px) scale(.82)`, opacity: 0 },
+        ], { duration: 380, delay: 700, easing: 'ease-in', fill: 'forwards' });
+      });
     }
   }, [st.trick, st.phase, st.round, st.lastTrickWinner, rel]);
   return (
