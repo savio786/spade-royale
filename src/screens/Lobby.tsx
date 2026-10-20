@@ -47,6 +47,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
 
   return (
     <div className="screen lobby felt-bg">
+      <div className="lobby-aurora" aria-hidden="true"><i className="au1" /><i className="au2" /><i className="au3" /><i className="au4" /><i className="au-curtain" /></div>
       <header className="topbar">
         <button className="me-avatar" onClick={() => { sfx.click(); setModal('card'); }} aria-label="Your profile and stats"><Avatar k={p.avatar} size={104} vip={p.vip} name={p.name} /></button>
         <div className="coins-pill">
