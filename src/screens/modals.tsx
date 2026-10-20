@@ -1,3 +1,4 @@
+import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
@@ -466,6 +467,10 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         <BigSwitch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
         <BigSwitch label="MUSIC" on={p.settings.music !== false} onToggle={() => set('music')} />
         <BigSwitch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+      </div>
+      <div className="st-music">
+        <h3>BACKGROUND MUSIC <small>tap a track to hear it</small></h3>
+        <MusicPicker />
       </div>
 
       <details className="st-more">

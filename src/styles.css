@@ -1339,3 +1339,26 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .seat-bottom.in-play .seat-pill { left: calc(100% - 22px); right: auto; top: 50%; bottom: auto; translate: 0 -50%; padding: 0 18px 0 40px; min-width: 110px; height: 60px; font-size: 40px; }
 .seat-bottom .bubble { left: 50%; translate: -50% 0; }
 .turn-clock { left: 50%; translate: -50% 0; bottom: 270px; }
+
+/* ---- background music picker ---- */
+.music-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.music-pick.compact { grid-template-columns: 1fr; gap: 6px; margin: 4px 0 2px; }
+.mp-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.14);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.18)); color: #f6f3ff; text-align: left; cursor: pointer; font: inherit; min-width: 0; }
+.mp-item:hover { border-color: rgba(255,200,61,0.55); }
+.mp-item.on { border-color: #ffc83d; background: linear-gradient(180deg, rgba(255,200,61,0.28), rgba(140,12,34,0.35)); box-shadow: 0 0 14px rgba(255,200,61,0.35); }
+.mp-num { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,0.35); font-weight: 700; font-size: 14px; color: #ffc83d; }
+.mp-text { display: flex; flex-direction: column; min-width: 0; }
+.mp-text b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-text small { font-size: 12px; opacity: 0.72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.music-pick.compact .mp-item { padding: 6px 10px; }
+.music-pick.off .mp-item.on { box-shadow: none; }
+.mp-eq { display: flex; gap: 2px; align-items: flex-end; height: 14px; }
+.mp-eq i { width: 3px; background: #ffc83d; border-radius: 1px; animation: mpEq 0.9s ease-in-out infinite; }
+.mp-eq i:nth-child(2) { animation-delay: -0.3s; } .mp-eq i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes mpEq { 0%,100% { height: 4px; } 50% { height: 14px; } }
+.st-music { margin: 14px 0 4px; }
+.st-music h3 { margin: 0 0 8px; font-size: 16px; letter-spacing: 1px; }
+.st-music h3 small { font-weight: 400; opacity: 0.7; letter-spacing: 0; margin-left: 6px; font-size: 12px; }
+@media (max-width: 520px) { .music-pick { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .mp-eq i { animation: none; height: 10px; } }

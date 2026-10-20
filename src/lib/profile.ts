@@ -20,7 +20,7 @@ export interface Profile {
   lastSpin: number;             // ms
   lastAd: number;               // ms
   claimed: string[];            // achievement ids
-  settings: { sound: boolean; fast: boolean; vibrate: boolean; chatOff?: boolean; music?: boolean };
+  settings: { sound: boolean; fast: boolean; vibrate: boolean; chatOff?: boolean; music?: boolean; track?: string };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
   chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
   vipUntil: number;             // VIP Club: ms epoch it runs until (paid on Stripe), 0 = none

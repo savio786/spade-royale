@@ -7,6 +7,7 @@ import type { CtlView, TableController } from '../lib/controller';
 import { fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
 import { PlayerCard } from '../components/PlayerCard';
 import { music, sfx, vibrate } from '../lib/sound';
+import { MusicPicker } from '../components/MusicPicker';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
@@ -112,8 +113,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (chatOpen) setUnread(0); }, [chatOpen]);
-  useEffect(() => { if (p.settings.music !== false) music.start(); else music.stop(); }, [p.settings.music]);
-  useEffect(() => () => music.stop(), []);
+  useEffect(() => { if (p.settings.music !== false) music.start(p.settings.track); else music.stop(); }, [p.settings.music, p.settings.track]);
+  useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
 
   const leave = () => {
     ctl.leave();
@@ -694,6 +695,7 @@ function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, be
           <Switch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
           <div className="tm-rule" />
           <Switch label="MUSIC" on={p.settings.music !== false} onToggle={() => set('music')} />
+          <MusicPicker compact />
           <div className="tm-rule" />
           <Switch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
         </div>
