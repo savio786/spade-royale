@@ -1,7 +1,8 @@
 import type { Action, Mode, TableSettings } from './engine';
 import type { Snapshot } from './runtime';
 
-export type OnlineCounts = Record<Mode, number> & { total: number };
+/** solo/partners: real people seated at tables of that mode · lobby: connected people not at a table · total: everyone connected */
+export type OnlineCounts = Record<Mode, number> & { total: number; lobby?: number };
 
 export interface PlayerHello { id: string; name: string; avatar: string; level: number; chat?: boolean; stats?: import('./engine').PublicStats }
 

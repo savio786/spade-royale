@@ -33,11 +33,13 @@ let roomSeq = 0;
 
 const send = (c: Client, m: ServerMsg) => { if (c.ws.readyState === WebSocket.OPEN) c.ws.send(JSON.stringify(m)); };
 
-function onlineCounts(): Record<Mode, number> & { total: number } {
-  // real people only: seated humans per mode, plus everyone connected
-  const o = { solo: 0, partners: 0, total: 0 };
+function onlineCounts(): Record<Mode, number> & { total: number; lobby: number } {
+  // real people only: seated humans per mode, people in the lobby (connected, not at a table), and everyone connected
+  const o = { solo: 0, partners: 0, total: 0, lobby: 0 };
   for (const r of rooms.values()) o[r.rt.g.settings.mode] += r.rt.humanCount();
-  for (const c of clients) if (c.player) o.total++;
+  const ids = new Set<string>(), lobby = new Set<string>();
+  for (const c of clients) if (c.player) { ids.add(c.player.id); if (!c.room) lobby.add(c.player.id); }
+  o.total = ids.size; o.lobby = lobby.size;
   return o;
 }
 

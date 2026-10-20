@@ -470,7 +470,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
 // ---------------- Room type (Solo / Partners) ----------------
 export function RoomTypeModal({ onPick, onClose, online, title }: { onPick: (m: Mode) => void; onClose: () => void; online: OnlineCounts | null; title?: string }) {
   const [rules, setRules] = useState<Mode | null>(null);
-  const count = (m: Mode) => (online ? `${online[m]} PLAYERS` : 'PLAY VS COMPUTER');
+  const count = (m: Mode) => { if (!online) return 'PLAY VS COMPUTER'; const n = online[m] + (online.lobby ?? 0); return `${n} PLAYER${n === 1 ? '' : 'S'}`; };
   const card = (m: Mode, name: string, sub: string, art: JSX.Element) => (
     <div className={`mode-card2 ${m}`}>
       <button className="mode-help" onClick={() => { sfx.click(); setRules(m); }} aria-label={`${name} rules`}>?</button>
