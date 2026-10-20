@@ -17,5 +17,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 // Offline support + installability (Windows / macOS / iPadOS / Android browsers)
 if ('serviceWorker' in navigator && import.meta.env.PROD && import.meta.env.VITE_OFFLINE !== '1' && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  navigator.serviceWorker.register('./sw.js').catch(() => {}); // registered right away so app stores (PWABuilder) detect it
 }

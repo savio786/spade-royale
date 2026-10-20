@@ -242,7 +242,7 @@ async function photoApi(req: import('http').IncomingMessage, res: import('http')
 }
 
 // ---- static hosting of the built app (optional, for one-box deployment) ----
-const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
+const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.woff': 'font/woff', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 // ---- leaderboard API ----
 const lastReport = new Map<string, number>();
 function json(res: import('http').ServerResponse, code: number, body: unknown) {
