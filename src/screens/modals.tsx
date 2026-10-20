@@ -165,7 +165,7 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
           );
         })}
       </div>
-      <p className="muted small center store-foot">{appOff ? 'In-app purchases will use Google Play billing.' : isTestMode()
+      <p className="muted small center store-foot">{appOff ? 'Purchases in the app are coming soon.' : isTestMode()
         ? 'Development build: purchases are free and instant here only.'
         : paymentsReady() ? 'Secure checkout by PayPal or card. Purchases are added to your account as soon as payment completes.'
         : 'Purchases are not available yet. Free coins: the daily gift, the Mega Bonus wheel and +100 coins every 30 minutes.'}</p>

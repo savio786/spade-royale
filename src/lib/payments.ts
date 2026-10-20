@@ -59,7 +59,15 @@ function revokeUnpaid() {
 export const isTestMode = () => !realPayments && devTest();
 export const paymentsReady = () => realPayments;
 /** The Android/iPhone apps may only sell through Google Play / Apple billing. Until that is connected, buying is switched off in the apps. */
-export const nativeStoreOff = () => Capacitor.isNativePlatform() || import.meta.env?.VITE_NATIVE_STORE === 'play';
+/** Running as the Microsoft Store app (its start address carries ?app=msstore, remembered on this device). */
+export const isMsStoreApp = (() => {
+  try {
+    if (/[?&]app=msstore\b/.test(window.location.search) || document.referrer.startsWith('app-info://platform/microsoft-store')) localStorage.setItem('sh-msstore', '1');
+    return localStorage.getItem('sh-msstore') === '1' && window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: window-controls-overlay)').matches;
+  } catch { return false; }
+})();
+/** Store apps (Google Play, Apple, Microsoft) must sell through their own billing, so buying is switched off there for now. */
+export const nativeStoreOff = () => Capacitor.isNativePlatform() || import.meta.env?.VITE_NATIVE_STORE === 'play' || isMsStoreApp;
 
 export async function buy(productId: string): Promise<void> {
   const p = productById(productId);
