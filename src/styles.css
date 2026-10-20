@@ -1485,3 +1485,28 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .ring-btn.green .ring-label::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); animation: paLabel 3s ease-in-out infinite; }
 @keyframes paLabel { 0%, 55% { left: -60%; } 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) { .play-art *, .ring-btn.green .ring-label::after { animation: none !important; } }
+
+/* ---------------- animated PRIVATE GAME icon ---------------- */
+.private-art .pv-ripple { transform-origin: 60px 62px; opacity: 0; animation: paRipple 2.6s ease-out infinite; }
+.private-art .pv-ripple.r1 { animation-delay: .87s; } .private-art .pv-ripple.r2 { animation-delay: 1.73s; }
+.private-art .pv-body { transform-origin: 60px 64px; animation: paBreath 2.6s ease-in-out infinite; }
+.private-art .pv-front { animation: pvBob 2.6s ease-in-out infinite; }
+.private-art .pv-back { animation: pvBob 2.6s ease-in-out infinite -1.3s; }
+@keyframes pvBob { 50% { transform: translateY(-2px); } }
+.private-art .pv-lock { transform-box: fill-box; transform-origin: 50% 30%; animation: pvJiggle 3.2s ease-in-out infinite; }
+@keyframes pvJiggle { 0%, 70%, 100% { transform: rotate(0); } 74% { transform: rotate(-10deg); } 80% { transform: rotate(8deg); } 86% { transform: rotate(-5deg); } 92% { transform: rotate(2deg); } }
+.private-art .pv-shackle { transform-box: fill-box; transform-origin: 100% 100%; transition: transform .35s cubic-bezier(.3, 1.6, .5, 1); }
+.private-art .pv-shine { animation: pvShine 3.2s ease-in-out infinite; }
+@keyframes pvShine { 0%, 55% { transform: skewX(-20deg) translateX(0); } 100% { transform: skewX(-20deg) translateX(90px); } }
+.private-art .pv-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: paSpark 2.6s ease-in-out infinite; }
+.private-art .pv-spark.s1 { animation-delay: .87s; } .private-art .pv-spark.s2 { animation-delay: 1.73s; }
+/* hover: faster, and the padlock swings open */
+.ring-btn:hover .private-art .pv-ripple, .ring-btn:hover .private-art .pv-body, .ring-btn:hover .private-art .pv-spark { animation-duration: 1.3s; }
+.ring-btn:hover .private-art .pv-ripple.r1, .ring-btn:hover .private-art .pv-spark.s1 { animation-delay: .43s; }
+.ring-btn:hover .private-art .pv-ripple.r2, .ring-btn:hover .private-art .pv-spark.s2 { animation-delay: .87s; }
+.ring-btn:hover .private-art .pv-lock { animation: none; }
+.ring-btn:hover .private-art .pv-shackle { transform: translateY(-7px) rotate(28deg); }
+.ring-btn:hover .private-art .pv-shine { animation-duration: 1.4s; }
+.ring-btn.purple .ring-label { position: relative; overflow: hidden; }
+.ring-btn.purple .ring-label::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); animation: paLabel 3.2s ease-in-out infinite 1s; }
+@media (prefers-reduced-motion: reduce) { .private-art *, .ring-btn.purple .ring-label::after { animation: none !important; } }

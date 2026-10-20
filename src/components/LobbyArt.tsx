@@ -101,31 +101,44 @@ export function GlobeArt() {
   return <canvas ref={ref} className="ring-art globe-canvas" aria-hidden="true" />;
 }
 
-/** Two players with a padlock (private game). */
+/** Two players with a padlock (private game), animated: ripples, breathing glow, padlock jiggle and shine; the lock pops open on hover. */
 export function PrivateArt() {
   const u = useUid();
   return (
-    <svg viewBox="0 0 120 120" className="ring-art" aria-hidden="true">
+    <svg viewBox="0 0 120 120" className="ring-art private-art" aria-hidden="true">
       <defs>
         <radialGradient id={`${u}p`} cx=".4" cy=".3" r=".8"><stop offset="0" stopColor="#f0d4ff" /><stop offset=".5" stopColor="#b065ff" /><stop offset="1" stopColor="#5a1fb8" /></radialGradient>
         <radialGradient id={`${u}q`} cx=".4" cy=".3" r=".8"><stop offset="0" stopColor="#e2c2ff" /><stop offset=".55" stopColor="#9446f0" /><stop offset="1" stopColor="#47148f" /></radialGradient>
         <linearGradient id={`${u}l`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2dcff" /><stop offset="1" stopColor="#8d3ce6" /></linearGradient>
+        <linearGradient id={`${u}s`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity=".9" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
+        <clipPath id={`${u}c`}><rect x="53" y="76" width="34" height="27" rx="6" /></clipPath>
         <filter id={`${u}g`} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
       </defs>
-      <g filter={`url(#${u}g)`} stroke="#3a0d78" strokeWidth="2.5">
+      {[0, 1, 2].map((k) => <circle key={k} className={`pv-ripple r${k}`} cx="60" cy="62" r="30" fill="none" stroke="#c08bff" strokeWidth="3" />)}
+      <g className="pv-body" filter={`url(#${u}g)`} stroke="#3a0d78" strokeWidth="2.5">
         {/* back player */}
-        <circle cx="76" cy="38" r="15" fill={`url(#${u}q)`} />
-        <path d="M50 92 C50 68 60 58 76 58 C92 58 104 68 104 92Z" fill={`url(#${u}q)`} />
+        <g className="pv-back">
+          <circle cx="76" cy="38" r="15" fill={`url(#${u}q)`} />
+          <path d="M50 92 C50 68 60 58 76 58 C92 58 104 68 104 92Z" fill={`url(#${u}q)`} />
+        </g>
         {/* front player */}
-        <circle cx="46" cy="44" r="17" fill={`url(#${u}p)`} />
-        <path d="M16 100 C16 74 28 64 46 64 C64 64 76 74 76 100Z" fill={`url(#${u}p)`} />
-        <ellipse cx="40" cy="38" rx="7" ry="5" fill="#fff" opacity=".4" stroke="none" />
+        <g className="pv-front">
+          <circle cx="46" cy="44" r="17" fill={`url(#${u}p)`} />
+          <path d="M16 100 C16 74 28 64 46 64 C64 64 76 74 76 100Z" fill={`url(#${u}p)`} />
+          <ellipse cx="40" cy="38" rx="7" ry="5" fill="#fff" opacity=".4" stroke="none" />
+        </g>
         {/* padlock */}
-        <path d="M60 78 V70 a10 10 0 0 1 20 0 V78" fill="none" stroke="#3a0d78" strokeWidth="9" />
-        <path d="M60 78 V70 a10 10 0 0 1 20 0 V78" fill="none" stroke="#e9d2ff" strokeWidth="4" />
-        <rect x="53" y="76" width="34" height="27" rx="6" fill={`url(#${u}l)`} />
-        <circle cx="70" cy="87" r="3.6" fill="#3a0d78" stroke="none" /><rect x="68.4" y="88" width="3.2" height="8" rx="1.4" fill="#3a0d78" stroke="none" />
+        <g className="pv-lock">
+          <g className="pv-shackle">
+            <path d="M60 78 V70 a10 10 0 0 1 20 0 V78" fill="none" stroke="#3a0d78" strokeWidth="9" />
+            <path d="M60 78 V70 a10 10 0 0 1 20 0 V78" fill="none" stroke="#e9d2ff" strokeWidth="4" />
+          </g>
+          <rect x="53" y="76" width="34" height="27" rx="6" fill={`url(#${u}l)`} />
+          <g clipPath={`url(#${u}c)`}><rect className="pv-shine" x="30" y="70" width="14" height="40" fill={`url(#${u}s)`} stroke="none" transform="skewX(-20)" /></g>
+          <circle cx="70" cy="87" r="3.6" fill="#3a0d78" stroke="none" /><rect x="68.4" y="88" width="3.2" height="8" rx="1.4" fill="#3a0d78" stroke="none" />
+        </g>
       </g>
+      {[[100, 28], [18, 30], [104, 100]].map(([x, y], k) => <path key={k} className={`pv-spark s${k}`} d={`M${x} ${y - 6} L${x + 1.6} ${y - 1.6} L${x + 6} ${y} L${x + 1.6} ${y + 1.6} L${x} ${y + 6} L${x - 1.6} ${y + 1.6} L${x - 6} ${y} L${x - 1.6} ${y - 1.6}Z`} fill="#f6e8ff" />)}
     </svg>
   );
 }
