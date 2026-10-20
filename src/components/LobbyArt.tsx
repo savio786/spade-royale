@@ -3,25 +3,32 @@ import { useEffect, useId, useRef } from 'react';
 
 const useUid = () => useId().replace(/[^a-zA-Z0-9]/g, '');
 
-/** Bold "play" chevrons. */
+/** Bold "play" chevrons, animated: ripple rings, breathing glow, a light sweep across the arrow and a forward nudge. */
 export function PlayArt() {
   const u = useUid();
+  const ARROW = 'M40 24 L100 58 L58 96Z';
   return (
-    <svg viewBox="0 0 120 120" className="ring-art" aria-hidden="true">
+    <svg viewBox="0 0 120 120" className="ring-art play-art" aria-hidden="true">
       <defs>
         <linearGradient id={`${u}a`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#d6ffe4" /><stop offset=".4" stopColor="#4cff95" /><stop offset="1" stopColor="#12b552" /></linearGradient>
         <linearGradient id={`${u}b`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#a6ffc9" /><stop offset="1" stopColor="#1bc45e" /></linearGradient>
+        <linearGradient id={`${u}s`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#fff" stopOpacity="0" /><stop offset=".5" stopColor="#fff" stopOpacity=".85" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient>
+        <clipPath id={`${u}c`}><path d={ARROW} /><path d="M18 34 L32 30 L46 92 L32 96Z" /></clipPath>
         <filter id={`${u}g`} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
       </defs>
-      <g filter={`url(#${u}g)`} strokeLinejoin="round">
-        {/* slanted bar */}
-        <path d="M18 34 L32 30 L46 92 L32 96Z" fill={`url(#${u}b)`} stroke="#04461d" strokeWidth="2.5" />
-        {/* big triangle */}
-        <path d="M40 24 L100 58 L58 96Z" fill={`url(#${u}a)`} stroke="#04461d" strokeWidth="3" />
-        <path d="M46 32 L92 58 L60 66Z" fill="#fff" opacity=".28" />
-        {/* small inner triangle */}
-        <path d="M60 50 L80 60 L64 74Z" fill="#05341a" opacity=".55" />
+      {/* ripples pulsing outward */}
+      {[0, 1, 2].map((k) => <circle key={k} className={`pa-ripple r${k}`} cx="60" cy="60" r="30" fill="none" stroke="#4cff95" strokeWidth="3" />)}
+      <g className="pa-body" filter={`url(#${u}g)`} strokeLinejoin="round">
+        <path className="pa-bar" d="M18 34 L32 30 L46 92 L32 96Z" fill={`url(#${u}b)`} stroke="#04461d" strokeWidth="2.5" />
+        <g className="pa-arrow">
+          <path d={ARROW} fill={`url(#${u}a)`} stroke="#04461d" strokeWidth="3" />
+          <path d="M46 32 L92 58 L60 66Z" fill="#fff" opacity=".28" />
+          <path d="M60 50 L80 60 L64 74Z" fill="#05341a" opacity=".55" />
+        </g>
+        <g clipPath={`url(#${u}c)`}><rect className="pa-shine" x="-40" y="0" width="34" height="120" fill={`url(#${u}s)`} transform="skewX(-20)" /></g>
       </g>
+      {/* sparkles */}
+      {[[96, 30], [24, 100], [102, 92]].map(([x, y], k) => <path key={k} className={`pa-spark s${k}`} d={`M${x} ${y - 6} L${x + 1.6} ${y - 1.6} L${x + 6} ${y} L${x + 1.6} ${y + 1.6} L${x} ${y + 6} L${x - 1.6} ${y + 1.6} L${x - 6} ${y} L${x - 1.6} ${y - 1.6}Z`} fill="#eafff1" />)}
     </svg>
   );
 }

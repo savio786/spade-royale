@@ -1463,3 +1463,25 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .mode-rules p b { color: var(--gold); }
 .mode-rules .wide-btn { margin-top: 8px; }
 .globe-canvas { width: 92%; height: 92%; }
+
+/* ---------------- animated PLAY NOW icon ---------------- */
+.play-art .pa-ripple { transform-origin: 60px 60px; opacity: 0; animation: paRipple 2.4s ease-out infinite; }
+.play-art .pa-ripple.r1 { animation-delay: .8s; } .play-art .pa-ripple.r2 { animation-delay: 1.6s; }
+@keyframes paRipple { 0% { transform: scale(.7); opacity: .7; } 100% { transform: scale(1.75); opacity: 0; } }
+.play-art .pa-body { transform-origin: 60px 60px; animation: paBreath 2.4s ease-in-out infinite; }
+@keyframes paBreath { 50% { transform: scale(1.05); filter: brightness(1.18); } }
+.play-art .pa-arrow { animation: paNudge 2.4s ease-in-out infinite; }
+@keyframes paNudge { 0%, 60%, 100% { transform: translateX(0); } 72% { transform: translateX(5px); } 84% { transform: translateX(-1px); } }
+.play-art .pa-shine { animation: paShine 3s ease-in-out infinite; }
+@keyframes paShine { 0%, 55% { transform: skewX(-20deg) translateX(0); } 100% { transform: skewX(-20deg) translateX(190px); } }
+.play-art .pa-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: paSpark 2.4s ease-in-out infinite; }
+.play-art .pa-spark.s1 { animation-delay: .8s; } .play-art .pa-spark.s2 { animation-delay: 1.6s; }
+@keyframes paSpark { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 30% { opacity: 1; transform: scale(1.1) rotate(45deg); } 60% { opacity: 0; transform: scale(.4) rotate(90deg); } }
+.ring-btn:hover .play-art .pa-ripple, .ring-btn:hover .play-art .pa-body, .ring-btn:hover .play-art .pa-arrow, .ring-btn:hover .play-art .pa-spark { animation-duration: 1.2s; }
+.ring-btn:hover .play-art .pa-ripple.r1, .ring-btn:hover .play-art .pa-spark.s1 { animation-delay: .4s; }
+.ring-btn:hover .play-art .pa-ripple.r2, .ring-btn:hover .play-art .pa-spark.s2 { animation-delay: .8s; }
+.ring-btn:hover .play-art .pa-shine { animation-duration: 1.5s; }
+.ring-btn.green .ring-label { position: relative; overflow: hidden; }
+.ring-btn.green .ring-label::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); animation: paLabel 3s ease-in-out infinite; }
+@keyframes paLabel { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .play-art *, .ring-btn.green .ring-label::after { animation: none !important; } }
