@@ -805,7 +805,7 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .level-pill { position: relative; overflow: visible; isolation: isolate; background: linear-gradient(180deg, #2a1470, #150a40); }
 .level-fill { position: absolute; left: 0; top: 0; bottom: 0; z-index: -1; border-radius: 999px; background: linear-gradient(180deg, #8f5bff, #5320d0); box-shadow: inset 0 2px 0 rgba(255,255,255,.3); min-width: 56px; transition: width .6s; }
 .level-txt { text-shadow: 0 2px 0 rgba(0,0,0,.35); }
-.gear { filter: drop-shadow(0 0 8px #2f6bff) drop-shadow(0 0 2px #9cc4ff); }
+.gear { filter: drop-shadow(0 0 8px rgba(255,200,61,.55)) drop-shadow(0 3px 4px rgba(0,0,0,.5)); }
 
 /* big ring buttons: chrome bezel, glowing mesh inside, glossy icon */
 .ring { background: conic-gradient(from 20deg, #ffffff, #8c93b8, #eef0fb, #5c6285, #ffffff, #9aa1c4, #ffffff); box-shadow: inset 0 0 0 3px rgba(255,255,255,.8), inset 0 -8px 14px rgba(0,0,0,.35), 0 0 0 3px #1a1030, 0 14px 30px rgba(0,0,0,.65); }
@@ -1510,3 +1510,7 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .ring-btn.purple .ring-label { position: relative; overflow: hidden; }
 .ring-btn.purple .ring-label::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); animation: paLabel 3.2s ease-in-out infinite 1s; }
 @media (prefers-reduced-motion: reduce) { .private-art *, .ring-btn.purple .ring-label::after { animation: none !important; } }
+
+.gold-gear .gg-rot { transform-origin: 50px 50px; transition: transform .6s cubic-bezier(.3, 1.4, .5, 1); }
+.gear:hover .gold-gear .gg-rot { transform: rotate(45deg); }
+.gear:hover { filter: drop-shadow(0 0 14px rgba(255,200,61,.85)) drop-shadow(0 3px 4px rgba(0,0,0,.5)); }

@@ -61,7 +61,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <span className="tb-sep" aria-hidden="true" />
         <span className={`net-dot ${status}`} title={`Server ${status}`} aria-label={`Multiplayer ${status}`} />
         <button className="help-btn" onClick={() => { sfx.click(); helpBot.open(); }} aria-label="Help: ask Spade Bot"><span>?</span></button>
-        <button className="gear" onClick={() => { sfx.click(); setModal('settings'); }} aria-label="Settings"><Icon name="gear" size={34} /></button>
+        <button className="gear" onClick={() => { sfx.click(); setModal('settings'); }} aria-label="Settings"><GoldGear /></button>
       </header>
 
       <main className="lobby-main">
@@ -138,5 +138,26 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         }} />
       )}
     </div>
+  );
+}
+
+/** Golden 3D settings cog; it turns a little on hover. */
+const COG = 'M40.0 17.5 L41.3 6.9 L58.7 6.9 L60.0 17.5 L65.9 19.9 L74.3 13.3 L86.7 25.7 L80.1 34.1 L82.5 40.0 L93.1 41.3 L93.1 58.7 L82.5 60.0 L80.1 65.9 L86.7 74.3 L74.3 86.7 L65.9 80.1 L60.0 82.5 L58.7 93.1 L41.3 93.1 L40.0 82.5 L34.1 80.1 L25.7 86.7 L13.3 74.3 L19.9 65.9 L17.5 60.0 L6.9 58.7 L6.9 41.3 L17.5 40.0 L19.9 34.1 L13.3 25.7 L25.7 13.3 L34.1 19.9Z';
+function GoldGear() {
+  return (
+    <svg className="gold-gear" viewBox="0 0 100 100" width="64" height="64" aria-hidden="true">
+      <defs>
+        <linearGradient id="gg-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff4c2" /><stop offset=".3" stopColor="#f5c84a" /><stop offset=".65" stopColor="#b47a0c" /><stop offset="1" stopColor="#ffd970" /></linearGradient>
+        <radialGradient id="gg-hub" cx=".4" cy=".35" r=".7"><stop offset="0" stopColor="#3a2a6a" /><stop offset="1" stopColor="#120a2e" /></radialGradient>
+      </defs>
+      <g className="gg-rot">
+        <path d={COG} transform="translate(0 3)" fill="#5a3606" />
+        <path d={COG} fill="url(#gg-gold)" stroke="#6b4306" strokeWidth="2.5" strokeLinejoin="round" />
+        <circle cx="50" cy="50" r="24" fill="none" stroke="#fff6cf" strokeOpacity=".55" strokeWidth="2" />
+        <circle cx="50" cy="50" r="17" fill="#6b4306" />
+        <circle cx="50" cy="50" r="14.5" fill="url(#gg-hub)" />
+        <path d="M24 34 A30 30 0 0 1 50 20" fill="none" stroke="#fffbe6" strokeOpacity=".85" strokeWidth="3.5" strokeLinecap="round" />
+      </g>
+    </svg>
   );
 }
