@@ -48,7 +48,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
   return (
     <div className="screen lobby felt-bg">
       <header className="topbar">
-        <button className="me-avatar" onClick={() => { sfx.click(); setModal('card'); }} aria-label="Your profile and stats"><Avatar k={p.avatar} size={84} vip={p.vip} name={p.name} /></button>
+        <button className="me-avatar" onClick={() => { sfx.click(); setModal('card'); }} aria-label="Your profile and stats"><Avatar k={p.avatar} size={104} vip={p.vip} name={p.name} /></button>
         <div className="coins-pill">
           <Coin size={36} /><span className="coins-num">{fmt(p.coins)}</span>
           <button className="plus-btn" aria-label="Get coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}><Icon name="plus" size={20} /></button>
