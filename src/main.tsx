@@ -19,3 +19,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 if ('serviceWorker' in navigator && import.meta.env.PROD && import.meta.env.VITE_OFFLINE !== '1' && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(() => {}); // registered right away so app stores (PWABuilder) detect it
 }
+
+// Auto-update: when a new version is deployed, reload so players get it — but never in the middle of a game.
+if (import.meta.env.PROD && location.protocol.startsWith('http')) {
+  const bundle = (html: string) => html.match(/assets\/index-[\w-]+\.js/)?.[0];
+  const mine = bundle(document.documentElement.innerHTML);
+  let newer = false;
+  const check = async () => {
+    if (!newer) {
+      try { const html = await (await fetch('./index.html', { cache: 'no-store' })).text(); const live = bundle(html); newer = !!(mine && live && live !== mine); } catch { /* offline */ }
+    }
+    if (newer && !document.querySelector('.table-screen')) location.reload();
+  };
+  setInterval(check, 60_000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void check(); });
+}

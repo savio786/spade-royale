@@ -678,7 +678,6 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
-.cpu-tag { padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,.15); color: var(--ink-2) !important; font-size: 11px; letter-spacing: 1px; }
 
 /* store + paid chat */
 .store-modal .tabs { margin-bottom: 14px; }
