@@ -1462,3 +1462,4 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .mode-rules p { margin: 0; font-size: 17px; line-height: 1.5; color: #eef0ff; text-indent: 1.5em; }
 .mode-rules p b { color: var(--gold); }
 .mode-rules .wide-btn { margin-top: 8px; }
+.globe-canvas { width: 92%; height: 92%; }

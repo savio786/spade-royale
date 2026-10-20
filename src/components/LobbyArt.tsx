@@ -1,5 +1,5 @@
 // Glossy, glowing icons for the three big lobby buttons (original artwork).
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 const useUid = () => useId().replace(/[^a-zA-Z0-9]/g, '');
 
@@ -26,27 +26,72 @@ export function PlayArt() {
   );
 }
 
-/** Blue tiled globe. */
+/** A real world globe (country map) drawn on a canvas. It turns slowly while the pointer is over its button. */
 export function GlobeArt() {
-  const u = useUid();
-  return (
-    <svg viewBox="0 0 120 120" className="ring-art" aria-hidden="true">
-      <defs>
-        <radialGradient id={`${u}s`} cx=".38" cy=".32" r=".75"><stop offset="0" stopColor="#9fd4ff" /><stop offset=".45" stopColor="#2f86ff" /><stop offset="1" stopColor="#0b2f99" /></radialGradient>
-        <clipPath id={`${u}c`}><circle cx="60" cy="60" r="44" /></clipPath>
-        <filter id={`${u}g`} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
-      </defs>
-      <g filter={`url(#${u}g)`}>
-        <circle cx="60" cy="60" r="44" fill={`url(#${u}s)`} />
-        <g clipPath={`url(#${u}c)`} fill="none" stroke="#08236e" strokeWidth="4.5">
-          {[-30, -15, 0, 15, 30].map((y) => <path key={y} d={`M10 ${60 + y} Q60 ${60 + y + (y === 0 ? 0 : y * 0.35)} 110 ${60 + y}`} />)}
-          {[0.25, 0.55, 1].map((k) => <ellipse key={k} cx="60" cy="60" rx={44 * k} ry="44" />)}
-        </g>
-        <circle cx="60" cy="60" r="44" fill="none" stroke="#062066" strokeWidth="3.5" />
-        <ellipse cx="46" cy="36" rx="20" ry="11" fill="#fff" opacity=".35" transform="rotate(-25 46 36)" />
-      </g>
-    </svg>
-  );
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return;
+    const SIZE = 176, dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = SIZE * dpr; cv.height = SIZE * dpr;
+    const ctx = cv.getContext('2d'); if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    let alive = true, raf = 0, last = 0, hovering = false;
+    let lon = -15;                                   // start over Africa / Europe
+    let draw = (_l: number) => {};
+    const r = SIZE / 2 - 6, cx = SIZE / 2, cy = SIZE / 2;
+    const PALETTE = ['#57c27a', '#e9c55a', '#45b3a3', '#9fd36a', '#f0a95a', '#7fc3e0', '#d9df73', '#c0e08a'];
+    void Promise.all([import('d3-geo'), import('topojson-client'), import('world-atlas/countries-110m.json')]).then(([geo, topo, atlas]) => {
+      if (!alive) return;
+      const world = (atlas as unknown as { default?: unknown }).default ?? atlas;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const countries = (topo.feature(world as any, (world as any).objects.countries) as any).features as { id?: string; geometry: unknown }[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const borders = topo.mesh(world as any, (world as any).objects.countries, (a: unknown, b: unknown) => a !== b);
+      const proj = geo.geoOrthographic().scale(r).translate([cx, cy]).clipAngle(90);
+      const path = geo.geoPath(proj, ctx);
+      const grat = geo.geoGraticule10();
+      const colorOf = (id: string | undefined, i: number) => PALETTE[((id ? parseInt(id, 10) : i) * 7 + 3) % PALETTE.length] ?? PALETTE[0];
+      draw = (l: number) => {
+        proj.rotate([l, -18, 0]);
+        ctx.clearRect(0, 0, SIZE, SIZE);
+        // atmosphere glow
+        const halo = ctx.createRadialGradient(cx, cy, r * 0.92, cx, cy, r + 6);
+        halo.addColorStop(0, 'rgba(120,200,255,.55)'); halo.addColorStop(1, 'rgba(120,200,255,0)');
+        ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, Math.PI * 2); ctx.fill();
+        // ocean
+        const sea = ctx.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
+        sea.addColorStop(0, '#5fb6ff'); sea.addColorStop(0.55, '#1f6fd6'); sea.addColorStop(1, '#0a2a7a');
+        ctx.fillStyle = sea; ctx.beginPath(); path({ type: 'Sphere' }); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 0.6; ctx.beginPath(); path(grat); ctx.stroke();
+        // countries, each its own colour
+        countries.forEach((f, i) => { ctx.fillStyle = colorOf(f.id, i); ctx.beginPath(); path(f as never); ctx.fill(); });
+        ctx.strokeStyle = 'rgba(20,40,60,.55)'; ctx.lineWidth = 0.6; ctx.beginPath(); path(borders as never); ctx.stroke();
+        // 3D shading and gloss
+        const shade = ctx.createRadialGradient(cx - r * 0.4, cy - r * 0.45, r * 0.2, cx, cy, r * 1.05);
+        shade.addColorStop(0, 'rgba(255,255,255,.18)'); shade.addColorStop(0.55, 'rgba(0,0,0,0)'); shade.addColorStop(1, 'rgba(0,10,40,.6)');
+        ctx.fillStyle = shade; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.save(); ctx.translate(cx - r * 0.35, cy - r * 0.48); ctx.rotate(-0.45);
+        const gloss = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.42);
+        gloss.addColorStop(0, 'rgba(255,255,255,.55)'); gloss.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = gloss; ctx.scale(1, 0.55); ctx.beginPath(); ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        ctx.strokeStyle = 'rgba(6,24,80,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+      };
+      draw(lon);
+    });
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const tick = (t: number) => {
+      if (!hovering) { raf = 0; return; }
+      if (last) lon += ((t - last) / 1000) * 14;      // about 14° a second: a slow, gentle turn
+      last = t; draw(lon); raf = requestAnimationFrame(tick);
+    };
+    const host = cv.closest('.ring-btn') ?? cv;
+    const enter = () => { if (still) return; hovering = true; last = 0; if (!raf) raf = requestAnimationFrame(tick); };
+    const leave = () => { hovering = false; };
+    host.addEventListener('pointerenter', enter); host.addEventListener('pointerleave', leave);
+    host.addEventListener('focus', enter); host.addEventListener('blur', leave);
+    return () => { alive = false; cancelAnimationFrame(raf); host.removeEventListener('pointerenter', enter); host.removeEventListener('pointerleave', leave); host.removeEventListener('focus', enter); host.removeEventListener('blur', leave); };
+  }, []);
+  return <canvas ref={ref} className="ring-art globe-canvas" aria-hidden="true" />;
 }
 
 /** Two players with a padlock (private game). */
