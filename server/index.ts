@@ -384,7 +384,10 @@ const http = createServer((req, res) => {
   let file = normalize(join(DIST, urlPath));
   if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html');
   const type = urlPath === '/.well-known/windows-app-web-link' ? 'application/json' : MIME[extname(file)] || 'application/octet-stream';
-  res.writeHead(200, { 'content-type': type });
+  const headers: Record<string, string> = { 'content-type': type };
+  // ?download → save as the original file (e.g. store artwork as .png, not converted by the browser)
+  if (/[?&]download\b/.test(req.url || '') && urlPath.startsWith('/brand/')) headers['content-disposition'] = `attachment; filename="${urlPath.split('/').pop()}"`;
+  res.writeHead(200, headers);
   res.end(readFileSync(file));
 });
 
