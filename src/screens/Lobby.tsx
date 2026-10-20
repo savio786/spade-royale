@@ -56,7 +56,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button className="buy-coins" onClick={() => { sfx.click(); store.open({ tab: 'coins' }); }}>BUY COINS</button>
         <div className="level-pill" title={`${Math.round(lvlPct)}% to level ${lvl + 1}`}>
           <span className="level-fill" style={{ width: `${lvlPct}%` }} aria-hidden="true" />
-          <span className="level-star"><Icon name="star" size={34} /></span><span className="level-txt">LEVEL {lvl}</span>
+          <span className="level-star gold"><GoldStar /></span><span className="level-txt">LEVEL {lvl}</span>
         </div>
         <span className="tb-sep" aria-hidden="true" />
         <span className={`net-dot ${status}`} title={`Server ${status}`} aria-label={`Multiplayer ${status}`} />
@@ -158,6 +158,21 @@ function GoldGear() {
         <circle cx="50" cy="50" r="14.5" fill="url(#gg-hub)" />
         <path d="M24 34 A30 30 0 0 1 50 20" fill="none" stroke="#fffbe6" strokeOpacity=".85" strokeWidth="3.5" strokeLinecap="round" />
       </g>
+    </svg>
+  );
+}
+
+/** Golden 3D star for the level badge. */
+function GoldStar() {
+  const pts = Array.from({ length: 10 }, (_, i) => { const a = (i * Math.PI) / 5 - Math.PI / 2, r = i % 2 ? 19 : 44; return `${(50 + r * Math.cos(a)).toFixed(1)} ${(52 + r * Math.sin(a)).toFixed(1)}`; }).join(' L');
+  return (
+    <svg viewBox="0 0 100 100" width="54" height="54" aria-hidden="true">
+      <defs>
+        <linearGradient id="gs-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff4c2" /><stop offset=".35" stopColor="#f5c84a" /><stop offset=".7" stopColor="#b47a0c" /><stop offset="1" stopColor="#ffd970" /></linearGradient>
+      </defs>
+      <path d={`M${pts}Z`} transform="translate(0 3)" fill="#5a3606" />
+      <path d={`M${pts}Z`} fill="url(#gs-gold)" stroke="#6b4306" strokeWidth="3" strokeLinejoin="round" />
+      <path d="M50 20 L42 40 L22 41" fill="none" stroke="#fffbe6" strokeOpacity=".8" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

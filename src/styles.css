@@ -1514,3 +1514,10 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .gold-gear .gg-rot { transform-origin: 50px 50px; transition: transform .6s cubic-bezier(.3, 1.4, .5, 1); }
 .gear:hover .gold-gear .gg-rot { transform: rotate(45deg); }
 .gear:hover { filter: drop-shadow(0 0 14px rgba(255,200,61,.85)) drop-shadow(0 3px 4px rgba(0,0,0,.5)); }
+
+/* gold top-bar icons: level star and help button match the gold settings cog */
+.level-star.gold { background: none !important; box-shadow: none !important; border: 0 !important; width: 58px; height: 58px; display: grid; place-items: center; filter: drop-shadow(0 0 6px rgba(255,200,61,.6)); }
+.help-btn { width: 64px; height: 64px; font: 400 42px/1 var(--display); color: #4a2c00; text-shadow: 0 1px 0 #fff3c4;
+  background: radial-gradient(circle at 38% 30%, #fff4c2 0%, #f5c84a 38%, #b47a0c 78%, #8a5806 100%); border: 3px solid #fff0b0;
+  box-shadow: inset 0 -4px 6px rgba(90,54,6,.55), inset 0 3px 4px rgba(255,255,255,.6), 0 0 0 2px #6b4306, 0 0 10px rgba(255,200,61,.6), 0 3px 4px rgba(0,0,0,.5); transition: filter .2s, transform .2s; }
+.help-btn:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: inset 0 -4px 6px rgba(90,54,6,.55), inset 0 3px 4px rgba(255,255,255,.6), 0 0 0 2px #6b4306, 0 0 18px rgba(255,200,61,.9), 0 3px 4px rgba(0,0,0,.5); }
