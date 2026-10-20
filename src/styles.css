@@ -1462,7 +1462,7 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .mode-rules p { margin: 0; font-size: 17px; line-height: 1.5; color: #eef0ff; text-indent: 1.5em; }
 .mode-rules p b { color: var(--gold); }
 .mode-rules .wide-btn { margin-top: 8px; }
-.globe-canvas { width: 92%; height: 92%; }
+
 
 /* ---------------- animated PLAY NOW icon ---------------- */
 .play-art .pa-ripple { transform-origin: 60px 60px; opacity: 0; animation: paRipple 2.4s ease-out infinite; }
@@ -1521,3 +1521,21 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
   background: radial-gradient(circle at 38% 30%, #fff4c2 0%, #f5c84a 38%, #b47a0c 78%, #8a5806 100%); border: 3px solid #fff0b0;
   box-shadow: inset 0 -4px 6px rgba(90,54,6,.55), inset 0 3px 4px rgba(255,255,255,.6), 0 0 0 2px #6b4306, 0 0 10px rgba(255,200,61,.6), 0 3px 4px rgba(0,0,0,.5); transition: filter .2s, transform .2s; }
 .help-btn:hover { filter: brightness(1.1); transform: translateY(-2px); box-shadow: inset 0 -4px 6px rgba(90,54,6,.55), inset 0 3px 4px rgba(255,255,255,.6), 0 0 0 2px #6b4306, 0 0 18px rgba(255,200,61,.9), 0 3px 4px rgba(0,0,0,.5); }
+
+/* ---------------- animated ONLINE LOBBY globe ---------------- */
+.globe-wrap { position: relative; display: grid; place-items: center; }
+.globe-wrap > * { grid-area: 1 / 1; }
+.globe-fx { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.globe-canvas { width: 92%; height: 92%; animation: glBreath 2.5s ease-in-out infinite; }
+@keyframes glBreath { 50% { transform: scale(1.04); filter: brightness(1.15) drop-shadow(0 0 10px rgba(111,192,255,.9)); } }
+.globe-fx .gl-ripple { transform-origin: 60px 60px; opacity: 0; animation: glRipple 2.5s ease-out infinite; filter: drop-shadow(0 0 4px #6fc0ff); }
+@keyframes glRipple { 0% { transform: scale(.88); opacity: .9; } 100% { transform: scale(1.3); opacity: 0; } }
+.globe-fx .gl-ripple.r1 { animation-delay: .83s; } .globe-fx .gl-ripple.r2 { animation-delay: 1.67s; }
+.globe-fx .gl-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: paSpark 2.5s ease-in-out infinite; }
+.globe-fx .gl-spark.s1 { animation-delay: .83s; } .globe-fx .gl-spark.s2 { animation-delay: 1.67s; }
+.ring-btn:hover .globe-canvas, .ring-btn:hover .globe-fx .gl-ripple, .ring-btn:hover .globe-fx .gl-spark { animation-duration: 1.25s; }
+.ring-btn:hover .globe-fx .gl-ripple.r1, .ring-btn:hover .globe-fx .gl-spark.s1 { animation-delay: .42s; }
+.ring-btn:hover .globe-fx .gl-ripple.r2, .ring-btn:hover .globe-fx .gl-spark.s2 { animation-delay: .83s; }
+.ring-btn.blue .ring-label { position: relative; overflow: hidden; }
+.ring-btn.blue .ring-label::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.45), transparent); animation: paLabel 3.1s ease-in-out infinite .5s; }
+@media (prefers-reduced-motion: reduce) { .globe-canvas, .globe-fx *, .ring-btn.blue .ring-label::after { animation: none !important; } }

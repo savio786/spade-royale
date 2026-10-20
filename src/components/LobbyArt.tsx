@@ -98,7 +98,15 @@ export function GlobeArt() {
     host.addEventListener('focus', enter); host.addEventListener('blur', leave);
     return () => { alive = false; cancelAnimationFrame(raf); host.removeEventListener('pointerenter', enter); host.removeEventListener('pointerleave', leave); host.removeEventListener('focus', enter); host.removeEventListener('blur', leave); };
   }, []);
-  return <canvas ref={ref} className="ring-art globe-canvas" aria-hidden="true" />;
+  return (
+    <span className="ring-art globe-wrap" aria-hidden="true">
+      <canvas ref={ref} className="globe-canvas" />
+      <svg className="globe-fx front" viewBox="0 0 120 120">
+        {[0, 1, 2].map((k) => <circle key={k} className={`gl-ripple r${k}`} cx="60" cy="60" r="52" fill="none" stroke="#8fd0ff" strokeWidth="2.5" />)}
+        {[[102, 26], [16, 34], [104, 98]].map(([x, y], k) => <path key={k} className={`gl-spark s${k}`} d={`M${x} ${y - 6} L${x + 1.6} ${y - 1.6} L${x + 6} ${y} L${x + 1.6} ${y + 1.6} L${x} ${y + 6} L${x - 1.6} ${y + 1.6} L${x - 6} ${y} L${x - 1.6} ${y - 1.6}Z`} fill="#e8f6ff" />)}
+      </svg>
+    </span>
+  );
 }
 
 /** Two players with a padlock (private game), animated: ripples, breathing glow, padlock jiggle and shine; the lock pops open on hover. */
