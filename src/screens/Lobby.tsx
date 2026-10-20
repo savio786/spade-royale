@@ -1,3 +1,4 @@
+import { WheelArt } from '../components/MegaWheel';
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
 import { fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
@@ -98,11 +99,20 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button onClick={() => { sfx.click(); setModal('leaders'); }}><Icon name="podium" size={40} /><span>LEADERS</span></button>
         <button onClick={() => { sfx.click(); setModal('trophy'); }}><Icon name="trophy" size={40} /><span>TROPHY</span></button>
         <button className={`mega ${spinReady ? 'ready' : ''}`} onClick={() => { sfx.click(); setModal('spin'); }} aria-label={spinReady ? 'Mega bonus ready: spin the wheel' : `Mega bonus in ${clock(megaLeft)}`}>
-          <span className="mega-title">{spinReady ? 'MEGA BONUS READY!' : <>MEGA BONUS IN <b>{clock(megaLeft)}</b></>}</span>
-          <span className="mega-bar" aria-hidden="true">
-            <span className="mega-fill" style={{ width: `${(1 - megaLeft / MEGA_MS) * 100}%` }} />
-            {[1, 2, 3, 4].map((i) => <i key={i} style={{ left: `${i * 20}%` }} />)}
-          </span>
+          {spinReady ? (
+            <>
+              <span className="mega-peek" aria-hidden="true"><WheelArt rotClass="mega-peek-rot" /></span>
+              <span className="mega-tap">SPIN!</span>
+            </>
+          ) : (
+            <>
+              <span className="mega-title">MEGA BONUS IN <b>{clock(megaLeft)}</b></span>
+              <span className="mega-bar" aria-hidden="true">
+                <span className="mega-fill" style={{ width: `${(1 - megaLeft / MEGA_MS) * 100}%` }} />
+                {[1, 2, 3, 4].map((i) => <i key={i} style={{ left: `${i * 20}%` }} />)}
+              </span>
+            </>
+          )}
         </button>
         <button onClick={() => { sfx.click(); setModal('gifts'); }}><Icon name="gift" size={40} /><span>GIFTS</span>{giftReady && <span className="badge">1</span>}</button>
         <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span></button>

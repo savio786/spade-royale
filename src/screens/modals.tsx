@@ -1,3 +1,4 @@
+import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
@@ -9,7 +10,7 @@ import { EmailModal } from './Login';
 import { PRODUCTS, priceLabel } from '../../shared/products';
 import { activeTheme, THEMES, themeVars } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
-import { sfx } from '../lib/sound';
+import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
 import { Mode, prizeFor } from '../../shared/engine';
@@ -222,49 +223,14 @@ export function AdModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ---------------- Daily spin ----------------
-const WHEEL = [500, 1000, 2500, 750, 5000, 1500, 10000, 2000];
+// ---------------- Mega bonus wheel (every 4 hours) ----------------
 export function SpinModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
   const ready = Date.now() - p.lastSpin > 4 * 3600e3;
   const next = useCountdown(p.lastSpin + 4 * 3600e3);
-  const [angle, setAngle] = useState(0);
-  const [result, setResult] = useState<number | null>(null);
-  const [spinning, setSpinning] = useState(false);
-  const spin = () => {
-    if (!ready || spinning) return;
-    const idx = Math.floor(Math.random() * WHEEL.length);
-    const seg = 360 / WHEEL.length;
-    setSpinning(true);
-    setAngle(360 * 6 + (360 - idx * seg - seg / 2));
-    setTimeout(() => {
-      const win = WHEEL[idx] * (p.vip ? 2 : 1);
-      setResult(win); setSpinning(false);
-      profile.set((x) => ({ coins: x.coins + win, lastSpin: Date.now() }));
-      sfx.coins(); toast(`+${fmt(win)} coins`, 'coins');
-    }, 4200);
-  };
   return (
-    <Modal title="Daily bonus wheel" onClose={onClose}>
-      <div className="wheel-wrap">
-        <div className="wheel-pointer" aria-hidden="true" />
-        <svg className="wheel" viewBox="-100 -100 200 200" style={{ transform: `rotate(${angle}deg)` }} role="img" aria-label="Prize wheel">
-          {WHEEL.map((v, i) => {
-            const a0 = (i * 2 * Math.PI) / WHEEL.length - Math.PI / 2, a1 = ((i + 1) * 2 * Math.PI) / WHEEL.length - Math.PI / 2;
-            const mid = (a0 + a1) / 2;
-            return (
-              <g key={i}>
-                <path d={`M0 0 L${95 * Math.cos(a0)} ${95 * Math.sin(a0)} A95 95 0 0 1 ${95 * Math.cos(a1)} ${95 * Math.sin(a1)}z`} fill={i % 2 ? '#3b1d8f' : '#7b2ff7'} stroke="#ffc83d" strokeWidth="1.5" />
-                <text x={62 * Math.cos(mid)} y={62 * Math.sin(mid)} fill="#fff" fontSize="14" fontFamily="Bebas Neue, Impact, sans-serif" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${(mid * 180) / Math.PI + 90} ${62 * Math.cos(mid)} ${62 * Math.sin(mid)})`}>{short(v * (p.vip ? 2 : 1))}</text>
-              </g>
-            );
-          })}
-          <circle r="16" fill="#ffc83d" stroke="#8a4b00" strokeWidth="2" />
-        </svg>
-      </div>
-      {result !== null ? <p className="center big-win"><Coin size={26} /> +{fmt(result)}</p> : null}
-      <Pill color="gold" className="wide-btn" disabled={!ready || spinning} onClick={spin}>{ready ? (spinning ? 'Spinning…' : 'SPIN') : `Next spin in ${next}`}</Pill>
-    </Modal>
+    <MegaWheel ready={ready} nextIn={next} mult={p.vip ? 2 : 1} onClose={onClose} tick={sfx.tick} jackpot={sfx.jackpot}
+      onWin={(win) => { profile.set((x) => ({ coins: x.coins + win, lastSpin: Date.now() })); sfx.coins(); vibrate(40); }} />
   );
 }
 

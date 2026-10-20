@@ -53,6 +53,8 @@ export const sfx = {
   win: () => { if (on()) [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.3, 'triangle', 0.07, i * 0.13)); },
   lose: () => { if (on()) [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'sine', 0.07, i * 0.16)); },
   chat: () => on() && tone(1200, 0.07, 'sine', 0.04),
+  tick: () => on() && (tone(2200, 0.025, 'square', 0.018), noise(0.02, 0.05)),
+  jackpot: () => { if (on()) [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.32, 'triangle', 0.07, i * 0.09)); },
 };
 
 export function vibrate(ms = 20) {
