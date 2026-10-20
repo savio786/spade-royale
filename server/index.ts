@@ -383,7 +383,8 @@ const http = createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   let file = normalize(join(DIST, urlPath));
   if (!file.startsWith(DIST) || !existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html');
-  res.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' });
+  const type = urlPath === '/.well-known/windows-app-web-link' ? 'application/json' : MIME[extname(file)] || 'application/octet-stream';
+  res.writeHead(200, { 'content-type': type });
   res.end(readFileSync(file));
 });
 

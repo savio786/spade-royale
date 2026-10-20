@@ -1,0 +1,7 @@
+[
+  {
+    "packageFamilyName": "SpadeHaven.57230955C1E60_zfvrgc73qzyf6",
+    "paths": ["*"],
+    "excludePaths": ["/api/*", "/ws"]
+  }
+]
