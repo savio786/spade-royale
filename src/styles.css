@@ -1580,4 +1580,15 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .table-screen:has(.bid-dlg) .fan { bottom: 30px; }
 .table-screen:has(.bid-dlg) .bid-dlg { scale: .78; transform-origin: 50% 0; }
 /* phones and tablets (no mouse to lift cards on hover): keep the whole hand in view during play as well */
-@media (hover: none), (orientation: portrait) { .table-screen .fan { bottom: 30px; } }
+@media (hover: none), (orientation: portrait) {
+  .table-screen .fan { bottom: 58px; }
+  /* your picture drops a little lower during play so it sits below your cards, and the turn timer moves above them */
+  .table-screen .seat-bottom.in-play { bottom: -136px; }
+  .table-screen .turn-clock { top: 21%; bottom: auto; }
+  /* side panels sit a little higher so the raised hand never hides the scores */
+  .table-screen .info-panel, .table-screen .score-panel { top: 41%; }
+  /* the panels' glass blur is costly on phones over the moving aurora; a slightly darker panel looks the same */
+  .info-panel { backdrop-filter: none; }
+  /* playable cards pop up a bit less, so they never reach the cards in the middle */
+  .table-screen .fan .hcard.legal { transform: translateY(-18px); }
+}
