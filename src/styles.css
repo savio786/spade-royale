@@ -1579,3 +1579,5 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .fan { transition: bottom .35s ease; }
 .table-screen:has(.bid-dlg) .fan { bottom: 30px; }
 .table-screen:has(.bid-dlg) .bid-dlg { scale: .78; transform-origin: 50% 0; }
+/* phones and tablets (no mouse to lift cards on hover): keep the whole hand in view during play as well */
+@media (hover: none), (orientation: portrait) { .table-screen .fan { bottom: 30px; } }
