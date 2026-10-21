@@ -1574,3 +1574,8 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 /* touch phones and tablets: skip the shimmering curtain (its mask is the costliest part) */
 @media (hover: none) { .lobby-aurora .au-curtain { display: none; } .lobby-aurora .au3, .lobby-aurora .au4 { animation: none; will-change: auto; } }
 @media (prefers-reduced-motion: reduce) { .lobby-aurora * { animation: none !important; } }
+
+/* while you're choosing your bid, lift your cards fully into view; the bid box stays where it is, just a little smaller */
+.fan { transition: bottom .35s ease; }
+.table-screen:has(.bid-dlg) .fan { bottom: 30px; }
+.table-screen:has(.bid-dlg) .bid-dlg { scale: .78; transform-origin: 50% 0; }
