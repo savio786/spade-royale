@@ -73,7 +73,8 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
     };
     const ip = { x: inner.x0 + 46 * k, y: inner.y0 + 40 * k, w: inner.x1 - inner.x0 - 92 * k, h: inner.y1 - inner.y0 - inner.nH - 64 * k };
     svg = (
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+      <>
+      <svg className="ts-base" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         <defs>
           <linearGradient id={id('rl')} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" style={{ stopColor: 'var(--rail-a)' }} />
@@ -142,6 +143,9 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
         <path d={iPath} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth={9 * k} />
         {/* felt */}
         <path d={iPath} fill={u('fe')} />
+      </svg>
+      {/* moving lights live in their own layer so the textured table underneath is drawn once, not every frame */}
+      <svg className="ts-layer ts-fx" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         <g clipPath={u('fc')}>
           {/* aurora: slow drifting curtains of green, cyan, violet and pink blended into the felt */}
           <g className="aurora">
@@ -158,12 +162,16 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
             ))}
           </g>
           {/* light flashing in from the four sides, one after another */}
-          <g className="edge-flash" style={{ mixBlendMode: 'screen' }}>
+          <g className="edge-flash">
             <rect className="flash f-top" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('ft')} />
             <rect className="flash f-right" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('fr')} />
             <rect className="flash f-bottom" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('fb')} />
             <rect className="flash f-left" x={inner.x0 - bow} y={inner.y0} width={inner.x1 - inner.x0 + bow * 2} height={inner.y1 - inner.y0} fill={u('fl')} />
           </g>
+        </g>
+      </svg>
+      <svg className="ts-layer ts-top" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+        <g clipPath={u('fc')}>
           {/* inner raised panel and soft vignette */}
           <path d={iPath} fill="none" stroke="#000" strokeOpacity=".35" strokeWidth={60 * k} filter={u('gl')} />
           <rect x={ip.x} y={ip.y} width={ip.w} height={ip.h} rx={Math.min(inner.ry * 0.9, ip.h / 2)} fill="#000" fillOpacity=".1" stroke="#fff" strokeOpacity=".07" strokeWidth="2" />
@@ -184,11 +192,16 @@ export function TableShape({ scale = 1, emblem = true }: { scale?: number; emble
           </g>
           </>}
         </g>
-        {/* neon strip just inside the rail */}
-        <path className="rail-neon" d={iPath} fill="none" style={{ stroke: 'var(--felt-glow)' }} strokeWidth={12 * k} filter={u('gl')} />
+      </svg>
+      {/* neon strip just inside the rail: the whole layer pulses (opacity only, no repaint) */}
+      <svg className="ts-layer ts-neon" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+        <path d={iPath} fill="none" style={{ stroke: 'var(--felt-glow)' }} strokeWidth={12 * k} filter={u('gl')} />
+      </svg>
+      <svg className="ts-layer ts-lines" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         <path d={iPath} fill="none" style={{ stroke: 'var(--felt-line)' }} strokeWidth="3" />
         <path d={iPath} fill="none" stroke="#fff" strokeOpacity=".7" strokeWidth="1" />
       </svg>
+      </>
     );
   }
   return <div ref={ref} className="table-shape">{svg}</div>;

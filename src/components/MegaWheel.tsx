@@ -10,50 +10,62 @@ const ink = (i: number, v: number) => (v >= 10000 ? '#fff4e0' : i % 4 === 0 ? '#
 const rad = (d: number) => ((d - 90) * Math.PI) / 180;           // 0° = straight up, clockwise
 const pt = (r: number, d: number) => `${(r * Math.cos(rad(d))).toFixed(2)} ${(r * Math.sin(rad(d))).toFixed(2)}`;
 
-/** The wheel graphic. `rotation` turns only the wedges; the rim, bulbs and pointer stay put. */
-export function WheelArt({ rotation = 0, mult = 1, win = -1, rotRef, rotClass }: { rotation?: number; mult?: number; win?: number; rotRef?: React.Ref<SVGGElement>; rotClass?: string }) {
+/** The wheel graphic, in three stacked layers: the rim and bulbs, the wedges (which turn as one pre-drawn layer,
+ *  so spinning costs almost nothing on phones), and the hub and pointer on top. */
+export function WheelArt({ rotation = 0, mult = 1, win = -1, rotRef, rotClass }: { rotation?: number; mult?: number; win?: number; rotRef?: React.Ref<HTMLDivElement>; rotClass?: string }) {
+  const VB = '-200 -214 400 414';
   return (
-    <svg className="mw-svg" viewBox="-200 -214 400 414" role="img" aria-label="Mega bonus prize wheel">
-      <defs>
-        <linearGradient id="mw-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffe9a0" /><stop offset=".5" stopColor="#f2b632" /><stop offset="1" stopColor="#b77a0c" /></linearGradient>
-        <linearGradient id="mw-cream" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fffdf2" /><stop offset="1" stopColor="#d9d3bd" /></linearGradient>
-        <linearGradient id="mw-dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4a4d5c" /><stop offset="1" stopColor="#1f2129" /></linearGradient>
-        <linearGradient id="mw-red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff5a5a" /><stop offset=".55" stopColor="#d91a2a" /><stop offset="1" stopColor="#8a0614" /></linearGradient>
-        <linearGradient id="mw-chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset=".25" stopColor="#b9c2e0" /><stop offset=".5" stopColor="#6b7499" /><stop offset=".75" stopColor="#d9def0" /><stop offset="1" stopColor="#59618a" /></linearGradient>
-        <radialGradient id="mw-bulb"><stop offset="0" stopColor="#fff7d6" /><stop offset=".45" stopColor="#ffb53d" /><stop offset="1" stopColor="#c45a00" /></radialGradient>
-        <radialGradient id="mw-shine" cx=".5" cy=".2" r=".8"><stop offset="0" stopColor="#fff" stopOpacity=".28" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /></radialGradient>
-        <linearGradient id="mw-ptr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#eaf4ff" /><stop offset="1" stopColor="#7fb6ff" /></linearGradient>
-      </defs>
-      <circle r="198" fill="none" stroke="#3fb4ff" strokeWidth="4" className="mw-neon" />
-      <circle r="192" fill="url(#mw-chrome)" />
-      <circle r="176" fill="#141626" />
-      {Array.from({ length: 32 }, (_, i) => {
-        const [x, y] = pt(184, i * 11.25).split(' ');
-        return <circle key={i} cx={x} cy={y} r="5.6" fill="url(#mw-bulb)" className={`mw-bulb ${i % 2 ? 'b' : 'a'}`} />;
-      })}
-      <g ref={rotRef} className={rotClass} style={rotClass ? undefined : { transform: `rotate(${rotation}deg)` }}>
-        {WHEEL_VALUES.map((v, i) => {
-          const a0 = i * SEG - SEG / 2, a1 = a0 + SEG, mid = i * SEG;
-          const [tx, ty] = pt(112, mid).split(' ');
-          return (
-            <g key={i} className={win === i ? 'mw-win' : undefined}>
-              <path d={`M0 0 L${pt(170, a0)} A170 170 0 0 1 ${pt(170, a1)} Z`} fill={fill(i, v)} stroke="#0d0e18" strokeWidth="2" />
-              <text x={tx} y={ty} fill={ink(i, v)} fontSize={v * mult >= 10000 ? 30 : 34} fontFamily="Bebas Neue, Impact, sans-serif" letterSpacing="1"
-                textAnchor="middle" dominantBaseline="central" transform={`rotate(${mid + 90} ${tx} ${ty})`}>{short(v * mult)}</text>
-            </g>
-          );
-        })}
-        {WHEEL_VALUES.map((_, i) => { const [x, y] = pt(162, i * SEG - SEG / 2).split(' '); return <circle key={i} cx={x} cy={y} r="4.5" fill="url(#mw-chrome)" stroke="#0d0e18" />; })}
-        <circle r="170" fill="url(#mw-shine)" pointerEvents="none" />
-      </g>
-      <circle r="62" fill="url(#mw-chrome)" />
-      <circle r="54" fill="#1b1340" />
-      {Array.from({ length: 8 }, (_, i) => { const [x, y] = pt(58, i * 45 + 22.5).split(' '); return <circle key={i} cx={x} cy={y} r="4.4" fill="#ffd34d" stroke="#7a5200" strokeWidth="1" />; })}
-      <g className="mw-pointer">
-        <path d="M-24 -206 L24 -206 L0 -156 Z" fill="url(#mw-ptr)" stroke="#173a80" strokeWidth="3" strokeLinejoin="round" />
-        {[0, 1, 2].map((k) => <path key={k} d={`M-9 ${-200 + k * 11} L0 ${-192 + k * 11} L9 ${-200 + k * 11}`} fill="none" stroke="#ff3fa4" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" className={`mw-chev c${k}`} />)}
-      </g>
-    </svg>
+    <div className="mw-art" role="img" aria-label="Mega bonus prize wheel">
+      <svg className="mw-layer mw-back" viewBox={VB} aria-hidden="true">
+        <defs>
+          <linearGradient id="mw-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffe9a0" /><stop offset=".5" stopColor="#f2b632" /><stop offset="1" stopColor="#b77a0c" /></linearGradient>
+          <linearGradient id="mw-cream" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fffdf2" /><stop offset="1" stopColor="#d9d3bd" /></linearGradient>
+          <linearGradient id="mw-dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4a4d5c" /><stop offset="1" stopColor="#1f2129" /></linearGradient>
+          <linearGradient id="mw-red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff5a5a" /><stop offset=".55" stopColor="#d91a2a" /><stop offset="1" stopColor="#8a0614" /></linearGradient>
+          <linearGradient id="mw-chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" /><stop offset=".25" stopColor="#b9c2e0" /><stop offset=".5" stopColor="#6b7499" /><stop offset=".75" stopColor="#d9def0" /><stop offset="1" stopColor="#59618a" /></linearGradient>
+          <radialGradient id="mw-bulb"><stop offset="0" stopColor="#fff7d6" /><stop offset=".45" stopColor="#ffb53d" /><stop offset="1" stopColor="#c45a00" /></radialGradient>
+          <radialGradient id="mw-shine" cx=".5" cy=".2" r=".8"><stop offset="0" stopColor="#fff" stopOpacity=".28" /><stop offset=".5" stopColor="#fff" stopOpacity="0" /></radialGradient>
+          <linearGradient id="mw-ptr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#eaf4ff" /><stop offset="1" stopColor="#7fb6ff" /></linearGradient>
+        </defs>
+        <circle r="198" fill="none" stroke="#3fb4ff" strokeWidth="4" className="mw-neon" />
+        <circle r="192" fill="url(#mw-chrome)" />
+        <circle r="176" fill="#141626" />
+      </svg>
+      {[0, 1].map((g) => (
+        <svg key={g} className={`mw-layer mw-bulbs g${g}`} viewBox={VB} aria-hidden="true">
+          {Array.from({ length: 16 }, (_, j) => {
+            const [x, y] = pt(184, (j * 2 + g) * 11.25).split(' ');
+            return <circle key={j} cx={x} cy={y} r="5.6" fill="url(#mw-bulb)" />;
+          })}
+        </svg>
+      ))}
+      <div className={`mw-layer mw-rot ${rotClass ?? ''}`} ref={rotRef} style={rotClass ? undefined : { transform: `rotate(${rotation}deg)` }}>
+        <svg viewBox={VB} aria-hidden="true">
+          {WHEEL_VALUES.map((v, i) => {
+            const a0 = i * SEG - SEG / 2, a1 = a0 + SEG, mid = i * SEG;
+            const [tx, ty] = pt(112, mid).split(' ');
+            return (
+              <g key={i} className={win === i ? 'mw-win' : undefined}>
+                <path d={`M0 0 L${pt(170, a0)} A170 170 0 0 1 ${pt(170, a1)} Z`} fill={fill(i, v)} stroke="#0d0e18" strokeWidth="2" />
+                <text x={tx} y={ty} fill={ink(i, v)} fontSize={v * mult >= 10000 ? 30 : 34} fontFamily="Bebas Neue, Impact, sans-serif" letterSpacing="1"
+                  textAnchor="middle" dominantBaseline="central" transform={`rotate(${mid + 90} ${tx} ${ty})`}>{short(v * mult)}</text>
+              </g>
+            );
+          })}
+          {WHEEL_VALUES.map((_, i) => { const [x, y] = pt(162, i * SEG - SEG / 2).split(' '); return <circle key={i} cx={x} cy={y} r="4.5" fill="url(#mw-chrome)" stroke="#0d0e18" />; })}
+          <circle r="170" fill="url(#mw-shine)" pointerEvents="none" />
+        </svg>
+      </div>
+      <svg className="mw-layer mw-front" viewBox={VB} aria-hidden="true">
+        <circle r="62" fill="url(#mw-chrome)" />
+        <circle r="54" fill="#1b1340" />
+        {Array.from({ length: 8 }, (_, i) => { const [x, y] = pt(58, i * 45 + 22.5).split(' '); return <circle key={i} cx={x} cy={y} r="4.4" fill="#ffd34d" stroke="#7a5200" strokeWidth="1" />; })}
+        <g className="mw-pointer">
+          <path d="M-24 -206 L24 -206 L0 -156 Z" fill="url(#mw-ptr)" stroke="#173a80" strokeWidth="3" strokeLinejoin="round" />
+          {[0, 1, 2].map((k) => <path key={k} d={`M-9 ${-200 + k * 11} L0 ${-192 + k * 11} L9 ${-200 + k * 11}`} fill="none" stroke="#ff3fa4" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" className={`mw-chev c${k}`} />)}
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -61,7 +73,7 @@ export function WheelArt({ rotation = 0, mult = 1, win = -1, rotRef, rotClass }:
 export function MegaWheel({ ready, nextIn, mult, onWin, onClose, tick, jackpot }: {
   ready: boolean; nextIn: string; mult: number; onWin: (coins: number, jackpot: boolean) => void; onClose: () => void; tick: () => void; jackpot: () => void;
 }) {
-  const rot = useRef<SVGGElement>(null);
+  const rot = useRef<HTMLDivElement>(null);
   const ptr = useRef<HTMLDivElement>(null);
   const angle = useRef(0);
   const [phase, setPhase] = useState<'idle' | 'spinning' | 'won'>('idle');
@@ -70,6 +82,7 @@ export function MegaWheel({ ready, nextIn, mult, onWin, onClose, tick, jackpot }
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && phase !== 'spinning') onClose(); };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   }, [onClose, phase]);
+  useEffect(() => { document.documentElement.classList.add('wheel-open'); return () => document.documentElement.classList.remove('wheel-open'); }, []);
   // a gentle idle drift so the wheel feels alive before it's spun
   useEffect(() => {
     if (phase !== 'idle') return;
@@ -97,7 +110,9 @@ export function MegaWheel({ ready, nextIn, mult, onWin, onClose, tick, jackpot }
       const seg = Math.floor((a + SEG / 2) / SEG);
       if (seg !== lastSeg) {
         lastSeg = seg; tick();
-        const p = ptr.current; if (p) { p.classList.remove('flick'); void p.offsetWidth; p.classList.add('flick'); }
+        // flick the pointer without forcing the page to re-measure (Web Animations instead of re-adding a class)
+        const pe = ptr.current?.querySelector<SVGGElement>('.mw-pointer');
+        pe?.animate?.([{ transform: 'rotate(0deg)' }, { transform: 'rotate(-14deg)', offset: 0.35 }, { transform: 'rotate(0deg)' }], { duration: 140, easing: 'ease-out' });
       }
       if (k < 1) requestAnimationFrame(frame);
       else {
