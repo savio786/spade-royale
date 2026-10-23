@@ -96,7 +96,8 @@ export function shuffle<T>(a: T[], rnd: () => number = Math.random): T[] {
   return arr;
 }
 
-const SUIT_ORDER: Record<Suit, number> = { S: 0, H: 1, C: 2, D: 3 };
+// Hand order, left to right: diamonds, clubs, hearts, spades (highest card first within a suit)
+const SUIT_ORDER: Record<Suit, number> = { D: 0, C: 1, H: 2, S: 3 };
 export function sortHand(h: Card[]): Card[] {
   return h.slice().sort((a, b) => SUIT_ORDER[a.s] - SUIT_ORDER[b.s] || b.r - a.r);
 }
