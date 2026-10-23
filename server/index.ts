@@ -11,7 +11,7 @@ import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableS
 import { board, credit, initLeaderboard, touch } from './leaderboard';
 import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
-import { createGuest, guestName, loadAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
+import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, googleSignIn, signIn, signUp } from './auth';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
@@ -402,6 +402,8 @@ async function authApi(req: import('http').IncomingMessage, res: import('http').
 
 // ---- guest accounts ----
 const restoreTries = new Map<string, { n: number; t: number }>();
+const nameTries = new Map<string, number[]>();    // "is this name free?" checks per account
+const nameChanges = new Map<string, number[]>();  // actual name changes per account
 function readBody(req: import('http').IncomingMessage, max = 40_000): Promise<string> {
   return new Promise((resolve, reject) => {
     let raw = '';
@@ -426,6 +428,25 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
       const b = JSON.parse(await readBody(req));
       const r = await saveProgress(String(b.id), String(b.key), b.profile || {}, Number(b.updatedAt) || 0);
       return json(res, r.status, r.ok ? { ok: true } : { error: r.status === 409 ? 'newer progress on server' : 'not allowed', account: 'account' in r ? r.account : undefined });
+    }
+    // choose or change the player's name: { id, key, name, check? } (check = only say whether it is free)
+    if (req.method === 'POST' && url.pathname === '/api/guest/name') {
+      const b = JSON.parse((await readBody(req, 2000)) || '{}');
+      const id = String(b.id || '').slice(0, 64), key = String(b.key || '').slice(0, 80), now = Date.now();
+      const log = (nameTries.get(id) ?? []).filter((t) => now - t < 3_600_000);
+      const lastMinute = log.filter((t) => now - t < 60_000).length;
+      if (lastMinute >= 40) return json(res, 429, { ok: false, message: 'Too many tries — wait a minute.' });
+      if (!b.check) {
+        const changes = (nameChanges.get(id) ?? []).filter((t) => now - t < 3_600_000);
+        if (changes.length >= 10) return json(res, 429, { ok: false, message: 'You have changed your name a lot just now. Try again later.' });
+        const r = await renameAccount(id, key, b.name);
+        if (!r.ok) return json(res, r.status, { ok: false, message: r.message });
+        nameChanges.set(id, [...changes, now]);
+        touch({ id, name: r.name, avatar: r.avatar }); // ranked players show the new name on the leaderboard straight away
+        return json(res, 200, { ok: true, name: r.name });
+      }
+      nameTries.set(id, [...log, now]);
+      return json(res, 200, await checkName(id, key, b.name));
     }
     if (req.method === 'POST' && url.pathname === '/api/guest/restore') {
       const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0];

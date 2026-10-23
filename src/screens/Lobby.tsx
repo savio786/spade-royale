@@ -14,10 +14,10 @@ import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
 import { helpBot } from '../lib/helpbot';
 import {
-  AdModal, bonusLeftMs, FriendsModal, GiftsModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
+  AdModal, bonusLeftMs, FriendsModal, GiftsModal, ProfileEditModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
 } from './modals';
 
-type ModalKey = null | 'card' | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private';
+type ModalKey = null | 'card' | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private' | 'profile';
 
 const SLIDES = [
   { k: 'vip', title: 'VIP', sub: 'Get special privileges!' },
@@ -121,13 +121,14 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span>{soc.incoming.length > 0 && <span className="badge" aria-label={`${soc.incoming.length} friend request${soc.incoming.length === 1 ? '' : 's'}`}>{soc.incoming.length}</span>}</button>
       </nav>
 
-      {modal === 'card' && <PlayerCard onClose={close} player={{ name: p.name, avatar: p.avatar, level: lvl, stats: publicStats(p), levelPct: lvlPct }} />}
+      {modal === 'card' && <PlayerCard onClose={close} onEdit={() => setModal('profile')} player={{ name: p.name, avatar: p.avatar, level: lvl, stats: publicStats(p), levelPct: lvlPct }} />}
       {modal === 'vip' && <VipModal onClose={close} />}
       {modal === 'ad' && <AdModal onClose={close} />}
       {modal === 'spin' && <SpinModal onClose={close} />}
       {modal === 'leaders' && <LeaderboardModal onClose={close} />}
       {modal === 'trophy' && <TrophyModal onClose={close} />}
       {modal === 'gifts' && <GiftsModal onClose={close} />}
+      {modal === 'profile' && <ProfileEditModal onClose={close} />}
       {modal === 'friends' && <FriendsModal onClose={close} onInvite={() => setModal('private')} />}
       {modal === 'settings' && <SettingsModal onClose={close} installPrompt={installPrompt} />}
       {modal === 'private' && <PrivateGameModal status={status} onClose={close} onStart={(r) => { close(); onStart(r); }} />}

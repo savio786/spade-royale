@@ -20,7 +20,7 @@ function FriendAction({ id }: { id: string }) {
 
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '0%');
 
-export function PlayerCard({ player, onClose }: { player: CardPlayer; onClose: () => void }) {
+export function PlayerCard({ player, onClose, onEdit }: { player: CardPlayer; onClose: () => void; onEdit?: () => void }) {
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   const s = player.stats ?? { coins: 0, played: 0, won: 0, last5: '', nil: 0, nilMade: 0, blind: 0, blindMade: 0, rings: {} };
   const last5 = s.last5.padStart(5, '-').split('');
@@ -40,6 +40,7 @@ export function PlayerCard({ player, onClose }: { player: CardPlayer; onClose: (
           <div className="pcd-who">
             <span className="pcd-pic"><Avatar k={player.avatar} size={150} name={player.name} /></span>
             <h2 className="pcd-name">{player.name}</h2>
+            {onEdit && <button className="pcd-edit" onClick={() => { sfx.click(); onEdit(); }}>✎ EDIT NAME &amp; PICTURE</button>}
             {player.bot && <span className="pcd-cpu">COMPUTER PLAYER</span>}
             {player.id && !player.bot && <FriendAction id={player.id} />}
           </div>

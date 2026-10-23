@@ -131,7 +131,7 @@ export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void;
       <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
         {mode === 'up' && (
           <label className="field"><span>Player name</span>
-            <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} placeholder="e.g. ApexSpadeOverlord" autoComplete="nickname" required /></label>
+            <input value={name} maxLength={20} onChange={(e) => setName(e.target.value.replace(/[^\p{L}\p{N} _.-]/gu, ''))} placeholder="e.g. ApexSpadeOverlord" autoComplete="nickname" required /></label>
         )}
         <label className="field"><span>Email</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>

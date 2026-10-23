@@ -4,13 +4,13 @@
 // Whether someone is online is not stored: index.ts knows who is connected.
 import { getRecord, putRecord } from './storage';
 import type { SocialPerson, SocialView } from '../shared/protocol';
+import { nameKey, reserveIfFree } from './names';
 
 interface Social { friends: string[]; incoming: string[]; outgoing: string[]; declined: string[] }
 interface Dir { name: string; avatar: string; level: number; coins: number; seen: number }
 
 const MAX_FRIENDS = 200, MAX_PENDING = 30, MAX_DECLINED = 200;
 const safe = (id: string) => String(id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
-const nameKey = (n: string) => `pname-${n.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')}`;
 
 const socials = new Map<string, Social>();
 const dirs = new Map<string, Dir>();
@@ -47,9 +47,8 @@ export function registerPlayer(id: string, info: { name: string; avatar: string;
     dirs.set(k, d);
     if (!changed) return;
     await putRecord(`dir-${k}`, d);
-    // first player to use a name owns it for searching (guest names are always unique)
-    const nk = nameKey(d.name);
-    if (!(await getRecord<{ id: string }>(nk))) await putRecord(nk, { id: k });
+    // whoever has a name owns it, so searching by name finds exactly one player
+    await reserveIfFree(k, d.name);
   });
 }
 

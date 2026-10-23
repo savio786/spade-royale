@@ -147,3 +147,30 @@ export function startGuestSync() {
 }
 
 export function notifyReturning(name: string) { toast(`Welcome back, ${name}!`); }
+
+// ---- choosing / changing the player's name (names are unique: see server/names.ts) ----
+export interface NameResult { ok: boolean; message?: string; name?: string; offline?: boolean }
+
+async function nameCall(check: boolean, name: string): Promise<NameResult> {
+  const base = serverOrigin(), p = profile.get();
+  if (!base || !p.guestKey) return { ok: false, offline: true, message: 'Changing your name needs the game server. Check your connection and try again.' };
+  try {
+    const r = await fetch(`${base}/api/guest/name`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: p.id, key: p.guestKey, name, check }) });
+    const j = (await r.json().catch(() => ({}))) as NameResult;
+    return typeof j.ok === 'boolean' ? j : { ok: false, message: 'Something went wrong. Please try again.' };
+  } catch { return { ok: false, offline: true, message: 'Can’t reach the game server right now. Check your connection and try again.' }; }
+}
+
+/** Is this name free for me? Changes nothing. */
+export const checkName = (name: string) => nameCall(true, name);
+
+/** Take a new name. On success the profile (and the copy remembered on this device) has it straight away. */
+export async function changeName(name: string): Promise<NameResult> {
+  const r = await nameCall(false, name);
+  if (r.ok && r.name) {
+    profile.set({ name: r.name });
+    const me = profile.get();
+    if (me.provider === 'guest') writeVault({ id: me.id, key: me.guestKey, code: me.guestCode, name: me.name, profile: me }); // "Continue as …" shows the new name even if the app is closed right now
+  }
+  return r;
+}

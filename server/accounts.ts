@@ -2,12 +2,13 @@
 // so a guest who comes back (same device, or another device with their guest code) keeps everything.
 import { randomBytes } from 'crypto';
 import { getRecord, nextNumber, putRecord } from './storage';
+import { availability, reserveIfFree, takeName } from './names';
 
 export interface Account {
   id: string;
   key: string;        // secret held by the player's device; needed to read or save progress
   code: string;       // shareable restore code, e.g. K7QM-4XPT
-  name: string;       // permanent guest name
+  name: string;       // the player's unique name (an automatic Guest48213 until they pick their own)
   profile: Record<string, unknown> | null;
   createdAt: number;
   updatedAt: number;
@@ -40,7 +41,33 @@ export async function createGuest(adopt?: { id: string; name: string }) {
   };
   await putRecord(acctKey(id), a);
   await putRecord(codeKey(code), { id });
+  await reserveIfFree(id, a.name); // nobody else can take this name now
   return pub(a);
+}
+
+type Renamed = { ok: true; name: string; avatar: string } | { ok: false; status: number; message: string };
+const asAccount = async (id: string, key: string) => { const a = await getRecord<Account>(acctKey(id)); return a && key && a.key === key ? a : null; };
+
+/** Is this name free for this player? (Changes nothing: used while they type.) */
+export async function checkName(id: string, key: string, raw: unknown): Promise<{ ok: boolean; message?: string; name?: string; code?: string }> {
+  const a = await asAccount(id, key);
+  if (!a) return { ok: false, message: 'Sign in again to change your name.', code: 'auth' };
+  const r = await availability(raw, a.id, a.name);
+  return r.ok ? { ok: true, name: r.name } : { ok: false, message: r.message, code: r.code };
+}
+
+/** Change the player's name. The old name is freed for anybody else; the new one is theirs alone. */
+export async function renameAccount(id: string, key: string, raw: unknown): Promise<Renamed> {
+  const a = await asAccount(id, key);
+  if (!a) return { ok: false, status: 403, message: 'Sign in again to change your name.' };
+  const r = await takeName(a.id, raw, a.name);
+  if (!r.ok) return { ok: false, status: 200, message: r.message };
+  if (r.name !== a.name) {
+    a.name = r.name;
+    if (a.profile) a.profile = { ...a.profile, name: r.name };
+    await putRecord(acctKey(a.id), a); // (updatedAt stays as it was, so the player's saved progress isn't treated as out of date)
+  }
+  return { ok: true, name: r.name, avatar: String((a.profile as { avatar?: unknown } | null)?.avatar ?? '') };
 }
 
 export async function loadAccount(id: string, key: string) {
@@ -52,7 +79,7 @@ export async function saveProgress(id: string, key: string, profile: Record<stri
   const a = await getRecord<Account>(acctKey(id));
   if (!a || a.key !== key) return { ok: false as const, status: 403 };
   if (updatedAt < a.updatedAt) return { ok: false as const, status: 409, account: pub(a) }; // server has newer progress
-  // the name always stays the guest's permanent name
+  // the name is only ever changed through renameAccount (which keeps names unique), never by a saved profile
   a.profile = { ...profile, id: a.id, name: a.name, provider: a.kind ?? 'guest' };
   a.updatedAt = updatedAt;
   await putRecord(acctKey(id), a);

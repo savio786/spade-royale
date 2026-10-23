@@ -14,6 +14,7 @@ import type { OnlineCounts } from '../../shared/protocol';
 import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
+import { changeName, checkName } from '../lib/guest';
 import { social, useSocial } from '../lib/social';
 import type { SocialPerson } from '../../shared/protocol';
 import { Mode, prizeFor } from '../../shared/engine';
@@ -389,6 +390,87 @@ export function ThemeModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ---------------- Edit name & picture ----------------
+const NAME_MAX = 20;
+const NAME_BAD = /[^\p{L}\p{N} _.-]/gu;
+const WORDS_A = ['Apex', 'Royal', 'Lucky', 'Bold', 'Swift', 'Silent', 'Golden', 'Wild', 'Neon', 'Iron', 'Crimson', 'Mighty', 'Sly', 'Cosmic', 'Savage'];
+const WORDS_B = ['Spade', 'Ace', 'Shark', 'Falcon', 'Wolf', 'King', 'Ninja', 'Dragon', 'Joker', 'Bandit', 'Tiger', 'Viper', 'Rebel', 'Hawk'];
+const WORDS_C = ['Overlord', 'Master', 'Boss', 'Legend', 'Champ', 'Hunter', 'Baron', 'Wizard', 'Rider', 'Ghost'];
+const randomName = () => {
+  const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
+  for (let i = 0; i < 20; i++) { const n = `${pick(WORDS_A)}${pick(WORDS_B)}${pick(WORDS_C)}`; if (n.length <= NAME_MAX) return n; }
+  return `${pick(WORDS_A)}${pick(WORDS_B)}`;
+};
+type NameState = { kind: 'same' | 'checking' | 'ok' | 'bad' | 'offline'; msg?: string };
+
+/** "Choose a gamer name and image": pick a name nobody else has, and a picture. Names are unique: it is yours until you change it. */
+export function ProfileEditModal({ onClose }: { onClose: () => void }) {
+  const p = useProfile();
+  const [name, setName] = useState(p.name);
+  const [avatar, setAvatar] = useState(p.avatar);
+  const [st, setSt] = useState<NameState>({ kind: 'same' });
+  const [saving, setSaving] = useState(false);
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  const nameChanged = trimmed !== p.name;
+  const squash = (n: string) => n.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+
+  useEffect(() => {
+    if (!nameChanged) { setSt({ kind: 'same' }); return; }
+    if (squash(trimmed).length < 3) { setSt({ kind: 'bad', msg: 'Names need at least 3 letters or numbers.' }); return; }
+    setSt({ kind: 'checking' });
+    let stale = false;
+    const t = setTimeout(async () => {
+      const r = await checkName(trimmed);
+      if (!stale) setSt(r.ok ? { kind: 'ok', msg: 'Available — it’s yours once you save.' } : { kind: r.offline ? 'offline' : 'bad', msg: r.message });
+    }, 450);
+    return () => { stale = true; clearTimeout(t); };
+  }, [trimmed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canSave = !saving && (!nameChanged || st.kind === 'ok');
+  const save = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    if (nameChanged) {
+      const r = await changeName(trimmed);
+      if (!r.ok) { setSt({ kind: r.offline ? 'offline' : 'bad', msg: r.message }); setSaving(false); return; }
+    }
+    if (avatar !== p.avatar) profile.set({ avatar });
+    net.hello(); // tables, friends and the leaderboard see the new name and picture
+    sfx.coins(); toast(nameChanged ? `You’re now ${trimmed}` : 'Picture saved');
+    onClose();
+  };
+
+  return (
+    <Modal title="GAMER NAME & IMAGE" onClose={onClose} className="pe-modal">
+      <form onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <label className="pe-label" htmlFor="pe-name">GAMER NAME</label>
+        <div className={`pe-name ${st.kind}`}>
+          <input id="pe-name" value={name} maxLength={NAME_MAX} autoComplete="off" spellCheck={false}
+            onChange={(e) => setName(e.target.value.replace(NAME_BAD, ''))} placeholder="e.g. ApexSpadeOverlord" />
+          <button type="button" className="pe-dice" aria-label="Suggest a name" title="Suggest a name" onClick={() => { sfx.click(); setName(randomName()); }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9" /><path d="M20 4v5h-5" /></svg>
+          </button>
+        </div>
+        <div className="pe-meta">
+          <span className={`pe-status ${st.kind}`} role="status">
+            {st.kind === 'checking' ? 'Checking…' : st.kind === 'ok' ? `✓ ${st.msg}` : st.msg ?? (nameChanged ? '' : 'This is your current name.')}
+          </span>
+          <span className="pe-count">{name.length}/{NAME_MAX}</span>
+        </div>
+        <p className="pe-hint">Every name is one of a kind. It’s yours until you change it, and then someone else can use it.</p>
+
+        <label className="pe-label">IMAGE</label>
+        <AvatarPicker value={avatar} onChange={setAvatar} />
+
+        <div className="pe-actions">
+          <button type="button" className="pe-btn cancel" onClick={() => { sfx.click(); onClose(); }}>Cancel</button>
+          <button type="submit" className="pe-btn save" disabled={!canSave}>{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // ---------------- Settings ----------------
 
 
@@ -409,6 +491,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
   const [status, setStatus] = useState<NetStatus>(net.status);
   const [confirmOut, setConfirmOut] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cfg, setCfg] = useState<AuthConfig>({ google: null, facebook: null });
   const googleRef = useRef<HTMLDivElement>(null);
@@ -429,6 +512,11 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
   const via = p.provider === 'email' ? 'email' : p.provider === 'google' ? 'Google' : p.provider === 'facebook' ? 'Facebook' : '';
   return (
     <Modal title="Settings" onClose={onClose} className="settings-modal">
+      <div className="st-me">
+        <Avatar k={p.avatar} size={72} name={p.name} />
+        <div className="st-me-text"><b>{p.name}</b><small>Your name and picture at the tables</small></div>
+        <button className="st-edit" onClick={() => { sfx.click(); setEditOpen(true); }}>EDIT NAME &amp; PICTURE</button>
+      </div>
       <div className="st-account">
         {signedIn ? (
           <>
@@ -468,7 +556,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
       </div>
 
       <details className="st-more">
-        <summary>Avatar, table & cards, guest code and more</summary>
+        <summary>Table & cards, guest code and more</summary>
         {p.provider === 'guest' && p.guestCode && (
           <div className="guest-code">
             <span>Your guest code</span>
@@ -476,7 +564,6 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
             <small className="muted">Keep it private. Enter it on another phone or computer ("Have a guest code?") to continue as {p.name}.</small>
           </div>
         )}
-        <div className="field"><span>Avatar</span><AvatarPicker value={p.avatar} onChange={(k) => profile.set({ avatar: k })} /></div>
         <div className="field"><span>Table & cards (unlock more by leveling up)</span><ThemePicker /></div>
         <div className="toggles">
           <label className="toggle"><input type="checkbox" checked={p.settings.fast} onChange={() => profile.set((x) => ({ settings: { ...x.settings, fast: !x.settings.fast } }))} /><span className="tg" /> Fast computer players</label>
@@ -490,6 +577,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         <span><a href="#privacy">PRIVACY POLICY</a> AND <a href="#terms">TERMS OF SERVICE</a></span>
       </footer>
       {emailOpen && <EmailModal onClose={() => setEmailOpen(false)} startMode="up" />}
+      {editOpen && <ProfileEditModal onClose={() => setEditOpen(false)} />}
     </Modal>
   );
 }

@@ -4,6 +4,7 @@ import { randomBytes, scrypt as _scrypt, timingSafeEqual, createHash } from 'cry
 import { promisify } from 'util';
 import { getRecord, putRecord } from './storage';
 import { Account, acctKey, codeKey, pub, rand } from './accounts';
+import { availability, cleanName, takeName, uniqueName } from './names';
 
 const scrypt = promisify(_scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
@@ -17,7 +18,6 @@ export class AuthError extends Error { constructor(msg: string, public status = 
 const normEmail = (e: unknown) => String(e ?? '').trim().toLowerCase();
 const emailOk = (e: string) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(e);
 const emailRef = (e: string) => `login-email-${createHash('sha256').update(e).digest('hex').slice(0, 40)}`;
-export const cleanName = (n: unknown) => String(n ?? '').replace(/[^\p{L}\p{N} _.-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 18);
 
 async function hash(pw: string) { const salt = randomBytes(16).toString('hex'); return `${salt}:${(await scrypt(pw, salt, 64)).toString('hex')}`; }
 async function verify(pw: string, stored: string) {
@@ -43,19 +43,24 @@ async function ownedGuest(adopt: unknown): Promise<Account | null> {
 }
 
 export async function signUp(b: Record<string, unknown>) {
-  const email = normEmail(b.email), pw = String(b.password ?? ''), name = cleanName(b.name);
+  const email = normEmail(b.email), pw = String(b.password ?? '');
   if (!emailOk(email)) throw new AuthError('Enter a valid email address.');
   if (pw.length < 6) throw new AuthError('Use a password of at least 6 characters.');
-  if (name.length < 3) throw new AuthError('Player names need at least 3 letters or numbers.');
   if (await getRecord(emailRef(email))) throw new AuthError('An account with this email already exists — sign in instead.', 409);
-  const pass = await hash(pw);
-  // a guest upgrading keeps all their progress
+  // a guest upgrading keeps all their progress (and may keep their name, or choose a new one)
   const guest = await ownedGuest(b.adopt);
+  const chk = await availability(b.name, guest?.id ?? '', guest?.name);
+  if (!chk.ok) throw new AuthError(chk.message, chk.code === 'taken' ? 409 : 400);
+  const pass = await hash(pw);
+  let name = chk.name;
   let a: Account;
   if (guest) {
     a = { ...guest, kind: 'email', email, pass, name, profile: guest.profile ? { ...guest.profile, name, provider: 'email' } : null };
     await putRecord(acctKey(a.id), a);
   } else a = await newAccount('email', name, { email, pass });
+  // make the name theirs (and free the guest name they had); if somebody grabbed it a moment ago, add digits
+  const took = await takeName(a.id, name, guest?.name);
+  if (!took.ok) { name = await uniqueName(name, a.id); await takeName(a.id, name, guest?.name); a.name = name; if (a.profile) a.profile = { ...a.profile, name }; await putRecord(acctKey(a.id), a); }
   await putRecord(emailRef(email), { id: a.id });
   return pub(a);
 }
@@ -81,11 +86,13 @@ async function socialAccount(kind: 'google' | 'facebook', subject: string, displ
   const ref = `login-${kind}-${createHash('sha256').update(subject).digest('hex').slice(0, 40)}`;
   const known = await getRecord<{ id: string }>(ref);
   if (known) { const a = await getRecord<Account>(acctKey(known.id)); if (a) return pub(a); }
-  const name = cleanName(display).length >= 3 ? cleanName(display) : `Player${Math.floor(1000 + Math.random() * 9000)}`;
   const guest = await ownedGuest(adopt);
+  // the name from their Google / Facebook profile, with digits added if somebody already has it
+  const name = await uniqueName(cleanName(display).length >= 3 ? cleanName(display) : 'Player', guest?.id ?? '');
   let a: Account;
   if (guest) { a = { ...guest, kind, email: email ?? undefined, name, profile: guest.profile ? { ...guest.profile, name, provider: kind } : null }; await putRecord(acctKey(a.id), a); }
   else a = await newAccount(kind, name, { email: email ?? undefined });
+  await takeName(a.id, name, guest?.name);
   await putRecord(ref, { id: a.id });
   return pub(a);
 }
