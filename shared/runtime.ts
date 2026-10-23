@@ -3,10 +3,14 @@
 // server for online/private tables (up to four humans, bots fill the gaps).
 import { CITIES, PublicStats, Action, applyAction, createGame, GameState, isFull, PublicState, RuleError, Seat, sideOf, startRound, TableSettings, viewFor } from './engine';
 import { botBid, botPlay, BOT_LINES, BOT_NAMES, pick, skilledBid, skilledPlay, skillForBet } from './bot';
+import { GIFT_BY_ID, MAX_GIFTS_PER_SEAT } from './gifts';
 
+/** A gift sitting on a player for this game: which gift and who bought it. */
+export interface SeatGift { id: string; by: string }
 export interface ChatMsg { id: number; seat: number; name: string; text: string; ts: number; system?: boolean }
 export interface Snapshot {
   state: PublicState; chat: ChatMsg[];
+  gifts: SeatGift[][];           // gifts bought for each seat during this game (oldest first)
   turnDeadline: number | null;   // when the current human turn auto-plays
   turnTotal: number | null;      // length of a turn (ms)
   missed: number[];              // turns each seat let run out during this game
@@ -64,6 +68,8 @@ export function makeBot(exclude: string[] = []): Seat {
 export class TableRuntime {
   g: GameState;
   chat: ChatMsg[] = [];
+  /** gifts bought for each seat; a table plays one game, so these stay until the game is over */
+  private gifts: SeatGift[][] = [[], [], [], []];
   private listeners = new Map<string, { seat: number; fn: (s: Snapshot) => void }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private fillTimer: ReturnType<typeof setTimeout> | null = null;
@@ -113,6 +119,7 @@ export class TableRuntime {
     if (this.g.phase === 'waiting') seats[idx] = null;
     else seats[idx] = { ...makeBot(), name: `${name} (bot)` };
     this.missed[idx] = 0;
+    this.gifts[idx] = []; // gifts were for the player who left, not the computer taking the seat
     this.g = { ...this.g, seats };
     this.system(`${name} left the table`);
     if (this.g.phase === 'waiting') { if (this.humanCount() > 0) this.armSeatTimer(); else this.clearSeatTimer(); }
@@ -171,7 +178,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));
@@ -191,6 +198,25 @@ export class TableRuntime {
       const bots = this.g.seats.map((x, i) => (x?.bot ? i : -1)).filter((i) => i >= 0);
       if (bots.length && Math.random() < 0.45) setTimeout(() => this.say(pick(bots), pick(BOT_LINES.reply)), 900 + Math.random() * 1800);
     }
+  }
+  /**
+   * Buy a gift for one seat, or for every player at the table ("a round"). It shows on the player for the rest of this game.
+   * Returns how many players received it (0 = nothing happened: unknown gift, empty seat…), so the caller can charge for exactly that many.
+   */
+  gift(from: number, to: number | 'all', giftId: string): number {
+    const gf = GIFT_BY_ID[giftId], buyer = this.g.seats[from];
+    if (!gf || !buyer) return 0;
+    const seated = this.g.seats.map((s, i) => (s ? i : -1)).filter((i) => i >= 0);
+    const targets = to === 'all' ? seated : Number.isInteger(to) && seated.includes(to as number) ? [to as number] : [];
+    for (const t of targets) {
+      this.gifts[t].push({ id: gf.id, by: buyer.name });
+      if (this.gifts[t].length > MAX_GIFTS_PER_SEAT) this.gifts[t].shift();
+      // hidden chat line: tells every screen to play the "flying gift" animation (the chat panel skips lines starting with 🎁:)
+      this.chat.push({ id: ++this.msgId, seat: from, name: buyer.name, text: `🎁:${t}:${gf.id}`, ts: Date.now() });
+    }
+    if (this.chat.length > 200) this.chat.splice(0, this.chat.length - 200);
+    if (targets.length) this.emit();
+    return targets.length;
   }
   private system(text: string) {
     this.chat.push({ id: ++this.msgId, seat: -1, name: '', text, ts: Date.now(), system: true });

@@ -19,6 +19,8 @@ export interface TableController {
   subscribe(f: (v: CtlView) => void): () => void;
   act(a: Action): void;
   chat(text: string): void;
+  /** Buy a gift for one seat, or `'all'` for a round for the whole table. */
+  gift(to: number | 'all', giftId: string): void;
   fillBots(): void;
   leave(): void;
 }
@@ -52,6 +54,7 @@ export class LocalController implements TableController {
     if (err) { this.view = { ...this.view, error: err }; this.subs.forEach((f) => f(this.view)); }
   }
   chat(text: string) { this.rt.say(this.seat, text); }
+  gift(to: number | 'all', giftId: string) { this.rt.gift(this.seat, to, giftId); }
   fillBots() { this.rt.fillWithBots(300); }
   leave() { this.rt.destroy(); this.subs.clear(); }
 }
@@ -94,6 +97,7 @@ export class RemoteController implements TableController {
   subscribe(f: (v: CtlView) => void) { this.subs.add(f); f(this.view); return () => { this.subs.delete(f); }; }
   act(a: Action) { net.send({ t: 'act', action: a }); }
   chat(text: string) { net.send({ t: 'chat', text }); }
+  gift(to: number | 'all', giftId: string) { net.send({ t: 'gift', to, gift: giftId }); }
   fillBots() { net.send({ t: 'fillBots' }); }
   leave() { net.send({ t: 'leave' }); this.off(); this.subs.clear(); }
 }

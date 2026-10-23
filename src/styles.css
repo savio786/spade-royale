@@ -1649,3 +1649,32 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 @media (prefers-reduced-motion: reduce) { .fr-name.on { animation: none; } }
 .fr-modal .modal-title { flex: none; }
 .fr-modal .modal-body { flex: 1 1 auto; }
+
+/* ================= Gift shop + gifts sitting on players ================= */
+.modal.gs-modal { width: min(580px, calc(100% - 24px)); background: linear-gradient(180deg, #1c2ba8, #0b1158); }
+.gs-sub { margin: -6px 0 8px; text-align: center; color: var(--ink-2); font-size: 14px; line-height: 1.4; }
+.gs-sub b { color: #fff; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
+.gs-list { list-style: none; margin: 0; padding: 0; }
+.gs-row { display: grid; grid-template-columns: 84px 1fr 1fr; grid-template-areas: "pic name cost" "pic round one"; gap: 6px 10px; align-items: center; padding: 10px 4px;
+  border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, transparent, #3a66ff, transparent) 1; }
+.gs-pic { grid-area: pic; width: 76px; height: 76px; display: grid; place-items: center; font-size: 46px; line-height: 1; border-radius: 14px;
+  background: linear-gradient(180deg, #6a82ff, #2433a8); border: 2px solid rgba(255,255,255,.85); box-shadow: inset 0 0 12px rgba(0,0,0,.3); }
+.gs-name { grid-area: name; text-align: center; font: 400 34px/1 var(--display); letter-spacing: 1px; color: #ffe3dc; text-shadow: 0 0 10px rgba(255,80,80,.7), 0 2px 0 rgba(0,0,0,.4); }
+.gs-cost { grid-area: cost; justify-self: center; display: inline-flex; align-items: center; gap: 8px; min-width: 96px; justify-content: center; padding: 2px 14px 2px 6px; border-radius: 999px; background: rgba(0,0,40,.55); font: 400 26px/1.2 var(--display); letter-spacing: 1px; color: #fff; }
+.gs-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 54px; border-radius: 999px; font: 400 25px/1 var(--display); letter-spacing: 1px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4);
+  border: 2px solid rgba(255,255,255,.75); box-shadow: 0 0 0 3px rgba(0,0,0,.45), inset 0 3px 0 rgba(255,255,255,.28), 0 5px 10px rgba(0,0,0,.4); }
+.gs-btn small { font: 400 15px/1 var(--display); letter-spacing: 1px; color: rgba(255,255,255,.8); margin-top: 1px; }
+.gs-btn:active:not(:disabled) { transform: translateY(2px); }
+.gs-btn.round { grid-area: round; background: linear-gradient(180deg, #5b86ff, #1c3bd0 55%, #0f1f86); }
+.gs-btn.one { grid-area: one; background: linear-gradient(180deg, #4cf08a, #129a40 55%, #0a6a28); }
+.gs-btn:disabled { opacity: .4; filter: grayscale(.5); cursor: not-allowed; }
+
+/* gifts bought for a player stay beside their picture for the rest of the game (two per column, growing away from the picture) */
+.seat-gifts { position: absolute; top: 2px; left: 100%; margin-left: -4px; z-index: 3; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 5px; max-height: 92px; }
+.seat-right .seat-gifts { left: auto; right: 100%; margin: 0 -4px 0 0; flex-wrap: wrap-reverse; align-content: flex-start; }
+.sg { position: relative; width: 42px; height: 42px; display: grid; place-items: center; font-size: 26px; line-height: 1; border-radius: 50%; cursor: default;
+  background: radial-gradient(circle at 35% 28%, #6a7cff, #1a2390 70%); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.6); animation: sgPop .5s ease-out; }
+.sg i { position: absolute; right: -5px; bottom: -5px; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px; background: var(--gold); color: #2a1a00; font: 700 12px/18px var(--body); font-style: normal; text-align: center; box-shadow: 0 0 0 1.5px rgba(0,0,0,.5); }
+@keyframes sgPop { from { transform: scale(0); } 60% { transform: scale(1.3); } to { transform: scale(1); } }
+@media (max-width: 700px), (max-height: 480px) { .gs-row { grid-template-columns: 70px 1fr 1fr; } .gs-pic { width: 64px; height: 64px; font-size: 38px; } .gs-name { font-size: 28px; } .gs-btn { height: 48px; font-size: 21px; } }
+@media (prefers-reduced-motion: reduce) { .sg { animation: none; } }

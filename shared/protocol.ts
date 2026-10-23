@@ -27,6 +27,7 @@ export type ClientMsg =
   | { t: 'friendRespond'; id: string; accept: boolean }
   | { t: 'friendRemove'; id: string }
   | { t: 'friendCancel'; id: string }
+  | { t: 'gift'; to: number | 'all'; gift: string }   // a seat number, or 'all' = a round for the whole table
   | { t: 'list' }
   | { t: 'quick'; settings: TableSettings }
   | { t: 'join'; tableId: string }

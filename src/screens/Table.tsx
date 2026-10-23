@@ -17,7 +17,8 @@ import { canChat, chatPassLabel, store } from '../lib/payments';
 
 const POS = ['bottom', 'left', 'top', 'right'] as const;
 import { FREE_EMOJI, QUICK_PHRASES } from '../../shared/chat';
-const GIFTS = [{ e: '🌹', cost: 100 }, { e: '☕', cost: 100 }, { e: '🍹', cost: 250 }, { e: '🍕', cost: 250 }, { e: '🏆', cost: 1000 }, { e: '💎', cost: 5000 }];
+import { GIFTS, GIFT_BY_ID, type Gift } from '../../shared/gifts';
+import type { SeatGift } from '../../shared/runtime';
 
 export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onExit: () => void; onPlayAgain: () => void }) {
   const p = useProfile();
@@ -95,12 +96,13 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
     if (newest && newest.id !== lastChatId.current) {
-      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me);
+      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !m.text.startsWith('🎁:'));
       lastChatId.current = newest.id;
       if (fresh.length && !profile.get().settings.chatOff) { sfx.chat(); if (!chatOpen) setUnread((u) => u + fresh.length); }
-      // gifts arrive via chat as "🎁:<seat>:<emoji>"
+      // a gift announces itself with a hidden chat line "🎁:<seat>:<gift id>": make it fly to that player
       for (const m of msgs.filter((m) => m.text.startsWith('🎁:') && Date.now() - m.ts < 3000)) {
-        const [, to, e] = m.text.split(':');
+        const [, to, id] = m.text.split(':');
+        const e = GIFT_BY_ID[id]?.e ?? id;
         setFlying((f) => f.some((x) => x.id === m.id) ? f : [...f, { id: m.id, e, to: rel(+to) }]);
         setTimeout(() => setFlying((f) => f.filter((x) => x.id !== m.id)), 1800);
       }
@@ -190,6 +192,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         {[0, 1, 2, 3].map((seat) => (
           <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} total={view.snap!.turnTotal} now={now}
             bubble={(() => { const b = lastBySeat.get(seat); return b && now - b.ts < 4500 ? b.text : null; })()}
+            gifts={view.snap!.gifts?.[seat] ?? []}
             onGift={() => setGiftFor(seat)} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
         ))}
         {flying.map((f) => <span key={f.id} className={`flying to-${f.to}`} aria-hidden="true">{f.e}</span>)}
@@ -279,18 +282,60 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           stats: mine ? publicStats(p) : s.stats, levelPct: mine ? ((p.xp - xpForLevel(lvl)) / (xpForLevel(lvl + 1) - xpForLevel(lvl))) * 100 : undefined }} />;
       })()}
       {giftFor !== null && (
-        <Modal title={`Send a gift to ${st.seats[giftFor]?.name ?? 'the table'}`} onClose={() => setGiftFor(null)}>
-          <div className="gift-grid">
-            {GIFTS.map((g) => (
-              <button key={g.e} className="gift-btn" disabled={p.coins < g.cost} onClick={() => {
-                profile.addCoins(-g.cost); sfx.coins();
-                ctl.chat(`🎁:${giftFor}:${g.e}`);
-                setGiftFor(null);
-              }}><span>{g.e}</span><small><Coin size={14} /> {short(g.cost)}</small></button>
-            ))}
-          </div>
-        </Modal>
+        <GiftShop toName={st.seats[giftFor]?.name ?? null} players={st.seats.filter(Boolean).length} coins={p.coins} onClose={() => setGiftFor(null)}
+          onBuy={(g, round) => {
+            const n = round ? st.seats.filter(Boolean).length : 1, cost = g.cost * n;
+            if (p.coins < cost) { toast('Not enough coins for that gift', 'error'); return; }
+            profile.addCoins(-cost); sfx.coins();
+            ctl.gift(round ? 'all' : giftFor, g.id);
+            setGiftFor(null);
+            toast(round ? `${g.e} ${g.name} for everyone at the table!` : `${g.e} ${g.name} sent to ${st.seats[giftFor]?.name ?? 'the player'}`);
+          }} />
       )}
+    </div>
+  );
+}
+
+// ---------------- gifts ----------------
+/** The gift shop: one row per gift, "buy round" = everyone at the table, "buy one" = the player whose gift button you tapped. */
+function GiftShop({ toName, players, coins, onBuy, onClose }: { toName: string | null; players: number; coins: number; onBuy: (g: Gift, round: boolean) => void; onClose: () => void }) {
+  return (
+    <Modal title="GIFTS" onClose={onClose} className="gs-modal">
+      <p className="gs-sub">Your coins: <b><Coin size={18} /> {fmt(coins)}</b>{toName ? <> · Buy one is for <b>{toName}</b></> : null} · A round is for all {players} players</p>
+      <ul className="gs-list">
+        {GIFTS.map((g) => (
+          <li key={g.id} className="gs-row">
+            <span className="gs-pic" aria-hidden="true">{g.e}</span>
+            <b className="gs-name">{g.name}</b>
+            <span className="gs-cost"><Coin size={22} /> {fmt(g.cost)}</span>
+            <button className="gs-btn round" disabled={coins < g.cost * players} onClick={() => { sfx.click(); onBuy(g, true); }} aria-label={`Buy a round of ${g.name} for everyone, ${fmt(g.cost * players)} coins`}>
+              BUY ROUND<small>{fmt(g.cost * players)}</small>
+            </button>
+            <button className="gs-btn one" disabled={coins < g.cost || !toName} onClick={() => { sfx.click(); onBuy(g, false); }} aria-label={`Buy ${g.name} for ${toName ?? 'this seat'}, ${fmt(g.cost)} coins`}>
+              BUY ONE<small>{fmt(g.cost)}</small>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Modal>
+  );
+}
+
+/** Gifts sitting on a player this game (same gift bought twice shows ×2). Hover or long-press to see who bought them. */
+function SeatGifts({ gifts }: { gifts: SeatGift[] }) {
+  if (!gifts.length) return null;
+  const groups = new Map<string, { g: Gift; n: number; by: Set<string> }>();
+  for (const x of gifts) {
+    const g = GIFT_BY_ID[x.id]; if (!g) continue;
+    const cur = groups.get(g.id) ?? { g, n: 0, by: new Set<string>() };
+    cur.n++; cur.by.add(x.by); groups.set(g.id, cur);
+  }
+  const shown = [...groups.values()].slice(-4); // the 4 most recent kinds
+  return (
+    <div className="seat-gifts" aria-label={`Gifts: ${shown.map((s) => `${s.n} ${s.g.name}`).join(', ')}`}>
+      {shown.map(({ g, n, by }) => (
+        <span key={g.id} className="sg" title={`${g.name}${n > 1 ? ` ×${n}` : ''} — from ${[...by].join(', ')}`}>{g.e}{n > 1 && <i>{n}</i>}</span>
+      ))}
     </div>
   );
 }
@@ -427,8 +472,8 @@ function TrickCards({ st, rel }: { st: PublicState; rel: (seat: number) => strin
   );
 }
 
-function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onProfile, myVip }: {
-  st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; onGift: () => void; onProfile: () => void; myVip: boolean;
+function SeatView({ st, seat, pos, me, deadline, total, now, bubble, gifts, onGift, onProfile, myVip }: {
+  st: PublicState; seat: number; pos: string; me: number; deadline: number | null; total: number | null; now: number; bubble: string | null; gifts: SeatGift[]; onGift: () => void; onProfile: () => void; myVip: boolean;
 }) {
   const s = st.seats[seat];
   const mode = st.settings.mode;
@@ -442,6 +487,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, onGift, onP
         {s ? <button className="seat-pic" onClick={onProfile} aria-label={`View ${s.name}'s profile`}><Avatar k={s.avatar} size={pos === 'bottom' ? 112 : 106} vip={seat === me && myVip} name={s.name} /></button> : <span className="q-mark">?</span>}
         {remain !== null && <span className="timer-ring" aria-hidden="true" />}
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
+        <SeatGifts gifts={gifts} />
         {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}
       </div>
       {s && <div className="seat-name" onClick={onProfile} role="button" tabIndex={-1}>{s.name} <small>Lv {s.level}</small></div>}

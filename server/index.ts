@@ -27,7 +27,7 @@ interface Room { id: string; code: string | null; hostId: string; rt: TableRunti
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
-interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[] }
+interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[] }
 
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
@@ -248,6 +248,17 @@ function handle(c: Client, m: ClientMsg) {
       if (!allowed) return send(c, { t: 'error', message: 'Get a Chat Pass to type your own messages — quick phrases and emoji are free' });
     }
       return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
+    case 'gift': {
+      if (!c.room || !c.player) return;
+      const now = Date.now();
+      c.gifts = c.gifts.filter((t) => now - t < 60_000);
+      if (c.gifts.length >= 20) return send(c, { t: 'error', message: 'Slow down a little — too many gifts at once' });
+      c.gifts.push(now);
+      const from = c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id);
+      if (from < 0) return;
+      c.room.rt.gift(from, m.to === 'all' ? 'all' : Number(m.to), String(m.gift).slice(0, 30));
+      return;
+    }
     case 'leave':
       return leave(c);
     case 'rejoin':
@@ -459,7 +470,7 @@ const http = createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: http, path: '/ws' });
 wss.on('connection', (ws) => {
-  const c: Client = { ws, player: null, room: null, unsub: null, verified: false, auth: null, fops: [] };
+  const c: Client = { ws, player: null, room: null, unsub: null, verified: false, auth: null, fops: [], gifts: [] };
   clients.add(c);
   ws.on('message', (raw) => {
     try { handle(c, JSON.parse(String(raw))); } catch (e) { send(c, { t: 'error', message: 'Bad message' }); }
