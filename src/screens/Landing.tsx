@@ -54,7 +54,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
             <a className="store-badge" href={STORE_LINKS.play}><Icon name="android" size={26} /><span><small>GET IT ON</small>Google Play</span></a>
             <a className="store-badge" href={STORE_LINKS.apple}><Icon name="apple" size={26} /><span><small>Download on the</small>App Store</span></a>
           </div>
-          <p className="hero-fine">Free to play with virtual coins · 50,000 coins to start</p>
+          <p className="hero-fine">Free to play with virtual coins · 50,000 coins to start · <a href="/install" style={{ color: 'inherit' }}>Install on your phone</a></p>
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="device">

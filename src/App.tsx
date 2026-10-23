@@ -5,6 +5,7 @@ import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
 import { LegalPage } from './screens/Legal';
+import { InstallPage } from './screens/Install';
 import { StartRequest, StoreModal } from './screens/modals';
 import { afterCheckoutReturn, loadPaymentConfig, store, syncPurchases, useStoreRequest } from './lib/payments';
 import { LocalController, RemoteController, TableController } from './lib/controller';
@@ -83,6 +84,8 @@ export default function App() {
     setScreen('table');
   }, []);
 
+  // the install link: spade-haven.onrender.com/install (or #install)
+  if (hash === '#install' || /^\/install\/?$/.test(window.location.pathname)) return <InstallPage installPrompt={installPrompt} />;
   const legal = hash === '#privacy' ? 'privacy' : hash === '#terms' ? 'terms' : null;
   if (legal) return <LegalPage page={legal} />;
   let body;

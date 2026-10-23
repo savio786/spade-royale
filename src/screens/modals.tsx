@@ -481,7 +481,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         <div className="toggles">
           <label className="toggle"><input type="checkbox" checked={p.settings.fast} onChange={() => profile.set((x) => ({ settings: { ...x.settings, fast: !x.settings.fast } }))} /><span className="tg" /> Fast computer players</label>
         </div>
-        {installPrompt && <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill>}
+        {installPrompt ? <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill> : <a className="linkish" href="/install">How to install the app on your phone</a>}
         <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b></p>
       </details>
 
