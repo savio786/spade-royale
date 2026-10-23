@@ -275,7 +275,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         const s = st.seats[cardSeat]!;
         const mine = cardSeat === me;
         const lvl = mine ? levelFromXp(p.xp) : s.level;
-        return <PlayerCard onClose={() => setCardSeat(null)} player={{ name: mine ? (p.name || s.name) : s.name, avatar: mine ? p.avatar : s.avatar, level: lvl, bot: s.bot,
+        return <PlayerCard onClose={() => setCardSeat(null)} player={{ name: mine ? (p.name || s.name) : s.name, avatar: mine ? p.avatar : s.avatar, level: lvl, bot: s.bot, id: mine || s.bot ? undefined : s.id,
           stats: mine ? publicStats(p) : s.stats, levelPct: mine ? ((p.xp - xpForLevel(lvl)) / (xpForLevel(lvl + 1) - xpForLevel(lvl))) * 100 : undefined }} />;
       })()}
       {giftFor !== null && (

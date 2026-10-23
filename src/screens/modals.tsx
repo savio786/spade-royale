@@ -14,6 +14,8 @@ import type { OnlineCounts } from '../../shared/protocol';
 import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
+import { social, useSocial } from '../lib/social';
+import type { SocialPerson } from '../../shared/protocol';
 import { Mode, prizeFor } from '../../shared/engine';
 
 export interface StartRequest {
@@ -34,6 +36,7 @@ function useCountdown(to: number) {
 // ---------------- Leaderboard (real players only, from the game server) ----------------
 export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
+  const soc = useSocial();
   const [tab, setTab] = useState<'global' | 'friends' | 'fame'>('global');
   const [showLast, setShowLast] = useState(false);
   const [data, setData] = useState<Board | null | 'loading'>('loading');
@@ -44,11 +47,11 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const rows: BoardRow[] = useMemo(() => {
     if (!b) return p.weekEarnings > 0 ? [{ name: p.name, avatar: p.avatar, earnings: p.weekEarnings, me: true }] : [];
     if (tab === 'friends') {
-      const names = new Set(p.friends.map((f) => f.name.toLowerCase()));
+      const names = new Set(soc.friends.map((f) => f.name.toLowerCase()));
       return b.rows.filter((r) => r.me || names.has(r.name.toLowerCase()));
     }
     return b.rows;
-  }, [b, tab, p.friends, p.name, p.avatar, p.weekEarnings]);
+  }, [b, tab, soc.friends, p.name, p.avatar, p.weekEarnings]);
 
   const lastRank = b?.lastWeek?.rank ?? null;
   const lastWeekKey = b?.lastWeek?.week ?? '';
@@ -252,33 +255,56 @@ export function GiftsModal({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------- Friends ----------------
-export function FriendsModal({ onClose, onInvite }: { onClose: () => void; onInvite: () => void }) {
-  const p = useProfile();
-  const [name, setName] = useState('');
+type FrKind = 'request' | 'friend' | 'sent';
+function FriendCard({ f, kind, onInvite }: { f: SocialPerson; kind: FrKind; onInvite: () => void }) {
+  const [sure, setSure] = useState(false);
+  useEffect(() => { if (!sure) return; const t = setTimeout(() => setSure(false), 3000); return () => clearTimeout(t); }, [sure]);
   return (
-    <Modal title="Friends" onClose={onClose}>
-      <form className="row-form" onSubmit={(e) => {
-        e.preventDefault();
-        const n = name.trim();
-        if (!n) return;
-        profile.set((x) => ({ friends: [...x.friends, { id: Math.random().toString(36).slice(2), name: n.slice(0, 18), avatar: AVATAR_KEYS[Math.floor(Math.random() * AVATAR_KEYS.length)], level: 0, online: false }] }));
-        setName(''); toast(`${n} added to your friends`);
-      }}>
+    <li className={`fr-card ${kind} ${f.online ? 'on' : ''}`}>
+      <span className="fr-pic">
+        <Avatar k={f.avatar} size={96} name={f.name} />
+        {kind === 'request' && <button className="fr-x" onClick={() => { sfx.click(); social.reject(f.id); }} aria-label={`Decline ${f.name}'s request`}><Icon name="close" size={14} /></button>}
+      </span>
+      <b className={`fr-name ${f.online ? 'on' : ''}`} title={f.name}>{f.name}</b>
+      <span className="fr-state">{f.online ? 'ONLINE' : 'OFFLINE'}</span>
+      <span className="fr-coins"><Coin size={26} /><b>{short(f.coins)}</b></span>
+      {kind === 'request' && <button className="fr-btn accept" onClick={() => { sfx.click(); social.accept(f.id); }}>ACCEPT</button>}
+      {kind === 'friend' && (
+        <>
+          {f.online && <button className="fr-btn invite" onClick={() => { sfx.click(); onInvite(); }}>INVITE</button>}
+          <button className="fr-btn remove" onClick={() => { sfx.click(); if (!sure) setSure(true); else social.remove(f.id); }}>{sure ? 'TAP AGAIN' : 'REMOVE'}</button>
+        </>
+      )}
+      {kind === 'sent' && <button className="fr-btn cancel" onClick={() => { sfx.click(); social.cancel(f.id); }}>CANCEL</button>}
+    </li>
+  );
+}
+
+export function FriendsModal({ onClose, onInvite }: { onClose: () => void; onInvite: () => void }) {
+  const s = useSocial();
+  const [status, setStatus] = useState<NetStatus>(net.status);
+  const [name, setName] = useState('');
+  useEffect(() => net.onStatus(setStatus), []);
+  const empty = !s.friends.length && !s.incoming.length && !s.outgoing.length;
+  const section = (title: string, list: SocialPerson[], kind: FrKind) => list.length > 0 && (
+    <section className="fr-sec">
+      <h3>{title} <i>{list.length}</i></h3>
+      <ul className="fr-grid">{list.map((f) => <FriendCard key={f.id} f={f} kind={kind} onInvite={onInvite} />)}</ul>
+    </section>
+  );
+  return (
+    <Modal title="FRIENDS" onClose={onClose} wide className="fr-modal">
+      <form className="fr-add" onSubmit={(e) => { e.preventDefault(); const n = name.trim(); if (!n) return; social.addByName(n); setName(''); }}>
         <label className="sr-only" htmlFor="fr-name">Player name</label>
-        <input id="fr-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Add friend by player name" />
+        <input id="fr-name" value={name} maxLength={20} autoComplete="off" onChange={(e) => setName(e.target.value)} placeholder="Send a friend request — type their player name" />
         <Pill type="submit" color="green"><Icon name="plus" size={16} /> Add</Pill>
       </form>
-      {p.friends.length === 0 && <p className="muted center">No friends yet. Add a player by their name, then invite them to a private table.</p>}
-      <ul className="friend-list">
-        {p.friends.map((f) => (
-          <li key={f.id}>
-            <Avatar k={f.avatar} size={44} />
-            <span className="grow"><b>{f.name}</b><small className="muted">Invite them with a private-table code</small></span>
-            <Pill color="purple" onClick={onInvite}>Invite</Pill>
-            <button className="icon-btn" aria-label={`Remove ${f.name}`} onClick={() => profile.set((x) => ({ friends: x.friends.filter((y) => y.id !== f.id) }))}><Icon name="close" size={16} /></button>
-          </li>
-        ))}
-      </ul>
+      {status !== 'online' && <p className="fr-note">Connecting to the game server… friends will appear in a moment.</p>}
+      {status === 'online' && !s.loaded && <p className="fr-note">Loading your friends…</p>}
+      {s.loaded && empty && <p className="fr-note">No friends yet. Type a player’s name above to send a request. They’ll see it here and can accept or decline. You can also tap a player at a table and add them from their profile.</p>}
+      {section('FRIEND REQUESTS', s.incoming, 'request')}
+      {section('MY FRIENDS', s.friends, 'friend')}
+      {section('REQUESTS I SENT', s.outgoing, 'sent')}
     </Modal>
   );
 }

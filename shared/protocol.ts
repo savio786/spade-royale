@@ -16,8 +16,17 @@ export interface TableSummary {
   seats: ({ name: string; avatar: string; bot: boolean; level: number } | null)[];
 }
 
+/** One person in your friends screen. `online` = connected to the game server right now. */
+export interface SocialPerson { id: string; name: string; avatar: string; level: number; coins: number; online: boolean }
+/** Your friends, requests people sent you (incoming) and requests you sent (outgoing). */
+export interface SocialView { friends: SocialPerson[]; incoming: SocialPerson[]; outgoing: SocialPerson[] }
+
 export type ClientMsg =
-  | { t: 'hello'; player: PlayerHello }
+  | { t: 'hello'; player: PlayerHello; key?: string }   // key: the account secret, needed for friends
+  | { t: 'friendRequest'; name?: string; id?: string }
+  | { t: 'friendRespond'; id: string; accept: boolean }
+  | { t: 'friendRemove'; id: string }
+  | { t: 'friendCancel'; id: string }
   | { t: 'list' }
   | { t: 'quick'; settings: TableSettings }
   | { t: 'join'; tableId: string }
@@ -38,4 +47,6 @@ export type ServerMsg =
   | { t: 'left' }
   | { t: 'kicked'; reason: string }
   | { t: 'tableGone' }                  // the table no longer exists (e.g. the server restarted)
-  | { t: 'notice'; message: string };
+  | { t: 'notice'; message: string }
+  | ({ t: 'social' } & SocialView)
+  | { t: 'friendMsg'; message: string; ok: boolean };

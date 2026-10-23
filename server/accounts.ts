@@ -66,6 +66,11 @@ export async function restoreByCode(code: string) {
   return a ? pub(a) : null;
 }
 
+/** The account's name when `key` is its secret (proves this connection really is that player), otherwise null. */
+export async function verifyKey(id: string, key: string): Promise<string | null> {
+  try { const a = await getRecord<Account>(acctKey(id)); return a && key && a.key === key ? a.name : null; } catch { return null; }
+}
+
 /** Permanent name for a registered guest (so nobody can impersonate them at tables). */
 export async function guestName(id: string): Promise<string | null> {
   try { return (await getRecord<Account>(acctKey(id)))?.name ?? null; } catch { return null; }

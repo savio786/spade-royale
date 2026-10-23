@@ -1596,3 +1596,56 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
   /* playable cards pop up a bit less, so they never reach the cards in the middle */
   .table-screen .fan .hcard.legal { transform: translateY(-18px); }
 }
+
+/* ================= Friends (requests, accept / decline, who is online) ================= */
+.modal.fr-modal { width: min(940px, calc(100% - 32px)); background: linear-gradient(180deg, #1c2ba8, #0b1158); }
+.fr-add { display: flex; gap: 10px; align-items: center; margin: 0 0 14px; }
+.fr-add input { flex: 1; min-width: 0; height: 52px; padding: 0 18px; border-radius: 999px; border: 2px solid rgba(160,180,255,.5); background: rgba(0,0,40,.55); color: #fff; font: 500 17px var(--body); outline: none; }
+.fr-add input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,200,61,.25); }
+.fr-add input::placeholder { color: #8f9bd8; }
+.fr-note { margin: 6px 4px 14px; text-align: center; color: var(--ink-2); font-size: 15px; line-height: 1.4; }
+.fr-sec { margin: 6px 0 18px; }
+.fr-sec h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; padding-bottom: 6px; font: 400 30px/1 var(--display); letter-spacing: 2px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4);
+  border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, #4a7aff, transparent) 1; }
+.fr-sec h3 i { font: 700 14px/22px var(--body); font-style: normal; min-width: 24px; padding: 0 8px; border-radius: 12px; background: rgba(255,255,255,.16); color: #fff; text-align: center; letter-spacing: 0; }
+.fr-grid { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 14px; }
+
+.fr-card { position: relative; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px 10px; border-radius: 18px;
+  background: linear-gradient(180deg, rgba(20,30,130,.9), rgba(6,10,70,.95)); border: 2px solid rgba(140,160,255,.28); box-shadow: inset 0 0 18px rgba(0,0,0,.45), 0 6px 14px rgba(0,0,0,.35); }
+.fr-card.on { border-color: rgba(76,240,138,.85); box-shadow: inset 0 0 18px rgba(0,0,0,.45), 0 0 18px rgba(76,240,138,.55), 0 6px 14px rgba(0,0,0,.35); }
+.fr-card:not(.on) .fr-pic { opacity: .72; }
+.fr-pic { position: relative; display: block; width: 96px; height: 96px; border-radius: 50%; }
+.fr-pic .avatar { border: 3px solid rgba(160,180,255,.55); }
+.fr-card.on .fr-pic .avatar { border-color: var(--green-hi); box-shadow: 0 0 14px rgba(76,240,138,.8); }
+.fr-x { position: absolute; top: -4px; right: -8px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #fff;
+  background: radial-gradient(circle at 35% 30%, #ff7d8c, #d81b34 60%, #8a0618); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.fr-x:active { transform: scale(.92); }
+
+.fr-name { max-width: 100%; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 400 28px/1.05 var(--display); letter-spacing: .8px; color: #8f9bd8; text-shadow: 0 2px 0 rgba(0,0,0,.45); }
+/* the name lights up when that player is online right now */
+.fr-name.on { color: #eafff1; text-shadow: 0 0 6px rgba(76,240,138,.95), 0 0 16px rgba(76,240,138,.75), 0 2px 0 rgba(0,0,0,.4); animation: frGlow 2.4s ease-in-out infinite; }
+@keyframes frGlow { 50% { text-shadow: 0 0 4px rgba(76,240,138,.8), 0 0 10px rgba(76,240,138,.5), 0 2px 0 rgba(0,0,0,.4); } }
+.fr-state { display: inline-flex; align-items: center; gap: 6px; font: 400 15px/1 var(--display); letter-spacing: 1.5px; color: #7d86b8; }
+.fr-state::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #5b6396; }
+.fr-card.on .fr-state { color: var(--green-hi); }
+.fr-card.on .fr-state::before { background: var(--green-hi); box-shadow: 0 0 8px var(--green-hi); }
+.fr-coins { display: inline-flex; align-items: center; gap: 8px; min-width: 112px; justify-content: center; padding: 2px 12px 2px 6px; border-radius: 999px; background: rgba(0,0,40,.55); }
+.fr-coins b { font: 400 26px/1 var(--display); letter-spacing: 1px; color: #b9c6ff; }
+
+.fr-btn { display: grid; place-items: center; padding-top: 3px; width: 100%; height: 44px; margin-top: 4px; border-radius: 999px; font: 400 26px/1 var(--display); letter-spacing: 1px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+  border: 2px solid rgba(255,255,255,.8); box-shadow: 0 0 0 2px rgba(0,0,0,.5), inset 0 3px 0 rgba(255,255,255,.3), 0 4px 8px rgba(0,0,0,.4); }
+.fr-btn:active { transform: translateY(2px); }
+.fr-btn.accept { background: linear-gradient(180deg, #4cf08a, #129a40 50%, #0a6a28); }
+.fr-btn.invite { background: linear-gradient(180deg, #ffd96a, #e39a10 55%, #a86500); color: #3a2300; text-shadow: none; }
+.fr-btn.remove { background: linear-gradient(180deg, #ff6b7a, #d81b34 48%, #8a0618); }
+.fr-btn.cancel { background: linear-gradient(180deg, #8f98d8, #4a54a8 55%, #2b3380); }
+
+/* add / accept button on a player's profile card */
+.pcd-friend { margin-top: 8px; padding: 0 22px; height: 42px; border-radius: 999px; font: 400 24px/42px var(--display); letter-spacing: 1px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35);
+  background: linear-gradient(180deg, #4cf08a, #129a40 50%, #0a6a28); border: 2px solid rgba(255,255,255,.8); box-shadow: 0 0 0 2px rgba(0,0,0,.5), inset 0 3px 0 rgba(255,255,255,.3); }
+.pcd-friend.done { display: inline-block; background: rgba(0,0,40,.55); color: var(--ink-2); box-shadow: none; border-color: rgba(160,180,255,.35); }
+
+@media (max-width: 640px) { .fr-card { width: calc(50% - 7px); } .fr-grid { gap: 10px 14px; } }
+@media (prefers-reduced-motion: reduce) { .fr-name.on { animation: none; } }
+.fr-modal .modal-title { flex: none; }
+.fr-modal .modal-body { flex: 1 1 auto; }

@@ -5,8 +5,18 @@ import { CityRing, lookFor } from './CityRing';
 import { CITIES, type PublicStats } from '../../shared/engine';
 import { fmt } from '../lib/profile';
 import { sfx } from '../lib/sound';
+import { social, useSocial } from '../lib/social';
 
-export interface CardPlayer { name: string; avatar: string; level: number; bot?: boolean; stats?: PublicStats; levelPct?: number }
+export interface CardPlayer { name: string; avatar: string; level: number; bot?: boolean; stats?: PublicStats; levelPct?: number; id?: string }
+
+/** Add friend / request sent / accept / already friends: only for other real players. */
+function FriendAction({ id }: { id: string }) {
+  const s = useSocial();
+  if (s.friends.some((f) => f.id === id)) return <span className="pcd-friend done">✓ FRIENDS</span>;
+  if (s.outgoing.some((f) => f.id === id)) return <span className="pcd-friend done">REQUEST SENT</span>;
+  if (s.incoming.some((f) => f.id === id)) return <button className="pcd-friend" onClick={() => { sfx.click(); social.accept(id); }}>ACCEPT FRIEND REQUEST</button>;
+  return <button className="pcd-friend" onClick={() => { sfx.click(); social.addById(id); }}>+ ADD FRIEND</button>;
+}
 
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '0%');
 
@@ -31,6 +41,7 @@ export function PlayerCard({ player, onClose }: { player: CardPlayer; onClose: (
             <span className="pcd-pic"><Avatar k={player.avatar} size={150} name={player.name} /></span>
             <h2 className="pcd-name">{player.name}</h2>
             {player.bot && <span className="pcd-cpu">COMPUTER PLAYER</span>}
+            {player.id && !player.bot && <FriendAction id={player.id} />}
           </div>
         </header>
         <section className="pcd-sec">

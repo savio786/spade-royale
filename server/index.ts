@@ -11,7 +11,8 @@ import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableS
 import { board, credit, initLeaderboard, touch } from './leaderboard';
 import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
-import { createGuest, guestName, loadAccount, restoreByCode, saveProgress } from './accounts';
+import { createGuest, guestName, loadAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
+import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, googleSignIn, signIn, signUp } from './auth';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
@@ -25,13 +26,49 @@ const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>> }
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
-interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null }
+/** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
+interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[] }
 
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
 let roomSeq = 0;
 
 const send = (c: Client, m: ServerMsg) => { if (c.ws.readyState === WebSocket.OPEN) c.ws.send(JSON.stringify(m)); };
+
+// ---- friends: who is online, and keeping everyone's friends screen up to date ----
+const isOnline = (id: string) => { for (const c of clients) if (c.verified && c.player?.id === id) return true; return false; };
+async function pushSocial(id: string) {
+  const targets = [...clients].filter((c) => c.verified && c.player?.id === id);
+  if (!targets.length) return;
+  try { const v = await friends.view(id, isOnline); for (const c of targets) send(c, { t: 'social', ...v }); } catch (e) { console.error('friends view', e); }
+}
+/** This player came online or went offline: their friends and people with open requests see it straight away. */
+async function presenceChanged(id: string) {
+  try { for (const r of await friends.relatives(id)) void pushSocial(r); } catch (e) { console.error('friends presence', e); }
+}
+async function friendOp(c: Client, m: ClientMsg) {
+  try {
+    await c.auth;
+    const id = c.player?.id;
+    if (!c.verified || !id) return send(c, { t: 'friendMsg', ok: false, message: 'Continue as a guest or sign in to use friends.' });
+    const now = Date.now();
+    c.fops = c.fops.filter((t) => now - t < 60_000);
+    if (c.fops.length >= 15) return send(c, { t: 'friendMsg', ok: false, message: 'Slow down a little — try again in a minute.' });
+    c.fops.push(now);
+    let r: friends.Result;
+    if (m.t === 'friendRequest') r = await friends.request(id, { name: m.name === undefined ? undefined : String(m.name).slice(0, 40), id: m.id === undefined ? undefined : String(m.id).slice(0, 64) });
+    else if (m.t === 'friendRespond') r = await friends.respond(id, String(m.id).slice(0, 64), !!m.accept);
+    else if (m.t === 'friendRemove') r = await friends.remove(id, String(m.id).slice(0, 64));
+    else if (m.t === 'friendCancel') r = await friends.cancel(id, String(m.id).slice(0, 64));
+    else return;
+    send(c, { t: 'friendMsg', ok: r.ok, message: r.message });
+    for (const n of r.notes) for (const x of clients) if (x.verified && x.player?.id === n.to) send(x, { t: 'friendMsg', ok: true, message: n.text });
+    for (const t of new Set(r.touched)) void pushSocial(t);
+  } catch (e) {
+    console.error('friends', e);
+    send(c, { t: 'friendMsg', ok: false, message: 'Friends are unavailable right now. Please try again.' });
+  }
+}
 
 function onlineCounts(): Record<Mode, number> & { total: number; lobby: number } {
   // real people only: seated humans per mode, people in the lobby (connected, not at a table), and everyone connected
@@ -144,10 +181,31 @@ function leave(c: Client, notify = true) {
 
 function handle(c: Client, m: ClientMsg) {
   switch (m.t) {
-    case 'hello':
-      c.player = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat, stats: cleanStats(m.player.stats) };
-      guestName(c.player.id).then((n) => { if (n && c.player) c.player.name = n; if (c.player) touch(c.player); });
+    case 'hello': {
+      const prevId = c.player?.id;
+      const p: PlayerHello = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat, stats: cleanStats(m.player.stats) };
+      c.player = p;
+      c.verified = false;
+      guestName(p.id).then((n) => { if (n && c.player === p) p.name = n; if (c.player === p) touch(p); });
+      // friends need proof that this connection owns the account: its secret key (never shared with other players)
+      const key = String(m.key ?? '').slice(0, 80);
+      const auth = (async () => {
+        const accountName = key ? await verifyKey(p.id, key) : null;
+        if (!accountName || c.player !== p) return;
+        p.name = accountName;
+        await friends.registerPlayer(p.id, { name: p.name, avatar: p.avatar, level: p.level, coins: p.stats?.coins ?? 0 });
+        if (c.player !== p) return;
+        c.verified = true;
+        void pushSocial(p.id);
+        void presenceChanged(p.id);
+      })().catch((e) => console.error('friends sign-in', e));
+      c.auth = auth;
+      if (prevId && prevId !== p.id) void presenceChanged(prevId); // this connection switched to another player
       return send(c, { t: 'welcome', online: onlineCounts() });
+    }
+    case 'friendRequest': case 'friendRespond': case 'friendRemove': case 'friendCancel':
+      void friendOp(c, m);
+      return;
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
     case 'quick': {
@@ -401,12 +459,15 @@ const http = createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: http, path: '/ws' });
 wss.on('connection', (ws) => {
-  const c: Client = { ws, player: null, room: null, unsub: null };
+  const c: Client = { ws, player: null, room: null, unsub: null, verified: false, auth: null, fops: [] };
   clients.add(c);
   ws.on('message', (raw) => {
     try { handle(c, JSON.parse(String(raw))); } catch (e) { send(c, { t: 'error', message: 'Bad message' }); }
   });
-  ws.on('close', () => { dropped(c); clients.delete(c); });
+  ws.on('close', () => {
+    dropped(c); clients.delete(c);
+    if (c.verified && c.player) void presenceChanged(c.player.id); // friends see them go offline
+  });
 });
 
 // Render stops the old server when a new version goes live: warn everyone first.

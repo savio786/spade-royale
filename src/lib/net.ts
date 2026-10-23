@@ -45,7 +45,7 @@ class Net {
 
   private helloMsg(): ClientMsg {
     const p = profile.get();
-    return { t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p), stats: publicStats(p) } };
+    return { t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p), stats: publicStats(p) }, key: p.guestKey ?? undefined };
   }
   hello() { this.send(this.helloMsg()); }
 

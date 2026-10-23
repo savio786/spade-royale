@@ -9,6 +9,7 @@ const MEGA_MS = 4 * 3600e3;
 const clock = (ms: number) => { const t = Math.ceil(ms / 1000); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map((n) => String(n).padStart(2, '0')).join(':'); };
 import type { OnlineCounts } from '../../shared/protocol';
 import { net, NetStatus } from '../lib/net';
+import { useSocial } from '../lib/social';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
 import { helpBot } from '../lib/helpbot';
@@ -26,6 +27,7 @@ const SLIDES = [
 
 export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: StartRequest) => void; onOnlineLobby: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
+  const soc = useSocial();
   const [modal, setModal] = useState<ModalKey>(null);
   const [slide, setSlide] = useState(0);
   const [status, setStatus] = useState<NetStatus>(net.status);
@@ -116,7 +118,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
           )}
         </button>
         <button onClick={() => { sfx.click(); setModal('gifts'); }}><Icon name="gift" size={40} /><span>GIFTS</span>{giftReady && <span className="badge">1</span>}</button>
-        <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span></button>
+        <button onClick={() => { sfx.click(); setModal('friends'); }}><Icon name="users" size={40} /><span>FRIENDS</span>{soc.incoming.length > 0 && <span className="badge" aria-label={`${soc.incoming.length} friend request${soc.incoming.length === 1 ? '' : 's'}`}>{soc.incoming.length}</span>}</button>
       </nav>
 
       {modal === 'card' && <PlayerCard onClose={close} player={{ name: p.name, avatar: p.avatar, level: lvl, stats: publicStats(p), levelPct: lvlPct }} />}
