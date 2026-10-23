@@ -1732,3 +1732,6 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .st-edit:active { transform: translateY(2px); }
 .pcd-edit { margin-top: 8px; padding: 0 20px; height: 40px; border-radius: 999px; font: 400 22px/40px var(--display); letter-spacing: 1px; color: #3a2300; background: linear-gradient(180deg, #ffd96a, #e39a10 55%, #a86500); border: 2px solid rgba(255,255,255,.8); box-shadow: 0 0 0 2px rgba(0,0,0,.45); }
 @media (max-width: 560px) { .st-me { flex-wrap: wrap; } .st-edit { width: 100%; } }
+/* the "Time ran out" notice fades out by itself (Table.tsx removes it after 6 s) */
+.missed-warning { animation: mwFade 6s ease forwards; }
+@keyframes mwFade { 0%, 82% { opacity: 1; } 100% { opacity: 0; } }
