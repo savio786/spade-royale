@@ -417,7 +417,8 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
             <div className="st-acc-text">
               <h3>LOGIN</h3>
               <p>Sign in or register and <b>save your progress!</b> Playing as <b>{p.name}</b>.</p>
-              <button className="st-guestout" onClick={logOut}>{confirmOut ? `Tap again — you'll stay saved as ${p.name}` : 'Sign out'}</button>
+              <button className="st-exit" onClick={() => { sfx.click(); profile.reset(); onClose(); }}>EXIT</button>
+              <small className="st-exit-note">Back to the sign-in screen. {p.name} stays saved on this device.</small>
             </div>
             <div className="st-social">
               <button className="social fb" onClick={fb} disabled={busy}><span className="social-ico">f</span><span>Sign in with Facebook</span></button>

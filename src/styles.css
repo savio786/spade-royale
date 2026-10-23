@@ -1289,6 +1289,10 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .st-acc-text p b { font-weight: 400; color: #fff; }
 .st-logout { flex: none; min-width: 230px; height: 78px; padding: 0 26px; border-radius: 999px; font: 400 40px var(--display); letter-spacing: 1px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35);
   background: linear-gradient(180deg, #ff6b7a, #d81b34 48%, #8a0618); border: 3px solid rgba(255,255,255,.85); box-shadow: 0 0 0 4px rgba(0,0,0,.55), inset 0 4px 0 rgba(255,255,255,.35), 0 8px 16px rgba(0,0,0,.45); }
+.st-exit { display: block; margin-top: 12px; min-width: 190px; height: 58px; padding: 0 28px; border-radius: 999px; font: 400 32px var(--display); letter-spacing: 1px; color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.35); cursor: pointer;
+  background: linear-gradient(180deg, #ff6b7a, #d81b34 48%, #8a0618); border: 3px solid rgba(255,255,255,.85); box-shadow: 0 0 0 3px rgba(0,0,0,.55), inset 0 3px 0 rgba(255,255,255,.35), 0 6px 12px rgba(0,0,0,.45); }
+.st-exit:active { transform: translateY(2px); }
+.st-exit-note { display: block; margin-top: 8px; font: 400 14px/1.2 var(--display); letter-spacing: .4px; color: #9fb4ff; }
 .st-guestout { margin-top: 10px; background: none; border: none; padding: 0; color: #c9b8ff; text-decoration: underline; font-size: 14px; cursor: pointer; }
 .st-social { display: flex; flex-direction: column; gap: 10px; flex: none; }
 .st-social .social { height: 58px; min-width: 330px; font-size: 22px; }
