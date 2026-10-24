@@ -1792,3 +1792,14 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .su-avatar[open] > summary span::after { content: '  ▴'; }
 /* the add-to-home banner never sits over a dialog (sign-up, settings…) */
 .stage:has(.modal-backdrop) .a2h { display: none; }
+
+/* chat lines shown big on the table (same lines as the chat box) */
+.tbl-chat { position: absolute; left: 50%; top: 142px; translate: -50% 0; width: min(760px, 62%); display: flex; flex-direction: column; gap: 8px; align-items: flex-start; pointer-events: none; z-index: 25; }
+.tc-line { display: flex; align-items: center; gap: 12px; max-width: 100%; padding: 6px 22px 6px 8px; border-radius: 40px; background: rgba(12, 8, 52, .86); border: 2px solid rgba(120, 140, 255, .55); box-shadow: 0 6px 18px rgba(0,0,0,.55); font: 400 36px/1.05 var(--display); letter-spacing: .5px; text-transform: uppercase; color: #fff; animation: tcIn .3s cubic-bezier(.2,1.3,.4,1); transition: opacity .9s; }
+.tc-line > .avatar, .tc-line > span.avatar { flex: none; }
+.tc-line .tc-name { color: #7b86ff; flex: none; }
+.tc-line .tc-text { overflow-wrap: anywhere; min-width: 0; }
+.tc-line.mine { background: rgba(32, 56, 170, .92); align-self: flex-end; }
+.tc-line.mine .tc-name { color: #cfd8ff; }
+.tc-line.out { opacity: 0; }
+@keyframes tcIn { from { opacity: 0; transform: translateY(-14px) scale(.92); } }

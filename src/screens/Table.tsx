@@ -219,10 +219,24 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
 
         {[0, 1, 2, 3].map((seat) => (
           <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} total={view.snap!.turnTotal} now={now}
-            bubble={(() => { const b = lastBySeat.get(seat); return b && now - b.ts < 4500 ? b.text : null; })()}
+            bubble={null}
             gifts={view.snap!.gifts?.[seat] ?? []}
             onGift={() => setGiftFor(seat)} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
         ))}
+        {!chatOpen && (() => {
+          // chat shown big on the table too (the same lines as the chat box), for 9 seconds each
+          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && now - m.ts < 9000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
+          return live.length > 0 && (
+            <div className="tbl-chat" aria-live="polite">
+              {live.map((m) => (
+                <div key={m.id} className={`tc-line ${m.seat === me ? 'mine' : ''} ${now - m.ts > 7800 ? 'out' : ''}`}>
+                  <Avatar k={st.seats[m.seat]?.avatar ?? 'a1'} size={56} />
+                  <span className="tc-name">{m.name}:</span> <span className="tc-text">{m.text}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         {flying.map((f) => <span key={f.id} className={`flying to-${f.to}`} aria-hidden="true">{f.e}</span>)}
       </div>
 
