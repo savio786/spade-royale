@@ -12,10 +12,9 @@ import { sfx } from './sound';
 const apiBase = serverOrigin;
 
 // ---------- chat pass ----------
-// The Chat Pass is off the shelf for now: set this to true (and canChat back to the pass check) when payments are ready.
-export const CHAT_PASS_FOR_SALE = false;
-// Chat is free for everybody now (typing your own messages included); the Chat Pass is no longer needed.
-export const canChat = (_p: Profile) => true;
+// The Chat Pass is on sale again: quick phrases and emoji are free, typing your own message needs a pass (or VIP).
+export const CHAT_PASS_FOR_SALE = true;
+export const canChat = (p: Profile) => p.vip || p.chatUntil === -1 || p.chatUntil > Date.now();
 export function chatPassLabel(p: Profile) {
   if (p.chatUntil === -1) return 'Lifetime Chat Pass';
   if (p.chatUntil > Date.now()) return `Chat Pass until ${new Date(p.chatUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
