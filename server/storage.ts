@@ -7,8 +7,11 @@ import { join } from 'path';
 
 // tolerate values pasted with quotes, spaces or a "Bearer " prefix
 const clean = (v: string | undefined) => (v || '').trim().replace(/^["']|["']$/g, '').replace(/^Bearer\s+/i, '').trim();
-const UP_URL = clean(process.env.UPSTASH_REDIS_REST_URL).replace(/\/$/, '');
-const UP_TOKEN = clean(process.env.UPSTASH_REDIS_REST_TOKEN);
+// also tolerate "UPSTASH_REDIS_REST_URL=https://…" pasted whole, quotes inside, and an address without https://
+const stripName = (v: string) => clean(v.replace(/^\s*(export\s+)?UPSTASH_REDIS_REST_(URL|TOKEN)\s*[=:]\s*/i, ''));
+const fixUrl = (v: string) => { const u = stripName(v).replace(/\s+/g, '').replace(/\/+$/, ''); return !u ? '' : /^https?:\/\//i.test(u) ? u : `https://${u}`; };
+const UP_URL = fixUrl(process.env.UPSTASH_REDIS_REST_URL || '');
+const UP_TOKEN = stripName(process.env.UPSTASH_REDIS_REST_TOKEN || '').replace(/\s+/g, '');
 const DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
 export const storageKind = UP_URL && UP_TOKEN ? 'upstash' : 'files';
 if (storageKind === 'upstash') {
