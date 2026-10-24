@@ -9,7 +9,7 @@ import { grantChatDays } from './payments';
 
 export const INVITER_COINS = 15_000;   // for the player who shared the link
 export const FRIEND_COINS = 10_000;    // for the friend who joined
-export const INVITER_CHAT_DAYS = 30;   // free Chat Pass days for the inviter, for each friend who joins
+export const INVITER_CHAT_DAYS = 7;    // free Chat Pass days for the inviter, for each friend who joins
 export const MAX_INVITES = 20;         // rewarded invites per player
 const IP_PER_DAY = 5;
 const NEW_PLAYER_MS = 7 * 24 * 3600e3;

@@ -336,7 +336,7 @@ export function InviteModal({ onClose }: { onClose: () => void }) {
     <Modal title="INVITE FRIENDS" onClose={onClose} className="inv-modal">
       <p className="inv-lead">Share your link. When a friend joins and plays their first game, <b>you both get coins</b>, and you get free chat too.</p>
       <div className="inv-rewards">
-        <div><Coin size={34} /><b>{fmt(r?.inviterCoins ?? 15000)}</b><small>for you, plus <em>{r?.inviterChatDays ?? 30} days of free chat</em></small></div>
+        <div><Coin size={34} /><b>{fmt(r?.inviterCoins ?? 15000)}</b><small>for you, plus <em>{r?.inviterChatDays ?? 7} days of free chat</em></small></div>
         <div><Coin size={34} /><b>{fmt(r?.friendCoins ?? 10000)}</b><small>for your friend</small></div>
       </div>
       <div className="inv-link"><input readOnly value={link} aria-label="Your invite link" onFocus={(e) => e.currentTarget.select()} /><Pill color="green" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</Pill></div>
