@@ -1,3 +1,4 @@
+import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
@@ -115,6 +116,21 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (chatOpen) setUnread(0); }, [chatOpen]);
+  // "SPADES BROKEN!" splash: once per round, the moment the first spade is played on another suit (not when joining a round that's already broken)
+  const [brokenSplash, setBrokenSplash] = useState(0);
+  const brokenSeen = useRef(!!st?.spadesBroken);
+  useEffect(() => {
+    const now = !!st?.spadesBroken;
+    const was = brokenSeen.current;
+    brokenSeen.current = now;
+    if (!now || was || st?.phase === 'gameOver') return;
+    setBrokenSplash((n) => n + 1);
+    sfx.broken();
+    vibrate(40);
+    const t = setTimeout(() => setBrokenSplash(0), 2900);
+    return () => clearTimeout(t);
+  }, [st?.spadesBroken]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // "Time ran out…" notice: shown once each time a turn is missed, then it goes away on its own (not for the rest of the game)
   const missedNow = view?.snap?.missed?.[me] ?? 0;
   const [missedBanner, setMissedBanner] = useState(false);
@@ -238,6 +254,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       })()}
 
       {myTurn && secsLeft !== null && st.phase === 'playing' && <div className={`turn-clock ${secsLeft <= 4 ? 'hurry' : ''}`} role="timer">Your turn · {secsLeft}s</div>}
+      {brokenSplash > 0 && <SpadesBroken key={brokenSplash} />}
       {missedBanner && missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
         <div className="missed-warning" role="alert"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg> Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
       )}

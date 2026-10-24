@@ -1759,3 +1759,27 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .inst-others span{display:block;margin:6px 0 4px;opacity:.85}
 .inst-others ul{margin:6px 0 0;padding-left:18px}
 .inst-others li{margin:3px 0}
+
+/* ---- "SPADES BROKEN!" splash ---- */
+.sbk{position:absolute;left:50%;top:40%;width:0;height:0;z-index:60;pointer-events:none}
+.sbk-glow{position:absolute;left:-260px;top:-190px;width:520px;height:380px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,210,63,.55),rgba(179,136,255,.28) 55%,transparent 75%);opacity:0;animation:sbkGlow 2.9s ease-out forwards}
+.sbk-spade{position:absolute;left:-70px;top:-80px;width:140px;height:140px;overflow:visible;filter:drop-shadow(0 0 14px rgba(255,210,63,.85));animation:sbkPop 2.9s ease-out forwards}
+.sbk-half{transform-box:fill-box}
+.sbk-half.l{animation:sbkL 2.9s ease-in-out forwards;transform-origin:100% 100%}
+.sbk-half.r{animation:sbkR 2.9s ease-in-out forwards;transform-origin:0 100%}
+.sbk-crack{fill:none;stroke:#fff;stroke-width:3;stroke-linejoin:miter;filter:drop-shadow(0 0 4px #ffd23f);stroke-dasharray:140;stroke-dashoffset:140;animation:sbkCrack .45s .12s ease-out forwards}
+.sbk-bit{position:absolute;left:0;top:-10px;opacity:0;border-radius:2px;animation:sbkBit 2.4s cubic-bezier(.12,.7,.3,1) forwards}
+.sbk-bit.t1{border-radius:50%}
+.sbk-bit.t2{clip-path:polygon(50% 0,100% 100%,0 100%)}
+.sbk-words{position:absolute;left:-240px;width:480px;top:62px;text-align:center;font-family:'Lilita One','Fredoka One',Impact,system-ui,sans-serif;line-height:.92;text-transform:uppercase;transform:rotate(-4deg)}
+.sbk-words span{display:block;font-size:64px;letter-spacing:2px;-webkit-text-stroke:7px #2a0f5e;paint-order:stroke fill;color:#ffd23f;text-shadow:0 5px 0 #2a0f5e,0 0 22px rgba(255,210,63,.85);opacity:0}
+.sbk-words .w1{animation:sbkWord 2.9s .25s cubic-bezier(.2,1.6,.4,1) forwards}
+.sbk-words .w2{font-size:78px;color:#ff5d8f;text-shadow:0 5px 0 #2a0f5e,0 0 22px rgba(255,93,143,.9);animation:sbkWord 2.9s .42s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes sbkGlow{0%{opacity:0;transform:scale(.4)}15%{opacity:1;transform:scale(1)}75%{opacity:.8}100%{opacity:0;transform:scale(1.15)}}
+@keyframes sbkPop{0%{transform:scale(.3) rotate(-12deg);opacity:0}12%{transform:scale(1.25);opacity:1}22%{transform:scale(1)}80%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
+@keyframes sbkL{0%,16%{transform:none}34%{transform:translate(-26px,6px) rotate(-14deg)}78%{transform:translate(-34px,14px) rotate(-18deg);opacity:1}100%{transform:translate(-44px,70px) rotate(-30deg);opacity:0}}
+@keyframes sbkR{0%,16%{transform:none}34%{transform:translate(26px,6px) rotate(14deg)}78%{transform:translate(34px,14px) rotate(18deg);opacity:1}100%{transform:translate(44px,70px) rotate(30deg);opacity:0}}
+@keyframes sbkCrack{to{stroke-dashoffset:0}}
+@keyframes sbkBit{0%{opacity:1;transform:rotate(var(--a)) translateX(0) rotate(0)}100%{opacity:0;transform:rotate(var(--a)) translateX(var(--d)) rotate(540deg) translateY(50px)}}
+@keyframes sbkWord{0%{opacity:0;transform:scale(.2) translateY(20px)}14%{opacity:1;transform:scale(1.18)}24%{transform:scale(1)}82%{opacity:1}100%{opacity:0;transform:translateY(-14px) scale(1.04)}}
+@media (prefers-reduced-motion:reduce){.sbk-half,.sbk-bit,.sbk-glow,.sbk-spade{animation-duration:.01s}.sbk-words span{animation-duration:2.9s}}

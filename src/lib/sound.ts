@@ -54,6 +54,7 @@ export const sfx = {
   lose: () => { if (on()) [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'sine', 0.07, i * 0.16)); },
   chat: () => on() && tone(1200, 0.07, 'sine', 0.04),
   tick: () => on() && (tone(2200, 0.025, 'square', 0.018), noise(0.02, 0.05)),
+  broken: () => { if (on()) { noise(0.18, 0.2); [196, 147, 98].forEach((f, i) => tone(f, 0.22, 'sawtooth', 0.06, i * 0.07)); [784, 1047, 1568].forEach((f, i) => tone(f, 0.3, 'triangle', 0.06, 0.25 + i * 0.08)); } },
   jackpot: () => { if (on()) [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => tone(f, 0.32, 'triangle', 0.07, i * 0.09)); },
 };
 
