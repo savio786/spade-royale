@@ -5,11 +5,11 @@ import { Icon, Logo } from '../components/ui';
 export const INSTALL_URL = () => `${window.location.origin}/install`;
 
 const ua = () => navigator.userAgent;
-const isIOS = () => /iPhone|iPad|iPod/.test(ua()) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isAndroid = () => /Android/i.test(ua());
+export const isIOS = () => /iPhone|iPad|iPod/.test(ua()) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export const isAndroid = () => /Android/i.test(ua());
 /** Facebook / Messenger / Instagram… open links in their own mini browser, which cannot install apps. */
-const inAppBrowser = () => /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|Snapchat|TikTok|MicroMessenger|Twitter/i.test(ua());
-const alreadyInstalled = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+export const inAppBrowser = () => /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|Snapchat|TikTok|MicroMessenger|Twitter/i.test(ua());
+export const alreadyInstalled = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return <li className="inst-step"><span className="inst-n">{n}</span><span>{children}</span></li>;
