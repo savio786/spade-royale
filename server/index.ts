@@ -13,7 +13,7 @@ import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
-import { AuthError, authConfig, changePassword, facebookSignIn, googleSignIn, signIn, signUp } from './auth';
+import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -391,7 +391,7 @@ async function authApi(req: import('http').IncomingMessage, res: import('http').
     authTries.set(ip, t && now - t.t < 10 * 60_000 ? { n: t.n + 1, t: t.t } : { n: 1, t: now });
     const b = JSON.parse((await readBody(req, 8000)) || '{}');
     const routes: Record<string, (b: Record<string, unknown>) => Promise<unknown>> = {
-      '/api/auth/signup': signUp, '/api/auth/login': signIn, '/api/auth/password': changePassword,
+      '/api/auth/signup': signUp, '/api/auth/login': signIn, '/api/auth/password': changePassword, '/api/auth/forgot': forgotPassword, '/api/auth/reset': resetPassword,
       '/api/auth/google': googleSignIn, '/api/auth/facebook': facebookSignIn,
     };
     const fn = routes[url.pathname];

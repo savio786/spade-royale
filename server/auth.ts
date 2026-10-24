@@ -5,13 +5,14 @@ import { promisify } from 'util';
 import { getRecord, putRecord } from './storage';
 import { Account, acctKey, codeKey, pub, rand } from './accounts';
 import { availability, cleanName, takeName, uniqueName } from './names';
+import { mailConfigured, sendMail } from './mail';
 
 const scrypt = promisify(_scrypt) as (pw: string, salt: string, len: number) => Promise<Buffer>;
 const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const FACEBOOK_APP_ID = (process.env.FACEBOOK_APP_ID || '').trim();
 const FACEBOOK_APP_SECRET = (process.env.FACEBOOK_APP_SECRET || '').trim();
 
-export const authConfig = () => ({ google: GOOGLE_CLIENT_ID || null, facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? FACEBOOK_APP_ID : null });
+export const authConfig = () => ({ google: GOOGLE_CLIENT_ID || null, facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? FACEBOOK_APP_ID : null, resetMail: mailConfigured() });
 
 export class AuthError extends Error { constructor(msg: string, public status = 400) { super(msg); } }
 
@@ -80,6 +81,46 @@ export async function changePassword(b: Record<string, unknown>) {
   if (String(b.password ?? '').length < 6) throw new AuthError('Use a password of at least 6 characters.');
   a.pass = await hash(String(b.password)); await putRecord(acctKey(a.id), a);
   return { ok: true };
+}
+
+// ---- forgot password: an emailed link that works once, for 30 minutes ----
+const SITE = () => (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://spade-haven.onrender.com').replace(/\/+$/, '');
+const resetKey = (token: string) => `reset-${createHash('sha256').update(token).digest('hex').slice(0, 40)}`;
+const lastAsk = new Map<string, number>();
+
+export async function forgotPassword(b: Record<string, unknown>) {
+  if (!mailConfigured()) throw new AuthError('Password reset by email isn’t set up yet. Please contact support.', 503);
+  const email = normEmail(b.email);
+  if (!emailOk(email)) throw new AuthError('Enter the email address you signed up with.');
+  const now = Date.now();
+  if (now - (lastAsk.get(email) ?? 0) < 60_000) return { ok: true };   // one email a minute per address
+  lastAsk.set(email, now); if (lastAsk.size > 5000) lastAsk.clear();
+  // always the same answer, so nobody can use this form to find out who has an account
+  const ref = await getRecord<{ id: string }>(emailRef(email));
+  const a = ref ? await getRecord<Account>(acctKey(ref.id)) : null;
+  if (a?.pass) {
+    const token = randomBytes(24).toString('base64url');
+    await putRecord(resetKey(token), { id: a.id, exp: now + 30 * 60_000 });
+    const link = `${SITE()}/#/play/reset/${token}`;
+    const text = `Hi ${a.name},\n\nSomeone asked to reset the password for your Spade Haven account. To choose a new password, open this link within 30 minutes:\n\n${link}\n\nIf this wasn’t you, ignore this email. Your password stays the same.\n\n♠ Spade Haven`;
+    const html = `<p>Hi ${a.name.replace(/[<>&]/g, '')},</p><p>Someone asked to reset the password for your Spade Haven account. To choose a new password, use the button below within 30 minutes.</p><p><a href="${link}" style="display:inline-block;padding:12px 22px;background:#1a9d4a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Choose a new password</a></p><p style="color:#666;font-size:13px">If the button doesn’t work, copy this link: ${link}<br>If this wasn’t you, ignore this email. Your password stays the same.</p><p>♠ Spade Haven</p>`;
+    const sent = await sendMail(email, 'Reset your Spade Haven password', text, html);
+    if (!sent) console.error('forgot-password: the email could not be sent');
+  }
+  return { ok: true };
+}
+
+export async function resetPassword(b: Record<string, unknown>) {
+  const token = String(b.token ?? '');
+  if (!/^[\w-]{20,60}$/.test(token)) throw new AuthError('This reset link isn’t valid. Ask for a new one.', 400);
+  if (String(b.password ?? '').length < 6) throw new AuthError('Use a password of at least 6 characters.');
+  const rec = await getRecord<{ id: string; exp: number }>(resetKey(token));
+  if (!rec?.id || rec.exp < Date.now()) throw new AuthError('This reset link has expired or was already used. Ask for a new one.', 400);
+  const a = await getRecord<Account>(acctKey(rec.id));
+  if (!a) throw new AuthError('This reset link isn’t valid. Ask for a new one.', 400);
+  a.pass = await hash(String(b.password)); await putRecord(acctKey(a.id), a);
+  await putRecord(resetKey(token), { id: '', exp: 0 });   // the link works once
+  return pub(a);
 }
 
 async function socialAccount(kind: 'google' | 'facebook', subject: string, display: string, email: string | null, adopt: unknown) {

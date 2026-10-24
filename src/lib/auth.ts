@@ -3,7 +3,7 @@ import { serverOrigin } from './config';
 import { profile } from './profile';
 import { applyAccount, type Account } from './guest';
 
-export interface AuthConfig { google: string | null; facebook: string | null }
+export interface AuthConfig { google: string | null; facebook: string | null; resetMail?: boolean }
 
 async function post(path: string, body: unknown): Promise<Account> {
   const base = serverOrigin();
@@ -35,6 +35,10 @@ export async function emailSignUp(email: string, password: string, name: string,
   if (adopt) applyAccount(a); else enter(a, avatar);
 }
 export async function emailSignIn(email: string, password: string) { enter(await post('/api/auth/login', { email, password })); }
+/** "Forgot password?": asks the server to email a reset link. */
+export async function forgotPassword(email: string) { await post('/api/auth/forgot', { email }); }
+/** The page the emailed link opens: sets the new password and signs the player in. */
+export async function resetPassword(token: string, password: string) { enter(await post('/api/auth/reset', { token, password })); }
 export async function changePassword(current: string, password: string) {
   const p = profile.get();
   await post('/api/auth/password', { id: p.id, key: p.guestKey, current, password });

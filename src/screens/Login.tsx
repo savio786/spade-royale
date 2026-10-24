@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { emailSignIn, emailSignUp, facebookSignIn, loadAuthConfig, mountGoogleButton, type AuthConfig } from '../lib/auth';
+import { emailSignIn, emailSignUp, facebookSignIn, forgotPassword, loadAuthConfig, mountGoogleButton, resetPassword, type AuthConfig } from '../lib/auth';
 import { AVATAR_KEYS, AvatarPicker, Icon, Logo, Modal, Pill } from '../components/ui';
 import { profile } from '../lib/profile';
 import { sfx } from '../lib/sound';
@@ -7,7 +7,7 @@ import { continueAsGuest, deviceGuestName, finishNewGuest, notifyReturning, rest
 
 type Step = null | 'email' | 'guest-new' | 'restore';
 
-export function Login() {
+export function Login({ resetToken }: { resetToken?: string }) {
   const [step, setStep] = useState<Step>(null);
   const [name, setName] = useState('');
   const [guestName, setGuestName] = useState('');
@@ -101,13 +101,15 @@ export function Login() {
         </Modal>
       )}
 
+      {resetToken && <ResetModal token={resetToken} />}
       {step === 'email' && <EmailModal onClose={() => setStep(null)} startMode={emailMode} />}
     </div>
   );
 }
 
 export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void; startMode?: 'in' | 'up' }) {
-  const [mode, setMode] = useState<'in' | 'up'>(startMode);
+  const [mode, setMode] = useState<'in' | 'up' | 'forgot'>(startMode);
+  const [sent, setSent] = useState(false);
   const guest = profile.get().provider === 'guest';
   const [avatar, setAvatar] = useState(profile.get().provider ? profile.get().avatar : AVATAR_KEYS[Math.floor(Math.random() * AVATAR_KEYS.length)]);
   const [email, setEmail] = useState('');
@@ -118,14 +120,15 @@ export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void;
   const submit = async () => {
     setBusy(true); setErr(null);
     try {
+      if (mode === 'forgot') { await forgotPassword(email); setSent(true); setBusy(false); return; }
       if (mode === 'in') await emailSignIn(email, pw); else await emailSignUp(email, pw, name, avatar);
       sfx.coins(); notifyReturning(profile.get().name); onClose();
     } catch (e) { setErr((e as Error).message); setBusy(false); }
   };
   return (
-    <Modal title={mode === 'in' ? 'Sign in' : 'Create your account'} onClose={onClose}>
+    <Modal title={mode === 'in' ? 'Sign in' : mode === 'forgot' ? 'Forgot password' : 'Create your account'} onClose={onClose}>
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={mode === 'in'} className={`tab ${mode === 'in' ? 'on' : ''}`} onClick={() => { setMode('in'); setErr(null); }}>Sign in</button>
+        <button role="tab" aria-selected={mode === 'in'} className={`tab ${mode === 'in' || mode === 'forgot' ? 'on' : ''}`} onClick={() => { setMode('in'); setErr(null); }}>Sign in</button>
         <button role="tab" aria-selected={mode === 'up'} className={`tab ${mode === 'up' ? 'on' : ''}`} onClick={() => { setMode('up'); setErr(null); }}>Create account</button>
       </div>
       <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
@@ -135,15 +138,42 @@ export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void;
         )}
         <label className="field"><span>Email</span>
           <input type="email" name="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete={mode === 'up' ? 'email' : 'username'} autoCapitalize="none" autoCorrect="off" spellCheck={false} required autoFocus={!("ontouchstart" in window)} /></label>
-        <label className="field"><span>Password</span>
-          <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>
+        {mode !== 'forgot' && <label className="field"><span>Password</span>
+          <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>}
+        {mode === 'in' && <button type="button" className="linkish" onClick={() => { setMode('forgot'); setErr(null); setSent(false); }}>Forgot password?</button>}
+        {mode === 'forgot' && !sent && <p className="muted small center">Enter the email you signed up with and we’ll send you a link to choose a new password.</p>}
+        {mode === 'forgot' && sent && <p className="center" role="status">✓ If that email has an account, a reset link is on its way. It works for 30 minutes. Check your spam folder too.</p>}
         {mode === 'up' && !guest && (
           <details className="field su-avatar"><summary><span>Choose your avatar (optional)</span></summary><AvatarPicker value={avatar} onChange={setAvatar} /></details>
         )}
         {mode === 'up' && guest && <p className="muted small center">Your guest progress — coins, level and stats — moves into your new account.</p>}
         {err && <p className="form-error" role="alert">{err}</p>}
-        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'in' ? 'Sign in' : guest ? 'Create account & keep my progress' : 'Create account — 50,000 free coins'}</Pill>
-        <p className="muted small center">{mode === 'in' ? <>New here? <button type="button" className="linkish" onClick={() => setMode('up')}>Create an account</button></> : 'Your coins, level and stats are saved to your account, so you can sign in on any phone or computer.'}</p>
+        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'forgot' ? (sent ? 'Send again' : 'Send reset link') : mode === 'in' ? 'Sign in' : guest ? 'Create account & keep my progress' : 'Create account — 50,000 free coins'}</Pill>
+        <p className="muted small center">{mode === 'forgot' ? <button type="button" className="linkish" onClick={() => { setMode('in'); setErr(null); }}>Back to sign in</button> : mode === 'in' ? <>New here? <button type="button" className="linkish" onClick={() => setMode('up')}>Create an account</button></> : 'Your coins, level and stats are saved to your account, so you can sign in on any phone or computer.'}</p>
+      </form>
+    </Modal>
+  );
+}
+
+
+/** The page the emailed link opens: choose a new password. */
+function ResetModal({ token }: { token: string }) {
+  const [pw, setPw] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const done = () => { window.location.hash = '#/play'; };
+  const submit = async () => {
+    setBusy(true); setErr(null);
+    try { await resetPassword(token, pw); sfx.coins(); notifyReturning(profile.get().name); done(); }
+    catch (e) { setErr((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal title="Choose a new password" onClose={done}>
+      <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <label className="field"><span>New password</span>
+          <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" required minLength={6} /></label>
+        {err && <p className="form-error" role="alert">{err}</p>}
+        <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : 'Save new password & sign in'}</Pill>
       </form>
     </Modal>
   );

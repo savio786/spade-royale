@@ -40,6 +40,7 @@ function useHashRoute() {
 export default function App() {
   const p = useProfile();
   const hash = useHashRoute();
+  const resetToken = hash.match(/^#\/play\/reset\/([\w-]{20,60})$/)?.[1];
   const inApp = hash.startsWith('#/play') || hash === '#play' || isAppShell();
   const [screen, setScreen] = useState<Screen>('lobby');
   const [ctl, setCtl] = useState<TableController | null>(null);
@@ -91,6 +92,7 @@ export default function App() {
   if (legal) return <LegalPage page={legal} />;
   let body;
   if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
+  else if (resetToken) body = <Login resetToken={resetToken} />;
   else if (!p.provider) body = <Login />;
   else if (screen === 'table' && ctl) body = (
     <Table key={tableKey} ctl={ctl}

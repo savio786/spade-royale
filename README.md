@@ -220,3 +220,13 @@ These are wired up in the UI but use placeholders until you add your own account
 - Prize: Partners winners get 1.8× the bet each. The Solo winner gets 3.6× the bet. VIP adds 10%.
 
 Live site: https://spade-haven.onrender.com
+
+## Forgot password (email)
+
+The sign-in screen has a "Forgot password?" link. It emails the player a link (valid for 30 minutes, works once). To turn it on, set ONE email service in the server's environment:
+
+- **Resend** (resend.com): `RESEND_API_KEY`, or **Brevo** (brevo.com): `BREVO_API_KEY`
+- `MAIL_FROM`, for example `Spade Haven <noreply@yourdomain.com>`. The address or domain must be verified with that service.
+- Optional: `PUBLIC_URL` (the site address used in the link; defaults to Render's own address).
+
+Without these, the link says reset isn't set up yet. For testing on your own computer, `MAIL_DEBUG=1` prints the email in the server log.
