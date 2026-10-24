@@ -38,6 +38,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const charged = useRef(false);
   const settled = useRef(false);
   const lastChatId = useRef(0);
+  // when each chat line first reached THIS device (a phone's clock can be minutes off the server's, so the server's time stamp can't decide how long a line stays up)
+  const chatSeen = useRef<{ map: Map<number, number>; first: boolean }>({ map: new Map(), first: true });
   const lastTurn = useRef<string>('');
 
   useEffect(() => ctl.subscribe(setView), [ctl]);
@@ -223,13 +225,16 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
             gifts={view.snap!.gifts?.[seat] ?? []}
             onGift={() => setGiftFor(seat)} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
         ))}
-        {!chatOpen && (() => {
-          // chat shown big on the table too (the same lines as the chat box), for 9 seconds each
-          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && now - m.ts < 9000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
+        {(() => {
+          // chat shown on the table too (same lines as the chat box), each for 12 seconds, also while the chat box is open
+          const cs = chatSeen.current, t0 = Date.now();
+          for (const m of view.snap!.chat) if (!cs.map.has(m.id)) cs.map.set(m.id, cs.first ? 0 : t0);   // lines already there when the table opened are old news
+          cs.first = false;
+          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
           return live.length > 0 && (
             <div className="tbl-chat" aria-live="polite">
               {live.map((m) => (
-                <div key={m.id} className={`tc-line ${m.seat === me ? 'mine' : ''} ${now - m.ts > 7800 ? 'out' : ''}`}>
+                <div key={m.id} className={`tc-line ${m.seat === me ? 'mine' : ''} ${t0 - (cs.map.get(m.id) ?? 0) > 10800 ? 'out' : ''}`}>
                   <Avatar k={st.seats[m.seat]?.avatar ?? 'a1'} size={36} />
                   <span className="tc-name">{m.name}:</span> <span className="tc-text">{m.text}</span>
                 </div>
