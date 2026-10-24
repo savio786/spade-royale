@@ -188,26 +188,29 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
 export function VipModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
   const [busy, setBusy] = useState<string | null>(null);
+  const perks = ['Gold avatar frame at every table', '+10% on every prize you win', '+20% more coins on every store pack', 'Double daily-spin rewards', ...(CHAT_PASS_FOR_SALE ? ['Chat included: type your own messages'] : [])];
   return (
-    <Modal title={<span className="gold-text">VIP CLUB</span>} onClose={onClose}>
-      <ul className="perks">
-        <li><Icon name="crown" /> Gold avatar frame at every table</li>
-        <li><Icon name="star" /> +10% on every prize you win</li>
-        <li><Icon name="gift" /> +20% coins on every store pack</li>
-        <li><Icon name="bolt" /> Double daily-spin rewards</li>
-        {CHAT_PASS_FOR_SALE && <li><Icon name="chat" /> Chat Pass included: type your own messages</li>}
-      </ul>
-      {p.vip && <p className="center gold-text">You're a VIP member{p.vipUntil > 0 ? ` until ${new Date(p.vipUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}.{nativeStoreOff() ? '' : ' Buying more adds to it.'}</p>}
-      {nativeStoreOff()
-        ? (!p.vip && <Pill color="gold" className="wide-btn" disabled>VIP Club — coming soon to the app</Pill>)
-        : <div className="vip-buy">
-            {PRODUCTS.filter((x) => x.kind === 'vip').map((k) => (
-              <Pill key={k.id} color="gold" className="wide-btn" disabled={busy !== null}
-                onClick={async () => { setBusy(k.id); await buy(k.id); setBusy(null); }}>
-                {busy === k.id ? 'Opening…' : `${k.vipDays} days — ${priceLabel(k.priceCents)}`}
-              </Pill>))}
-          </div>}
-      {!nativeStoreOff() && !paymentsReady() && !isTestMode() && <p className="muted small center">VIP purchases are not available yet.</p>}
+    <Modal onClose={onClose} wide className="vip-modal">
+      <div className="vm">
+        <div className="vm-left">
+          <div className="vm-badge" aria-hidden="true"><span className="vm-stars">★</span><b className="gold-text">VIP</b><small>★ CLUB ★</small></div>
+          <h3 className="vm-h gold-text">BENEFITS</h3>
+          <ul className="vm-perks">{perks.map((t) => <li key={t}><span className="vm-tick" aria-hidden="true">✔</span>{t}</li>)}</ul>
+        </div>
+        <div className="vm-right">
+          {p.vip && <p className="vm-status gold-text">You're a VIP member{p.vipUntil > 0 ? ` until ${new Date(p.vipUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}.{nativeStoreOff() ? '' : ' Buying more adds to it.'}</p>}
+          {nativeStoreOff()
+            ? (!p.vip && <Pill color="gold" className="wide-btn" disabled>VIP Club — coming soon to the app</Pill>)
+            : PRODUCTS.filter((x) => x.kind === 'vip').map((k) => (
+              <button key={k.id} className="vm-tier" disabled={busy !== null} aria-label={`VIP Club for ${k.vipDays} days, ${priceLabel(k.priceCents)}`}
+                onClick={async () => { sfx.click(); setBusy(k.id); await buy(k.id); setBusy(null); }}>
+                <span className="vm-t">{busy === k.id ? 'OPENING…' : `VIP CLUB FOR ${k.vipDays} DAYS`}</span>
+                <span className="vm-p">{priceLabel(k.priceCents)}</span>
+                {k.tag && <i className="vm-tag">{k.tag.toUpperCase()}</i>}
+              </button>))}
+          {!nativeStoreOff() && !paymentsReady() && !isTestMode() && <p className="muted small center">VIP purchases are not available yet.</p>}
+        </div>
+      </div>
     </Modal>
   );
 }

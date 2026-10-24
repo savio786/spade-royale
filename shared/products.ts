@@ -21,8 +21,9 @@ export const PRODUCTS: Product[] = [
   { id: 'chat_1d', kind: 'chat', name: 'Chat Pass — 1 day', priceCents: 99, chatDays: 1 },
   { id: 'chat_30d', kind: 'chat', name: 'Chat Pass — 30 days', priceCents: 299, chatDays: 30, tag: 'Popular' },
   { id: 'chat_life', kind: 'chat', name: 'Chat Pass — lifetime', priceCents: 999, chatDays: 0, tag: 'Best value' },
-  { id: 'vip_7d', kind: 'vip', name: 'VIP Club — 7 days', priceCents: 499, vipDays: 7 },
-  { id: 'vip_30d', kind: 'vip', name: 'VIP Club — 30 days', priceCents: 1499, vipDays: 30, tag: 'Best value' },
+  { id: 'vip_30d', kind: 'vip', name: 'VIP Club — 30 days', priceCents: 199, vipDays: 30 },
+  { id: 'vip_90d', kind: 'vip', name: 'VIP Club — 90 days', priceCents: 399, vipDays: 90, tag: 'Popular' },
+  { id: 'vip_180d', kind: 'vip', name: 'VIP Club — 180 days', priceCents: 799, vipDays: 180 },
 ];
 
 export const productById = (id: string) => PRODUCTS.find((p) => p.id === id);
