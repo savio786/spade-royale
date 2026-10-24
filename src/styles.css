@@ -1857,3 +1857,16 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .promo-row .vip-chip .gold-text { font-size: 38px; } .promo-row .vip-chip small { font-size: 10px; letter-spacing: 1px; }
 .promo-row .inv-chip b { font-size: 19px; } .promo-row .inv-chip small { font-size: 9px; letter-spacing: .5px; }
 .promo-row .ad-tag { bottom: -8px; }
+
+/* chat box: the middle shows the table's messages in a box (picture, name, text), the typing bar sits under it */
+.chat-mid { position: absolute; left: 286px; right: 306px; top: 14px; bottom: 0; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.chat-mid .chat-custom { position: relative; left: auto; right: auto; bottom: auto; flex: none; }
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20,34,150,.88), rgba(8,14,90,.9)); border: 4px solid #c9d2ff; box-shadow: 0 0 0 3px #050a3a, 0 10px 30px rgba(0,0,0,.55);
+  scrollbar-width: thin; scrollbar-color: #6b7cff transparent; animation: fadeIn .2s; }
+.cl-line { display: flex; align-items: center; gap: 12px; flex: none; }
+.cl-body { font: 400 30px/1.05 var(--display); letter-spacing: 1px; text-transform: uppercase; color: #fff; overflow-wrap: anywhere; min-width: 0; }
+.cl-name { font-weight: 400; color: #9aa6ff; }
+.cl-line.mine .cl-name { color: #ffd75e; }
+.cl-empty { margin: auto; text-align: center; font: 400 26px/1.15 var(--display); letter-spacing: 1px; color: #b9c2ff; opacity: .8; }
+@media (max-height: 520px) { .cl-body { font-size: 22px; } .cl-line { gap: 8px; } .chat-log { padding: 8px 12px; gap: 8px; } }

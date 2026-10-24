@@ -709,8 +709,11 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   const pass = chatPassLabel(p);
   const chatOn = !p.settings.chatOff;
   const ownKeys = useOwnKeyboard();
-  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-4);
-  const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); onClose(); } };
+  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-40);
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs.length, ownKeys]);
+  // the box stays open after sending so the player sees their message and the replies; BACK closes it
+  const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); } };
   return (
     <div className={`chat-overlay ${ownKeys ? 'own-keys' : ''}`} role="dialog" aria-label="Table chat">
       <div className="chat-dim" onClick={onClose} />
@@ -720,11 +723,16 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
         </div>
         <button className="chat-back" onClick={() => { sfx.click(); onClose(); }}>BACK</button>
       </aside>
-      {msgs.length > 0 && (
-        <div className="chat-recent" aria-live="polite">
-          {msgs.map((m) => <div key={m.id} className={m.seat === me ? 'mine' : ''}><b>{m.name}:</b> {m.text}</div>)}
-        </div>
-      )}
+      <div className="chat-mid">
+      <div className="chat-log" ref={logRef} aria-live="polite" aria-label="Messages at this table">
+        {msgs.length === 0 && <p className="cl-empty">No messages yet. Tap a phrase or an emoji to say something.</p>}
+        {msgs.map((m) => (
+          <div key={m.id} className={`cl-line ${m.seat === me ? 'mine' : ''}`}>
+            <Avatar k={view.snap?.state.seats[m.seat]?.avatar ?? 'a1'} size={44} />
+            <span className="cl-body"><b className="cl-name">{m.name}:</b> <span className="cl-text">{m.text}</span></span>
+          </div>
+        ))}
+      </div>
       <div className="chat-custom">
         {unlocked && ownKeys ? (
           <div className="ck-wrap">
@@ -747,6 +755,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
             <button className="cc-buy" onClick={() => { sfx.click(); store.open({ tab: 'chat' }); }}>BUY NOW</button>
           </>
         )}
+      </div>
       </div>
       <aside className="chat-emoji">
         <div className="chat-scroll emoji-grid">
