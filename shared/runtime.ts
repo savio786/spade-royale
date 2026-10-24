@@ -30,6 +30,8 @@ export interface RuntimeOptions {
   /** called when a player is removed for inactivity, before their seat goes to a computer player */
   onInactive?: (seat: number, playerId: string) => void;
   botSpeed?: number; // 1 = normal
+  /** a player still on the face-down "See your cards?" prompt when their bidding time runs out gets their cards turned over and this long to bid before the computer does (default 5 s, 0 = off) */
+  bidGraceMs?: number;
   /** countdown before the first deal once all four seats are filled (default 10 s) */
   startDelayMs?: number;
   /** longest the round summary stays up if not everyone presses Continue (default 15 s) */
@@ -79,6 +81,8 @@ export class TableRuntime {
   private deadline: number | null = null;
   private missed = [0, 0, 0, 0];
   private autoActing = false;
+  private grace: number | null = null;     // length of the next human turn, when it is a short "bid now" extension
+  private turnMs: number | null = null;     // length of the turn that is running now
   private msgId = 0;
   private destroyed = false;
   onGameOver?: (g: GameState) => void;
@@ -178,7 +182,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.turnMs ?? this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));
@@ -254,6 +258,7 @@ export class TableRuntime {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.deadline = null;
+    this.turnMs = null;
     const g = this.g;
     const speed = this.opts.botSpeed ?? 1;
     const later = (ms: number, fn: () => void) => { this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) fn(); }, ms * speed); };
@@ -292,8 +297,10 @@ export class TableRuntime {
       const base = g.phase === 'bidding' ? 900 : 650;
       later(base + Math.random() * 600, auto);
     } else if (this.opts.turnTimeoutMs) {
-      this.deadline = Date.now() + this.opts.turnTimeoutMs;
-      this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) this.timedOut(seat, auto); }, this.opts.turnTimeoutMs);
+      const ms = this.grace ?? this.opts.turnTimeoutMs;
+      this.grace = null; this.turnMs = ms;
+      this.deadline = Date.now() + ms;
+      this.timer = setTimeout(() => { this.timer = null; if (!this.destroyed) this.timedOut(seat, auto); }, ms);
     }
   }
 
@@ -301,6 +308,14 @@ export class TableRuntime {
   private timedOut(seat: number, auto: () => void) {
     const s = this.g.seats[seat];
     if (!s || s.bot) return auto();
+    // Still on the face-down "See your cards?" prompt: turn the cards over and give a few more seconds to bid. This isn't a missed turn yet.
+    const grace = this.opts.bidGraceMs ?? 5000;
+    if (grace > 0 && this.g.phase === 'bidding' && this.g.turn === seat && this.g.revealed?.[seat] === false) {
+      this.grace = grace;
+      this.system(`${s.name} ran out of time, so their cards were turned over — ${Math.round(grace / 1000)} more seconds to bid`);
+      this.act(seat, { type: 'reveal', seat });
+      return;
+    }
     this.autoActing = true;
     try { auto(); } finally { this.autoActing = false; }
     const max = this.opts.maxMissedTurns ?? 3;
