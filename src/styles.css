@@ -1848,3 +1848,12 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .inv-stats b { color: var(--gold); }
 .inv-fine { margin: 0; text-align: center; font-size: 12px; opacity: .65; }
 .hero-invite { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: rgba(255,200,61,.16); border: 1px solid rgba(255,200,61,.5); color: #ffe9a8; font-weight: 600; }
+
+/* lobby chips: three round buttons, a little bigger (they were squeezed into ovals) */
+.lobby-left { width: 276px; }
+.promo-row { gap: 12px; }
+.promo-row > button { flex: none; box-sizing: border-box; width: 86px; height: 86px; padding: 0; }
+.promo-row .ad-chip b { font-size: 28px; } .promo-row .ad-chip small { font-size: 15px; }
+.promo-row .vip-chip .gold-text { font-size: 38px; } .promo-row .vip-chip small { font-size: 10px; letter-spacing: 1px; }
+.promo-row .inv-chip b { font-size: 19px; } .promo-row .inv-chip small { font-size: 9px; letter-spacing: .5px; }
+.promo-row .ad-tag { bottom: -8px; }
