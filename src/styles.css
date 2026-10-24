@@ -1803,15 +1803,3 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .tc-line.mine .tc-name { color: #cfd8ff; }
 .tc-line.out { opacity: 0; }
 @keyframes tcIn { from { opacity: 0; transform: translateY(-14px) scale(.92); } }
-
-/* lobby: the dealer portrait fills the card; the rotating promo (VIP / bonus / weekly) sits on a ribbon along the bottom */
-.promo { overflow: hidden; justify-content: flex-end; gap: 0; padding-bottom: 10px; }
-.promo-dealer { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
-.promo::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 46%; background: linear-gradient(180deg, transparent, rgba(14,4,40,.82) 55%, rgba(14,4,40,.95)); z-index: 1; pointer-events: none; }
-.promo > * { position: relative; z-index: 2; }
-.promo > .promo-dealer { position: absolute; z-index: 0; }
-.promo > .promo-sparkles { position: absolute; inset: 0; z-index: 2; }
-.promo .promo-crown { display: none; }
-.promo .promo-title { font-size: 54px; }
-.promo .promo-sub { font-size: 22px; padding: 0 12px; }
-.promo .dots { margin-top: 6px; }
