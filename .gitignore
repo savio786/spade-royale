@@ -7,3 +7,4 @@ android/.gradle
 ios/App/Pods
 dist-web
 data
+spade-haven-backup-*.json
