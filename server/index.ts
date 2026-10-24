@@ -27,7 +27,7 @@ interface Room { id: string; code: string | null; hostId: string; rt: TableRunti
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
-interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[] }
+interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
 
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
@@ -243,9 +243,13 @@ function handle(c: Client, m: ClientMsg) {
     case 'chat': {
       if (!c.room || !c.player) return;
       const isGift = String(m.text).startsWith('🎁:');
-      // quick phrases and emoji are free; typed messages need a paid Chat Pass or VIP, checked against the server's purchase records
-      const allowed = isGift || isFreeChat(String(m.text)) || hasChatPass(c.player.id) || (!paymentsEnabled() && process.env.ALLOW_TEST_PURCHASES === '1' && !!c.player.chat);
-      if (!allowed) return send(c, { t: 'error', message: 'Get a Chat Pass to type your own messages — quick phrases and emoji are free' });
+      // chat is open to everybody (typed messages too); a simple limit stops flooding the table
+      if (!isGift) {
+        const now = Date.now();
+        c.chats = c.chats.filter((t) => now - t < 10_000);
+        if (c.chats.length >= 6) return send(c, { t: 'error', message: 'Slow down a little — too many messages at once' });
+        c.chats.push(now);
+      }
     }
       return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
     case 'gift': {
@@ -491,7 +495,7 @@ const http = createServer((req, res) => {
 
 const wss = new WebSocketServer({ server: http, path: '/ws' });
 wss.on('connection', (ws) => {
-  const c: Client = { ws, player: null, room: null, unsub: null, verified: false, auth: null, fops: [], gifts: [] };
+  const c: Client = { ws, player: null, room: null, unsub: null, verified: false, auth: null, fops: [], gifts: [], chats: [] };
   clients.add(c);
   ws.on('message', (raw) => {
     try { handle(c, JSON.parse(String(raw))); } catch (e) { send(c, { t: 'error', message: 'Bad message' }); }

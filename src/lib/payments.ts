@@ -12,7 +12,8 @@ import { sfx } from './sound';
 const apiBase = serverOrigin;
 
 // ---------- chat pass ----------
-export const canChat = (p: Profile) => p.vip || p.chatUntil === -1 || p.chatUntil > Date.now();
+// Chat is free for everybody now (typing your own messages included); the Chat Pass is no longer needed.
+export const canChat = (_p: Profile) => true;
 export function chatPassLabel(p: Profile) {
   if (p.chatUntil === -1) return 'Lifetime Chat Pass';
   if (p.chatUntil > Date.now()) return `Chat Pass until ${new Date(p.chatUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`;
