@@ -234,6 +234,6 @@ Without these, the link says reset isn't set up yet. For testing on your own com
 
 ## Invite friends (referral rewards) and sharing
 - **INVITE** chip in the lobby opens the invite screen: the player's own link (`/?ref=CODE`), buttons for the phone's share sheet, WhatsApp, Facebook, text message and email, and a count of friends joined.
-- A friend who opens the link and plays their first game earns both players coins: 15,000 for the inviter, 10,000 for the friend (`INVITER_COINS` / `FRIEND_COINS` in `server/referrals.ts`).
+- A friend who opens the link and plays their first game earns both players coins: 15,000 for the inviter, 10,000 for the friend plus 30 free Chat Pass days for the inviter for each friend (`INVITER_COINS` / `FRIEND_COINS` / `INVITER_CHAT_DAYS` in `server/referrals.ts`).
 - Limits: one reward per new player, never your own code, 20 rewarded invites per player, 5 rewards per network per day, and the friend's account must be under a week old. Rewards are held on the server (`referrals` record) until each device collects them.
 - Link previews (Messenger, WhatsApp, Facebook, X) use the tags in `index.html` and `public/og-image.png`. Search tags: title, description, canonical link, structured data, `robots.txt` and `sitemap.xml`. When the game moves to its own domain, replace `spade-haven.onrender.com` in `index.html`, `public/robots.txt` and `public/sitemap.xml`.

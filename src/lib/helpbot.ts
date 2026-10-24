@@ -95,7 +95,7 @@ export const TOPICS: Topic[] = [
     answer: 'Quick phrases (Hello, Good luck, Nice try…) and emoji are free for everyone — tap the chat button at the table. Typing your own messages needs a Chat Pass: $0.99 for 1 day, $2.99 for 30 days, or $9.99 for life (VIP includes it). Use the CHAT switch to turn other players\' messages off.',
     actions: [{ label: 'Get Chat Pass', action: 'store-chat' }], related: ['gifts', 'vip'] },
   { id: 'invite', title: 'Invite friends', keys: ['invite', 'refer', 'referral', 'share', 'friends join', 'bring a friend', 'invite link', 'free coins from friends', 'invite code'],
-    answer: 'Tap INVITE in the lobby and share your link by WhatsApp, Facebook, text message or email. When a friend joins through it and plays their first game, you get 15,000 coins and they get 10,000. You can earn this for up to 20 friends.',
+    answer: 'Tap INVITE in the lobby and share your link by WhatsApp, Facebook, text message or email. When a friend joins through it and plays their first game, you get 15,000 coins plus 30 days of free chat, and they get 10,000 coins. You can earn this for up to 20 friends.',
     related: ['coins-free', 'private'] },
   { id: 'gifts', title: 'Table gifts', keys: ['gift', 'gifts', 'send gift', 'rose', 'drink', 'present', 'trophy gift', 'diamond'],
     answer: 'Tap the small gift icon on any player\'s avatar at the table to send them a gift (a rose, coffee, a trophy…). Gifts cost from 100 coins and are free to send without a Chat Pass.',

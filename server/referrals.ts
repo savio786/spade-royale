@@ -5,9 +5,11 @@
 import { randomBytes } from 'crypto';
 import { getRecord, loadJSON, saveJSON } from './storage';
 import { Account, acctKey } from './accounts';
+import { grantChatDays } from './payments';
 
 export const INVITER_COINS = 15_000;   // for the player who shared the link
 export const FRIEND_COINS = 10_000;    // for the friend who joined
+export const INVITER_CHAT_DAYS = 30;   // free Chat Pass days for the inviter, for each friend who joins
 export const MAX_INVITES = 20;         // rewarded invites per player
 const IP_PER_DAY = 5;
 const NEW_PLAYER_MS = 7 * 24 * 3600e3;
@@ -18,9 +20,10 @@ interface Store {
   redeemed: Record<string, string>;              // friend id -> inviter id (each friend counts once)
   stats: Record<string, { count: number; earned: number }>;
   pending: Record<string, number>;               // coins waiting to be collected
+  pendingChat: Record<string, number>;           // free chat days just earned (so the device can say so)
   ips: Record<string, { day: string; n: number }>;
 }
-let store: Store = { codes: {}, byPlayer: {}, redeemed: {}, stats: {}, pending: {}, ips: {} };
+let store: Store = { codes: {}, byPlayer: {}, redeemed: {}, stats: {}, pending: {}, pendingChat: {}, ips: {} };
 export async function initReferrals() { store = { ...store, ...(await loadJSON('referrals', store)) }; }
 const save = () => saveJSON('referrals', () => store);
 
@@ -45,7 +48,7 @@ export async function referralInfo(id: unknown, key: unknown) {
     store.codes[code] = a.id; store.byPlayer[a.id] = code; save();
   }
   const s = store.stats[a.id] ?? { count: 0, earned: 0 };
-  return { code, count: s.count, earned: s.earned, pending: store.pending[a.id] ?? 0, max: MAX_INVITES, inviterCoins: INVITER_COINS, friendCoins: FRIEND_COINS };
+  return { code, count: s.count, earned: s.earned, pending: store.pending[a.id] ?? 0, max: MAX_INVITES, inviterCoins: INVITER_COINS, friendCoins: FRIEND_COINS, inviterChatDays: INVITER_CHAT_DAYS };
 }
 
 export type RedeemResult =
@@ -78,6 +81,8 @@ export async function redeemInvite(id: unknown, key: unknown, code: unknown, ip:
   store.stats[inviterId] = { count: s.count + 1, earned: s.earned + INVITER_COINS };
   store.pending[inviterId] = (store.pending[inviterId] ?? 0) + INVITER_COINS;
   store.pending[a.id] = (store.pending[a.id] ?? 0) + FRIEND_COINS;
+  grantChatDays(inviterId, INVITER_CHAT_DAYS);   // the inviter's Chat Pass is extended right away
+  store.pendingChat[inviterId] = (store.pendingChat[inviterId] ?? 0) + INVITER_CHAT_DAYS;
   save();
   return { ok: true };
 }
@@ -86,7 +91,7 @@ export async function redeemInvite(id: unknown, key: unknown, code: unknown, ip:
 export async function collectReferralCoins(id: unknown, key: unknown) {
   const a = await authed(id, key);
   if (!a) return null;
-  const coins = store.pending[a.id] ?? 0;
-  if (coins > 0) { delete store.pending[a.id]; save(); }
-  return { coins };
+  const coins = store.pending[a.id] ?? 0, chatDays = store.pendingChat[a.id] ?? 0;
+  if (coins > 0 || chatDays > 0) { delete store.pending[a.id]; delete store.pendingChat[a.id]; save(); }
+  return { coins, chatDays };
 }

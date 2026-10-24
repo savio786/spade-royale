@@ -5,6 +5,8 @@ import { serverOrigin } from './config';
 import { fmt, profile } from './profile';
 import { toast } from './toast';
 import { sfx } from './sound';
+import { pullGuestProgress } from './guest';
+import { syncPurchases } from './payments';
 
 const REF_KEY = 'spade-haven-ref';
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -25,11 +27,14 @@ export function captureRef() {
 /** True when this device arrived through a friend's invite link that hasn't been rewarded yet. */
 export const hasInvite = () => !!read(REF_KEY);
 
-export interface RefInfo { code: string; count: number; earned: number; pending: number; max: number; inviterCoins: number; friendCoins: number }
+export interface RefInfo { code: string; count: number; earned: number; pending: number; max: number; inviterCoins: number; friendCoins: number; inviterChatDays: number }
 let info: RefInfo | null = null;
+let failed = false;
 const subs = new Set<() => void>();
-const setInfo = (i: RefInfo | null) => { info = i; subs.forEach((f) => f()); };
+const setInfo = (i: RefInfo | null, f = false) => { info = i; failed = f; subs.forEach((fn) => fn()); };
 export const useReferral = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => info);
+/** True when the invite link could not be loaded (the server is unreachable or asleep): the screen offers "Try again". */
+export const useReferralFailed = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => failed);
 
 async function call<T>(path: string, body: object): Promise<T | null> {
   const base = serverOrigin();
@@ -43,10 +48,15 @@ const me = () => { const p = profile.get(); return p.guestKey ? { id: p.id, key:
 
 /** Loads your invite code and how many friends have joined. */
 export async function loadReferral() {
-  const a = me();
-  if (!a) return;
-  const r = await call<RefInfo>('info', a);
-  if (r) setInfo(r);
+  if (failed) setInfo(info, false);
+  if (!me()) await pullGuestProgress();            // an older guest that was never registered with the server
+  for (let i = 0; i < 3; i++) {                    // the free server can take a few seconds to wake up
+    const a = me();
+    const r = a && (await call<RefInfo>('info', a));
+    if (r) { setInfo(r); return; }
+    if (i < 2) await new Promise((res) => setTimeout(res, 2500));
+  }
+  if (!info) setInfo(null, true);
 }
 
 let retries = 0;
@@ -60,10 +70,11 @@ export async function syncReferral() {
     if (r && (r.ok || !r.retry)) write(REF_KEY, null);
     else if (r?.retry && retries++ < 4) setTimeout(() => void syncReferral(), 20_000); // the game result is still being saved
   }
-  const got = await call<{ coins: number }>('collect', a);
-  if (got && got.coins > 0) {
-    profile.addCoins(got.coins);
-    toast(`+${fmt(got.coins)} coins — invite reward!`, 'coins');
+  const got = await call<{ coins: number; chatDays?: number }>('collect', a);
+  if (got && (got.coins > 0 || (got.chatDays ?? 0) > 0)) {
+    if (got.coins > 0) profile.addCoins(got.coins);
+    if (got.chatDays) void syncPurchases();       // the server already extended the Chat Pass; this brings it to the device
+    toast(`${got.coins > 0 ? `+${fmt(got.coins)} coins` : 'Invite reward'}${got.chatDays ? ` and ${got.chatDays} days of free chat` : ''} — invite reward!`, 'coins');
     sfx.coins();
     void loadReferral();
   }

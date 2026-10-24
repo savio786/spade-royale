@@ -34,6 +34,14 @@ export function hasChatPass(playerId: string) {
   return active(store.chatUntil[playerId]) || isVip(playerId);
 }
 
+/** Free Chat Pass days (invite rewards): adds to whatever the player already has. */
+export function grantChatDays(playerId: string, days: number) {
+  const cur = store.chatUntil[playerId] ?? 0;
+  if (cur === -1) return;
+  store.chatUntil[playerId] = Math.max(cur, Date.now()) + days * 864e5;
+  save();
+}
+
 const backTo = (returnUrl: string, status: string) => `${returnUrl}${returnUrl.includes('?') ? '&' : '?'}purchase=${status}`;
 
 export async function createCheckout(productId: string, playerId: string, returnUrl: string): Promise<string> {
