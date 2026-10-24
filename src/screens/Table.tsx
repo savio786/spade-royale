@@ -1,6 +1,7 @@
 import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
@@ -25,6 +26,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const p = useProfile();
   const [view, setView] = useState<CtlView | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const portrait = useRotatedStage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
@@ -230,7 +232,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
             <div className="tbl-chat" aria-live="polite">
               {live.map((m) => (
                 <div key={m.id} className={`tc-line ${m.seat === me ? 'mine' : ''} ${now - m.ts > 7800 ? 'out' : ''}`}>
-                  <Avatar k={st.seats[m.seat]?.avatar ?? 'a1'} size={56} />
+                  <Avatar k={st.seats[m.seat]?.avatar ?? 'a1'} size={36} />
                   <span className="tc-name">{m.name}:</span> <span className="tc-text">{m.text}</span>
                 </div>
               ))}
@@ -302,9 +304,9 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
       {st.phase === 'gameOver' && <GameOver st={st} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
-      {chatOpen && (
-        <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
-      )}
+      {chatOpen && (portrait
+        ? <PortraitChat view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
+        : <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />)}
       {menuOpen && (
         <TableMenu
           onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}
@@ -745,6 +747,67 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
         </label>
       </aside>
     </div>
+  );
+}
+
+/** True while the game is shown turned sideways on an upright phone (the Stage adds "rotated" to <body>). */
+function useRotatedStage() {
+  const [r, setR] = useState(() => document.body.classList.contains('rotated'));
+  useEffect(() => {
+    const check = () => setR(document.body.classList.contains('rotated'));
+    const mo = new MutationObserver(check); mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    check(); return () => mo.disconnect();
+  }, []);
+  return r;
+}
+/** The part of the screen not covered by the on-screen keyboard. */
+function useVisibleArea() {
+  const read = () => { const v = window.visualViewport; return { top: v?.offsetTop ?? 0, height: v?.height ?? window.innerHeight }; };
+  const [a, setA] = useState(read);
+  useEffect(() => {
+    const h = () => setA(read());
+    window.visualViewport?.addEventListener('resize', h); window.visualViewport?.addEventListener('scroll', h); window.addEventListener('resize', h);
+    return () => { window.visualViewport?.removeEventListener('resize', h); window.visualViewport?.removeEventListener('scroll', h); window.removeEventListener('resize', h); };
+  }, []);
+  return a;
+}
+
+/** Chat for a phone held upright: the game is turned sideways there, so the chat is drawn the right way up instead,
+ *  with the typing box at the bottom, right above the keyboard. */
+function PortraitChat({ view, me, onClose, onSend }: { view: CtlView; me: number; onClose: () => void; onSend: (t: string) => void }) {
+  const [text, setText] = useState('');
+  const p = useProfile();
+  const area = useVisibleArea();
+  const chatOn = !p.settings.chatOff;
+  const seats = view.snap?.state.seats ?? [];
+  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-6);
+  const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); onClose(); } };
+  return createPortal(
+    <div className="pchat" role="dialog" aria-label="Table chat" style={{ top: area.top, height: area.height }}>
+      <header className="pchat-top">
+        <b>TABLE CHAT</b>
+        <label className="chat-toggle"><span>CHAT</span>
+          <input type="checkbox" checked={chatOn} onChange={() => { sfx.click(); profile.set((x) => ({ settings: { ...x.settings, chatOff: chatOn } })); }} />
+          <span className="ct-switch" aria-hidden="true"><i>{chatOn ? 'ON' : 'OFF'}</i></span>
+        </label>
+        <button className="pchat-back" onClick={() => { sfx.click(); onClose(); }}>BACK</button>
+      </header>
+      <div className="pchat-body">
+        {msgs.length > 0 && (
+          <div className="pchat-msgs" aria-live="polite">
+            {msgs.map((m) => <div key={m.id} className={m.seat === me ? 'mine' : ''}><Avatar k={seats[m.seat]?.avatar ?? 'a1'} size={34} /><span><b>{m.name}:</b> {m.text}</span></div>)}
+          </div>
+        )}
+        <div className="pchat-phrases">{QUICK_PHRASES.map((q) => <button key={q} onClick={() => send(q)}>{q}</button>)}</div>
+        <div className="pchat-emoji">{FREE_EMOJI.map((e) => <button key={e} onClick={() => send(e)} aria-label={`Send ${e}`}>{e}</button>)}</div>
+      </div>
+      <form className="pchat-form" onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }}>
+        <label className="sr-only" htmlFor="pchat-in">Message</label>
+        <input id="pchat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type your own message…" autoComplete="off" enterKeyHint="send" />
+        <button type="submit" className="chat-send">SEND</button>
+      </form>
+    </div>,
+    document.body,
   );
 }
 
