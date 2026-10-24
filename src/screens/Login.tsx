@@ -134,9 +134,9 @@ export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void;
             <input value={name} maxLength={20} onChange={(e) => setName(e.target.value.replace(/[^\p{L}\p{N} _.-]/gu, ''))} placeholder="e.g. ApexSpadeOverlord" autoComplete="nickname" required /></label>
         )}
         <label className="field"><span>Email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>
+          <input type="email" name="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete={mode === 'up' ? 'email' : 'username'} autoCapitalize="none" autoCorrect="off" spellCheck={false} required autoFocus={!("ontouchstart" in window)} /></label>
         <label className="field"><span>Password</span>
-          <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>
+          <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>
         {mode === 'up' && !guest && (
           <details className="field su-avatar"><summary><span>Choose your avatar (optional)</span></summary><AvatarPicker value={avatar} onChange={setAvatar} /></details>
         )}

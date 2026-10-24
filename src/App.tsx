@@ -124,9 +124,16 @@ function Stage({ children }: { children: React.ReactNode }) {
   };
   const [d, setD] = useState(calc);
   useEffect(() => {
-    const h = () => setD(calc());
-    window.addEventListener('resize', h); window.addEventListener('orientationchange', h);
-    return () => { window.removeEventListener('resize', h); window.removeEventListener('orientationchange', h); };
+    // The on-screen keyboard shrinks the window while someone types. Re-fitting the game at that moment makes it jump
+    // (or even turn sideways) under their finger, the field loses focus, the keyboard closes… and the form seems frozen.
+    // So while a text field has focus the layout is left alone, and it is refitted once they are done.
+    const typing = () => { const a = document.activeElement; return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName); };
+    let late = 0, pending = false;
+    const h = () => { if (typing()) { pending = true; return; } pending = false; setD(calc()); };
+    const turned = () => { clearTimeout(late); late = window.setTimeout(() => { pending = false; setD(calc()); }, 350); };   // rotating the device always refits
+    const done = () => { if (!pending) return; clearTimeout(late); late = window.setTimeout(() => { if (!typing()) { pending = false; setD(calc()); } }, 300); };
+    window.addEventListener('resize', h); window.addEventListener('orientationchange', turned); document.addEventListener('focusout', done);
+    return () => { clearTimeout(late); window.removeEventListener('resize', h); window.removeEventListener('orientationchange', turned); document.removeEventListener('focusout', done); };
   }, []);
   useEffect(() => { document.body.classList.toggle('rotated', d.rotated); }, [d.rotated]);
   return (
