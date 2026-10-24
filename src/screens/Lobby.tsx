@@ -1,3 +1,4 @@
+import { DealerArt } from '../components/DealerArt';
 import { WheelArt } from '../components/MegaWheel';
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
@@ -71,6 +72,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <div className="lobby-left">
           <button className="promo" onClick={() => { sfx.click(); setModal(s.k); }}>
             <span className="promo-sparkles" aria-hidden="true">{[[14, 22], [82, 14], [22, 70], [88, 62], [52, 8], [70, 84]].map(([x, y], i) => <i key={i} style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${i * 0.35}s` }}>✦</i>)}</span>
+            <DealerArt className="promo-dealer" />
             <span className="promo-crown"><Icon name="crown" size={30} /></span>
             <span className="promo-title gold-text">{s.title}</span>
             <span className="promo-sub">{s.sub}</span>
