@@ -1783,3 +1783,10 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 @keyframes sbkBit{0%{opacity:1;transform:rotate(var(--a)) translateX(0) rotate(0)}100%{opacity:0;transform:rotate(var(--a)) translateX(var(--d)) rotate(540deg) translateY(50px)}}
 @keyframes sbkWord{0%{opacity:0;transform:scale(.2) translateY(20px)}14%{opacity:1;transform:scale(1.18)}24%{transform:scale(1)}82%{opacity:1}100%{opacity:0;transform:translateY(-14px) scale(1.04)}}
 @media (prefers-reduced-motion:reduce){.sbk-half,.sbk-bit,.sbk-glow,.sbk-spade{animation-duration:.01s}.sbk-words span{animation-duration:2.9s}}
+
+/* sign-in / create-account form: the main button stays visible on small phone screens, and the avatar list is tucked away until wanted */
+.profile-form button[type=submit].wide-btn { position: sticky; bottom: 4px; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.55); }
+.su-avatar > summary { cursor: pointer; list-style: none; padding: 6px 0; font-weight: 700; }
+.su-avatar > summary::-webkit-details-marker { display: none; }
+.su-avatar > summary span::after { content: '  ▾'; opacity: .7; }
+.su-avatar[open] > summary span::after { content: '  ▴'; }

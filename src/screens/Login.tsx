@@ -137,7 +137,9 @@ export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void;
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" required autoFocus /></label>
         <label className="field"><span>Password</span>
           <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>
-        {mode === 'up' && !guest && <div className="field"><span>Choose your avatar</span><AvatarPicker value={avatar} onChange={setAvatar} /></div>}
+        {mode === 'up' && !guest && (
+          <details className="field su-avatar"><summary><span>Choose your avatar (optional)</span></summary><AvatarPicker value={avatar} onChange={setAvatar} /></details>
+        )}
         {mode === 'up' && guest && <p className="muted small center">Your guest progress — coins, level and stats — moves into your new account.</p>}
         {err && <p className="form-error" role="alert">{err}</p>}
         <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'in' ? 'Sign in' : guest ? 'Create account & keep my progress' : 'Create account — 50,000 free coins'}</Pill>

@@ -9,8 +9,11 @@ async function post(path: string, body: unknown): Promise<Account> {
   const base = serverOrigin();
   if (!base) throw new Error('Signing in needs the game server, which isn’t reachable right now.');
   let r: Response;
-  try { r = await fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); }
-  catch { throw new Error('Can’t reach the game server. Check your connection and try again.'); }
+  // never hang forever: a sleeping server can take a while to wake, but after 60 s tell the player and let them retry
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 60_000);
+  try { r = await fetch(base + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal }); }
+  catch (e) { throw new Error((e as Error).name === 'AbortError' ? 'The game server is taking too long to answer. Wait a moment and tap the button again.' : 'Can’t reach the game server. Check your connection and try again.'); }
+  finally { clearTimeout(timer); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || 'Something went wrong. Please try again.');
   return j as Account;
