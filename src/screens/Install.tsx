@@ -1,30 +1,35 @@
-// The page behind the install link (…/install): works out what phone / browser this is and shows the one thing that works there.
+// The page behind the install link (…/install): works out what device + browser this is and shows the one thing that works there.
+// The same link works for everybody (iPhone, Android, Windows, Mac, Linux, Chromebook; Safari, Chrome, Edge, Firefox, Samsung, Opera…).
 import { useEffect, useState } from 'react';
 import { Icon, Logo } from '../components/ui';
+import { BROWSER_NAME, OTHER_DEVICES, PLATFORM_NAME, alreadyInstalled, installGuide, thisDevice } from '../lib/device';
 
 export const INSTALL_URL = () => `${window.location.origin}/install`;
 
-const ua = () => navigator.userAgent;
-export const isIOS = () => /iPhone|iPad|iPod/.test(ua()) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-export const isAndroid = () => /Android/i.test(ua());
-/** Facebook / Messenger / Instagram… open links in their own mini browser, which cannot install apps. */
-export const inAppBrowser = () => /FBAN|FBAV|FB_IAB|FBIOS|Instagram|Messenger|Line\/|Snapchat|TikTok|MicroMessenger|Twitter/i.test(ua());
-export const alreadyInstalled = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+/** The iPhone "Share" icon: a square with an arrow coming out of the top. */
+export const ShareIcon = ({ className = 'inst-ico' }: { className?: string }) => (
+  <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Share"><path d="M12 15V3M8 7l4-4 4 4" /><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1" /></svg>
+);
+
+/** "Tap **Share** {share}" → text with bold words and the Share icon. */
+export function Rich({ text, iconClass }: { text: string; iconClass?: string }) {
+  return <>{text.split(/(\*\*[^*]+\*\*|\{share\})/g).map((part, i) =>
+    part === '{share}' ? <ShareIcon key={i} className={iconClass} />
+      : part.startsWith('**') ? <b key={i}>{part.slice(2, -2)}</b>
+        : <span key={i}>{part}</span>)}</>;
+}
 
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return <li className="inst-step"><span className="inst-n">{n}</span><span>{children}</span></li>;
 }
 
-/** The iPhone "Share" icon: a square with an arrow coming out of the top. */
-const ShareIcon = () => (
-  <svg className="inst-ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Share"><path d="M12 15V3M8 7l4-4 4 4" /><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1" /></svg>
-);
-
 export function InstallPage({ installPrompt }: { installPrompt: null | (() => void) }) {
   const [copied, setCopied] = useState(false);
   const [done, setDone] = useState(false);
-  const ios = isIOS(), android = isAndroid(), iab = inAppBrowser(), installed = alreadyInstalled();
-  const desktop = !ios && !android;
+  const [dev] = useState(thisDevice);
+  const installed = alreadyInstalled();
+  const guide = installGuide(dev, !!installPrompt);
+  const { platform, browser, inApp } = dev;
   useEffect(() => { document.title = 'Install Spade Haven'; }, []);
   useEffect(() => { const h = () => setDone(true); window.addEventListener('appinstalled', h); return () => window.removeEventListener('appinstalled', h); }, []);
 
@@ -36,73 +41,68 @@ export function InstallPage({ installPrompt }: { installPrompt: null | (() => vo
   const play = () => { window.location.href = `${window.location.origin}/#play`; };
   // Android: ask Chrome to open this very page (Messenger and Facebook's browser allow this "intent" link)
   const chromeIntent = `intent://${window.location.host}/install#Intent;scheme=https;package=com.android.chrome;end`;
+  const showing = !installed && !done;
+  const where = platform === 'other' ? 'this device' : `${PLATFORM_NAME[platform]}${browser === 'other' ? '' : ` · ${BROWSER_NAME[browser]}`}`;
 
   return (
     <div className="inst felt-bg">
       <div className="inst-card">
         <Logo compact />
         <h1>Install Spade Haven</h1>
-        <p className="inst-lead">Put the game on your home screen: one tap to open, full screen, no browser bars.</p>
+        <p className="inst-lead">Put the game on your home screen or desktop: one tap to open, full screen, no browser bars. Works on phones, tablets and computers.</p>
 
-        {(installed || done) && (
+        {!showing && (
           <div className="inst-box ok">
             <b>✓ Spade Haven is installed on this device.</b>
-            <span>Open it from your home screen, or play right now:</span>
+            <span>Open it from your home screen or desktop, or play right now:</span>
             <button className="pill green big" onClick={play}><Icon name="play" size={20} /> Play now</button>
           </div>
         )}
 
-        {!installed && !done && iab && (
+        {showing && inApp && (
           <div className="inst-box warn">
             <b>This browser can’t install apps</b>
-            <span>You opened the link inside Facebook, Messenger or another app. Open it in {ios ? 'Safari' : 'Chrome'} first:</span>
-            {android && <a className="pill green big" href={chromeIntent}>Open in Chrome</a>}
+            <span>You opened the link inside Facebook, Messenger or another app. Open it in {platform === 'ios' ? 'Safari' : 'your browser'} first:</span>
+            {platform === 'android' && <a className="pill green big" href={chromeIntent}>Open in Chrome</a>}
             <ol className="inst-steps">
-              {ios
+              {platform === 'ios'
                 ? <><Step n={1}>Tap the <b>⋯</b> or <b>Share</b> button at the top or bottom of this screen.</Step><Step n={2}>Choose <b>Open in Safari</b>.</Step></>
-                : <><Step n={1}>Or tap the <b>⋮</b> menu at the top right.</Step><Step n={2}>Choose <b>Open in browser</b> / <b>Open in Chrome</b>.</Step></>}
+                : <><Step n={1}>Tap the <b>⋮</b> or <b>⋯</b> menu.</Step><Step n={2}>Choose <b>Open in browser</b> / <b>Open in Chrome</b>.</Step></>}
             </ol>
           </div>
         )}
 
-        {!installed && !done && !iab && android && (
-          installPrompt ? (
-            <div className="inst-box">
-              <button className="pill green big" onClick={installPrompt}><Icon name="download" size={20} /> Install the app</button>
-              <span>Tap Install, then Install again in the box that pops up.</span>
-            </div>
-          ) : (
-            <div className="inst-box">
-              <b>Install from Chrome’s menu</b>
-              <ol className="inst-steps">
-                <Step n={1}>Tap the <b>⋮</b> menu at the top right of Chrome.</Step>
-                <Step n={2}>Tap <b>Install app</b> (or <b>Add to Home screen</b>).</Step>
-                <Step n={3}>Tap <b>Install</b>. Spade Haven appears on your home screen.</Step>
-              </ol>
-              <span className="inst-fine">Not seeing it? Use Chrome (or Samsung Internet), and make sure you opened the link in the browser, not inside another app.</span>
-            </div>
-          )
-        )}
-
-        {!installed && !done && !iab && ios && (
+        {showing && !inApp && (
           <div className="inst-box">
-            <b>Add it to your Home Screen</b>
-            <ol className="inst-steps">
-              <Step n={1}>Tap the <b>Share</b> button <ShareIcon /> in Safari (bottom of the screen on iPhone, top on iPad).</Step>
-              <Step n={2}>Scroll down and tap <b>Add to Home Screen</b>.</Step>
-              <Step n={3}>Tap <b>Add</b>. Spade Haven appears on your home screen.</Step>
-            </ol>
-            <span className="inst-fine">iPhone and iPad only allow this from Safari or Chrome, and not from inside other apps.</span>
+            <span className="inst-where">Detected: <b>{where}</b></span>
+            {installPrompt && (
+              <>
+                <button className="pill green big" onClick={installPrompt}><Icon name="download" size={20} /> Install the app</button>
+                <span>Click Install, then Install again in the box that pops up.</span>
+              </>
+            )}
+            {!(installPrompt && guide.supported && (platform === 'android' || platform === 'windows' || platform === 'linux' || platform === 'chromeos' || platform === 'mac')) && (
+              <>
+                <b>{guide.supported ? 'How to add it' : `${BROWSER_NAME[browser]} can’t add it here`}</b>
+                <ol className="inst-steps">
+                  {guide.steps.map((s, i) => <Step key={i} n={i + 1}><Rich text={s} /></Step>)}
+                </ol>
+                {guide.note && <span className="inst-fine">{guide.note}</span>}
+              </>
+            )}
+            {installPrompt && guide.supported && <span className="inst-fine">Button not working? {guide.short}</span>}
           </div>
         )}
 
-        {!installed && !done && desktop && (
-          <div className="inst-box">
-            {installPrompt && <button className="pill green big" onClick={installPrompt}><Icon name="download" size={20} /> Install on this computer</button>}
-            <b>Installing on a phone?</b>
-            <span>Open this link on the phone — copy it or share it from here:</span>
+        {showing && (
+          <details className="inst-others" open={!dev.mobile && !installPrompt}>
+            <summary>Installing on another device?</summary>
+            <span>Open this link on that device (copy it or share it from here):</span>
             <code className="inst-link">{INSTALL_URL()}</code>
-          </div>
+            <ul>
+              {OTHER_DEVICES.map(d => <li key={d.name}><b>{d.name}</b> {d.how}</li>)}
+            </ul>
+          </details>
         )}
 
         <div className="inst-actions">
