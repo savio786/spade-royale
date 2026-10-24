@@ -12,12 +12,13 @@ import { net, NetStatus } from '../lib/net';
 import { useSocial } from '../lib/social';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
+import { syncReferral } from '../lib/referral';
 import { helpBot } from '../lib/helpbot';
 import {
-  AdModal, bonusLeftMs, FriendsModal, GiftsModal, ProfileEditModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal,
+  AdModal, bonusLeftMs, FriendsModal, GiftsModal, ProfileEditModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal, InviteModal,
 } from './modals';
 
-type ModalKey = null | 'card' | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'roomtype' | 'private' | 'profile';
+type ModalKey = null | 'card' | 'store' | 'vip' | 'ad' | 'spin' | 'leaders' | 'trophy' | 'gifts' | 'friends' | 'settings' | 'invite' | 'roomtype' | 'private' | 'profile';
 
 const SLIDES = [
   { k: 'vip', title: 'VIP', sub: 'Get special privileges!' },
@@ -41,6 +42,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
   const giftReady = p.lastDaily !== new Date().toISOString().slice(0, 10);
 
   useEffect(() => net.onStatus(setStatus), []);
+  useEffect(() => { void syncReferral(); }, []);
   useEffect(() => net.on((m) => { if (m.t === 'welcome' || m.t === 'tables') setOnline(m.online); }), []);
   useEffect(() => { const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 4500); return () => clearInterval(t); }, []);
 
@@ -79,6 +81,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
           <div className="promo-row">
             <button className="ad-chip" onClick={() => { sfx.click(); setModal('ad'); }} aria-label="Bonus coins"><b>+100</b><small>COINS</small><span className={`ad-tag ${bonusLeftMs(p.lastAd) === 0 ? 'ready' : ''}`}>{bonusLeftMs(p.lastAd) === 0 ? 'FREE' : 'SOON'}</span></button>
             <button className="vip-chip" onClick={() => { sfx.click(); setModal('vip'); }} aria-label="VIP Club"><span className="vip-stars" aria-hidden="true">★</span><span className="gold-text">VIP</span><small>★ CLUB ★</small></button>
+            <button className="inv-chip" onClick={() => { sfx.click(); setModal('invite'); }} aria-label="Invite friends and earn coins"><Icon name="users" size={34} /><b>INVITE</b><small>EARN COINS</small></button>
           </div>
         </div>
 
@@ -123,6 +126,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
 
       {modal === 'card' && <PlayerCard onClose={close} onEdit={() => setModal('profile')} player={{ name: p.name, avatar: p.avatar, level: lvl, stats: publicStats(p), levelPct: lvlPct }} />}
       {modal === 'vip' && <VipModal onClose={close} />}
+      {modal === 'invite' && <InviteModal onClose={close} />}
       {modal === 'ad' && <AdModal onClose={close} />}
       {modal === 'spin' && <SpinModal onClose={close} />}
       {modal === 'leaders' && <LeaderboardModal onClose={close} />}

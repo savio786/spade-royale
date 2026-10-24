@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { captureRef, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
 import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
@@ -28,6 +29,9 @@ interface BIPEvent extends Event { prompt: () => Promise<void> }
 
 // coming back from a PayPal/Stripe payment page (…/?purchase=…): open the game, not the welcome page
 if (/[?&]purchase=/.test(window.location.search) && !window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search + '#play');
+
+// an invite link (…/?ref=CODE): remember who invited this player, then tidy the address bar
+captureRef();
 
 const isAppShell = () => Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
@@ -61,7 +65,7 @@ export default function App() {
   useEffect(() => {
     if (!inApp) return;
     loadPaymentConfig().then(() => { afterCheckoutReturn(); syncPurchases(); });
-    const onFocus = () => syncPurchases();
+    const onFocus = () => { syncPurchases(); void syncReferral(); };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [inApp]);

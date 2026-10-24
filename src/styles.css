@@ -1827,3 +1827,24 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .ck-key.on { background: linear-gradient(180deg, #ffe58a, #f0b323); }
 .ck-key.space { flex: 6 1 0; max-width: none; font-size: 20px; }
 .ck-key.go { background: linear-gradient(180deg, #5fe08a, #178a3a); color: #fff; border-color: #d9ffe6; }
+
+/* ================= Invite friends ================= */
+.inv-chip { position: relative; width: 100px; height: 100px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: .95; color: #fff; font-family: var(--display);
+  background: radial-gradient(circle at 45% 35%, #38d27a, #0f8f45 60%, #06552a); border: 5px solid #ffcf4d; box-shadow: 0 0 0 2px #6a3c00, 0 0 16px rgba(80,255,150,.4), inset 0 3px 0 rgba(255,255,255,.3), 0 6px 14px rgba(0,0,0,.5); }
+.inv-chip b { font-size: 22px; font-weight: 400; letter-spacing: 1px; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.inv-chip small { font-size: 11px; letter-spacing: 1px; color: #eaffd8; }
+.inv-chip:active { transform: scale(.96); }
+.inv-modal .modal-body { display: flex; flex-direction: column; gap: 14px; max-width: 560px; }
+.inv-lead { margin: 0; font-size: 18px; line-height: 1.35; text-align: center; }
+.inv-rewards { display: flex; gap: 12px; justify-content: center; }
+.inv-rewards > div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 8px; border-radius: 14px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
+.inv-rewards b { font: 400 30px var(--display); color: var(--gold); } .inv-rewards small { opacity: .8; }
+.inv-link { display: flex; gap: 8px; align-items: center; }
+.inv-link input { flex: 1; min-width: 0; padding: 12px 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,.2); background: rgba(0,0,0,.35); color: #fff; font: 500 15px var(--body, system-ui); }
+.inv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.inv-actions .pill { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.inv-ico { width: 18px; height: 18px; }
+.inv-stats { margin: 0; text-align: center; font-size: 15px; }
+.inv-stats b { color: var(--gold); }
+.inv-fine { margin: 0; text-align: center; font-size: 12px; opacity: .65; }
+.hero-invite { margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; background: rgba(255,200,61,.16); border: 1px solid rgba(255,200,61,.5); color: #ffe9a8; font-weight: 600; }

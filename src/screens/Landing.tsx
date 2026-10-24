@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { hasInvite } from '../lib/referral';
 import { Avatar, CardView, Coin, Icon, Logo } from '../components/ui';
 import { RulesModal } from './Table';
 import { fmt } from '../lib/profile';
@@ -46,6 +47,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
         <div className="hero-copy">
           <Logo />
           <p className="hero-tag">Real-time Spades tournaments. Bid smart, cover your partner's nil, and take the table's prize.</p>
+          {hasInvite() && <p className="hero-invite" role="status">♠ A friend invited you! Play your first game and you both get bonus coins.</p>}
           <div className="hero-ctas">
             <button className="pill green big" onClick={onPlay}><Icon name="play" size={20} /> Play in your browser</button>
             {installPrompt && <button className="pill blue big" onClick={installPrompt}><Icon name="download" size={20} /> Install on this device</button>}

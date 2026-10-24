@@ -14,6 +14,7 @@ import { createHash } from 'crypto';
 import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
+import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
@@ -320,7 +321,7 @@ async function photoApi(req: import('http').IncomingMessage, res: import('http')
 }
 
 // ---- static hosting of the built app (optional, for one-box deployment) ----
-const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.woff': 'font/woff', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
+const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.xml': 'application/xml', '.woff': 'font/woff', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 // ---- leaderboard API ----
 const lastReport = new Map<string, number>();
 function json(res: import('http').ServerResponse, code: number, body: unknown) {
@@ -333,6 +334,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);
+  if (url.pathname.startsWith('/api/referral')) return referralApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled(), provider: paymentProvider() });
   if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
   if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook' || url.pathname === '/api/paypal/capture' || url.pathname === '/api/stripe/confirm')) {
@@ -380,6 +382,19 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
     return;
   }
   return json(res, 404, { error: 'not found' });
+}
+
+// ---- invite friends ----
+async function referralApi(req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) {
+  try {
+    if (req.method !== 'POST') return json(res, 404, { error: 'not found' });
+    const b = JSON.parse((await readBody(req, 2000)) || '{}');
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    if (url.pathname === '/api/referral/info') { const r = await referralInfo(b.id, b.key); return r ? json(res, 200, r) : json(res, 403, { error: 'Sign in again' }); }
+    if (url.pathname === '/api/referral/redeem') return json(res, 200, await redeemInvite(b.id, b.key, b.code, ip));
+    if (url.pathname === '/api/referral/collect') { const r = await collectReferralCoins(b.id, b.key); return r ? json(res, 200, r) : json(res, 403, { error: 'Sign in again' }); }
+    return json(res, 404, { error: 'not found' });
+  } catch (e) { console.error('referral', e); return json(res, 500, { error: 'Invites are unavailable right now.' }); }
 }
 
 // ---- sign-in: email, Google, Facebook ----
@@ -515,7 +530,7 @@ process.on('SIGTERM', () => {
   setTimeout(() => process.exit(0), 1500);
 });
 
-Promise.all([initLeaderboard(), initPayments()]).then(() => {
+Promise.all([initLeaderboard(), initPayments(), initReferrals()]).then(() => {
   http.listen(PORT, () => console.log(`Spade Haven server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
 });
 

@@ -16,6 +16,8 @@ import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
 import { changeName, checkName } from '../lib/guest';
 import { social, useSocial } from '../lib/social';
+import { inviteLink, inviteText, loadReferral, useReferral } from '../lib/referral';
+import { ShareIcon } from './Install';
 import type { SocialPerson } from '../../shared/protocol';
 import { Mode, prizeFor } from '../../shared/engine';
 
@@ -308,6 +310,41 @@ export function FriendsModal({ onClose, onInvite }: { onClose: () => void; onInv
       {section('FRIEND REQUESTS', s.incoming, 'request')}
       {section('MY FRIENDS', s.friends, 'friend')}
       {section('REQUESTS I SENT', s.outgoing, 'sent')}
+    </Modal>
+  );
+}
+
+// ---------------- Invite friends ----------------
+export function InviteModal({ onClose }: { onClose: () => void }) {
+  const r = useReferral();
+  const [copied, setCopied] = useState(false);
+  useEffect(() => { void loadReferral(); }, []);
+  const link = r ? inviteLink(r.code) : window.location.origin;
+  const text = r ? inviteText(r.code) : `Come play Spades with me on Spade Haven: ${link}`;
+  const enc = encodeURIComponent;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2500); toast('Invite link copied'); }
+    catch { window.prompt('Copy your invite link:', link); }
+  };
+  const nativeShare = () => { navigator.share?.({ title: 'Spade Haven', text, url: link }).catch(() => {}); };
+  const left = r ? Math.max(0, r.max - r.count) : null;
+  return (
+    <Modal title="INVITE FRIENDS" onClose={onClose} className="inv-modal">
+      <p className="inv-lead">Share your link. When a friend joins and plays their first game, <b>you both get coins</b>.</p>
+      <div className="inv-rewards">
+        <div><Coin size={34} /><b>{fmt(r?.inviterCoins ?? 15000)}</b><small>for you</small></div>
+        <div><Coin size={34} /><b>{fmt(r?.friendCoins ?? 10000)}</b><small>for your friend</small></div>
+      </div>
+      <div className="inv-link"><input readOnly value={link} aria-label="Your invite link" onFocus={(e) => e.currentTarget.select()} /><Pill color="green" onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</Pill></div>
+      <div className="inv-actions">
+        {typeof navigator.share === 'function' && <button className="pill green" onClick={() => { sfx.click(); nativeShare(); }}><ShareIcon className="inv-ico" /> Share…</button>}
+        <a className="pill green" href={`https://wa.me/?text=${enc(text)}`} target="_blank" rel="noopener noreferrer" onClick={() => sfx.click()}>WhatsApp</a>
+        <a className="pill blue" href={`https://www.facebook.com/sharer/sharer.php?u=${enc(link)}&quote=${enc(text)}`} target="_blank" rel="noopener noreferrer" onClick={() => sfx.click()}>Facebook</a>
+        <a className="pill purple" href={`sms:?&body=${enc(text)}`} onClick={() => sfx.click()}>Text message</a>
+        <a className="pill gold" href={`mailto:?subject=${enc('Play Spades with me on Spade Haven')}&body=${enc(text)}`} onClick={() => sfx.click()}>Email</a>
+      </div>
+      <p className="inv-stats">{r ? <>Friends who joined: <b>{r.count}</b> of {r.max} · Coins earned: <b>{fmt(r.earned)}</b>{left === 0 && ' · You reached the invite limit, thank you!'}</> : 'Loading your invite link…'}</p>
+      <p className="inv-fine">A friend counts once they are a new player and finish a game. Coins are for play only and have no cash value.</p>
     </Modal>
   );
 }
