@@ -1,7 +1,6 @@
 import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
@@ -26,7 +25,6 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const p = useProfile();
   const [view, setView] = useState<CtlView | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
-  const portrait = useRotatedStage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
@@ -304,9 +302,9 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
       {st.phase === 'gameOver' && <GameOver st={st} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
-      {chatOpen && (portrait
-        ? <PortraitChat view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
-        : <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />)}
+      {chatOpen && (
+        <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
+      )}
       {menuOpen && (
         <TableMenu
           onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}
@@ -705,10 +703,11 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   const unlocked = canChat(p);
   const pass = chatPassLabel(p);
   const chatOn = !p.settings.chatOff;
+  const ownKeys = useOwnKeyboard();
   const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-4);
   const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); onClose(); } };
   return (
-    <div className="chat-overlay" role="dialog" aria-label="Table chat">
+    <div className={`chat-overlay ${ownKeys ? 'own-keys' : ''}`} role="dialog" aria-label="Table chat">
       <div className="chat-dim" onClick={onClose} />
       <aside className="chat-phrases">
         <div className="chat-scroll">
@@ -722,7 +721,15 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
         </div>
       )}
       <div className="chat-custom">
-        {unlocked ? (
+        {unlocked && ownKeys ? (
+          <div className="ck-wrap">
+            <div className="ck-bar">
+              <div className="ck-field" aria-label="Your message">{text ? <span>{text}</span> : <span className="ph">Type your own message…</span>}<i className="ck-caret" /></div>
+              <button type="button" className="chat-send" onClick={() => { send(text); setText(''); }}>SEND</button>
+            </div>
+            <GameKeyboard onText={(fn) => setText((t) => fn(t).slice(0, 140))} onEnter={() => { send(text); setText(''); }} />
+          </div>
+        ) : unlocked ? (
           <form onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }}>
             <label className="sr-only" htmlFor="chat-in">Message</label>
             <input id="chat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type your own message…" autoComplete="off" autoFocus />
@@ -750,64 +757,34 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   );
 }
 
-/** True while the game is shown turned sideways on an upright phone (the Stage adds "rotated" to <body>). */
-function useRotatedStage() {
-  const [r, setR] = useState(() => document.body.classList.contains('rotated'));
-  useEffect(() => {
-    const check = () => setR(document.body.classList.contains('rotated'));
-    const mo = new MutationObserver(check); mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-    check(); return () => mo.disconnect();
-  }, []);
-  return r;
+/** On a phone or tablet the game draws its own keyboard inside the chat box: it turns with the game (no flipping the phone)
+ *  and sits right under the text box. Computers keep using the real keyboard. */
+function useOwnKeyboard() {
+  return useMemo(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches && Math.min(window.screen.width, window.screen.height) <= 900, []);
 }
-/** The part of the screen not covered by the on-screen keyboard. */
-function useVisibleArea() {
-  const read = () => { const v = window.visualViewport; return { top: v?.offsetTop ?? 0, height: v?.height ?? window.innerHeight }; };
-  const [a, setA] = useState(read);
-  useEffect(() => {
-    const h = () => setA(read());
-    window.visualViewport?.addEventListener('resize', h); window.visualViewport?.addEventListener('scroll', h); window.addEventListener('resize', h);
-    return () => { window.visualViewport?.removeEventListener('resize', h); window.visualViewport?.removeEventListener('scroll', h); window.removeEventListener('resize', h); };
-  }, []);
-  return a;
-}
-
-/** Chat for a phone held upright: the game is turned sideways there, so the chat is drawn the right way up instead,
- *  with the typing box at the bottom, right above the keyboard. */
-function PortraitChat({ view, me, onClose, onSend }: { view: CtlView; me: number; onClose: () => void; onSend: (t: string) => void }) {
-  const [text, setText] = useState('');
-  const p = useProfile();
-  const area = useVisibleArea();
-  const chatOn = !p.settings.chatOff;
-  const seats = view.snap?.state.seats ?? [];
-  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-6);
-  const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); onClose(); } };
-  return createPortal(
-    <div className="pchat" role="dialog" aria-label="Table chat" style={{ top: area.top, height: area.height }}>
-      <header className="pchat-top">
-        <b>TABLE CHAT</b>
-        <label className="chat-toggle"><span>CHAT</span>
-          <input type="checkbox" checked={chatOn} onChange={() => { sfx.click(); profile.set((x) => ({ settings: { ...x.settings, chatOff: chatOn } })); }} />
-          <span className="ct-switch" aria-hidden="true"><i>{chatOn ? 'ON' : 'OFF'}</i></span>
-        </label>
-        <button className="pchat-back" onClick={() => { sfx.click(); onClose(); }}>BACK</button>
-      </header>
-      <div className="pchat-body">
-        {msgs.length > 0 && (
-          <div className="pchat-msgs" aria-live="polite">
-            {msgs.map((m) => <div key={m.id} className={m.seat === me ? 'mine' : ''}><Avatar k={seats[m.seat]?.avatar ?? 'a1'} size={34} /><span><b>{m.name}:</b> {m.text}</span></div>)}
-          </div>
-        )}
-        <div className="pchat-phrases">{QUICK_PHRASES.map((q) => <button key={q} onClick={() => send(q)}>{q}</button>)}</div>
-        <div className="pchat-emoji">{FREE_EMOJI.map((e) => <button key={e} onClick={() => send(e)} aria-label={`Send ${e}`}>{e}</button>)}</div>
+const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+const NUM_ROWS = ['1234567890', '-/:;()$&@"', '.,?!\'#%+='];
+function GameKeyboard({ onText, onEnter }: { onText: (fn: (t: string) => string) => void; onEnter: () => void }) {
+  const [nums, setNums] = useState(false);
+  const [shift, setShift] = useState(true);   // first letter capital
+  const type = (ch: string) => { sfx.click(); onText((t) => t + ch); if (shift) setShift(false); };
+  const rows = nums ? NUM_ROWS : KEY_ROWS;
+  const show = (c: string) => (shift && !nums ? c.toUpperCase() : c);
+  return (
+    <div className="ck" role="group" aria-label="Keyboard">
+      {rows.map((r, i) => (
+        <div key={i} className={`ck-row r${i}`}>
+          {i === 2 && !nums && <button type="button" className={`ck-key wide ${shift ? 'on' : ''}`} onClick={() => { sfx.click(); setShift((v) => !v); }} aria-label="Shift">⇧</button>}
+          {r.split('').map((c) => <button type="button" key={c} className="ck-key" onClick={() => type(show(c))}>{show(c)}</button>)}
+          {i === 2 && <button type="button" className="ck-key wide" onClick={() => { sfx.click(); onText((t) => t.slice(0, -1)); }} aria-label="Delete">⌫</button>}
+        </div>
+      ))}
+      <div className="ck-row r3">
+        <button type="button" className="ck-key wide2" onClick={() => { sfx.click(); setNums((v) => !v); }}>{nums ? 'ABC' : '123'}</button>
+        <button type="button" className="ck-key space" onClick={() => type(' ')}>space</button>
+        <button type="button" className="ck-key wide2 go" onClick={onEnter}>SEND</button>
       </div>
-      <form className="pchat-form" onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }}>
-        <label className="sr-only" htmlFor="pchat-in">Message</label>
-        <input id="pchat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type your own message…" autoComplete="off" enterKeyHint="send" />
-        <button type="submit" className="chat-send">SEND</button>
-      </form>
-    </div>,
-    document.body,
+    </div>
   );
 }
 

@@ -1804,27 +1804,26 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .tc-line.out { opacity: 0; }
 @keyframes tcIn { from { opacity: 0; transform: translateY(-14px) scale(.92); } }
 
-/* chat on an upright phone: drawn the right way up (not sideways like the game), typing box right above the keyboard */
-.pchat { position: fixed; left: 0; right: 0; z-index: 200; display: flex; flex-direction: column; background: linear-gradient(180deg, #1a2494, #0a1050); color: #fff; font-family: var(--body); }
-.pchat-top { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: rgba(0,0,0,.28); }
-.pchat-top b { flex: 1; font: 400 26px/1 var(--display); letter-spacing: 2px; }
-.pchat-top .chat-toggle { display: flex; align-items: center; gap: 8px; font: 400 18px/1 var(--display); }
-.pchat-back { padding: 10px 18px; border-radius: 12px; border: 2px solid #fff; background: linear-gradient(180deg, #4aa0ff, #1b55d0); color: #fff; font: 400 20px/1 var(--display); letter-spacing: 1px; }
-.pchat-body { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; display: flex; flex-direction: column; gap: 14px; }
-.pchat-msgs { display: flex; flex-direction: column; gap: 6px; }
-.pchat-msgs > div { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 14px; background: rgba(255,255,255,.1); font-size: 17px; }
-.pchat-msgs > div.mine { background: #3a58e8; }
-.pchat-msgs b { color: #9aa6ff; font-family: var(--display); font-weight: 400; letter-spacing: .5px; }
-.pchat-msgs .mine b { color: #dbe4ff; }
-.pchat-phrases { display: flex; flex-wrap: wrap; gap: 8px; }
-.pchat-phrases button { padding: 10px 14px; border-radius: 16px; border: 2px solid #cfd8ff; background: linear-gradient(180deg, #e8ecff, #aeb8ee); color: #101a78; font: 400 20px/1 var(--display); letter-spacing: .5px; }
-.pchat-emoji { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
-.pchat-emoji button { font-size: 30px; line-height: 1; padding: 6px 0; border-radius: 12px; background: rgba(255,255,255,.08); }
-.pchat-form { flex: none; display: flex; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: rgba(0,0,0,.35); }
-.pchat-form input { flex: 1; min-width: 0; font-size: 18px; padding: 12px 14px; border-radius: 14px; border: 2px solid #ffc83d; background: #0a1050; color: #fff; }
-.pchat-form .chat-send { flex: none; padding: 0 20px; border-radius: 14px; border: 2px solid #fff; background: linear-gradient(180deg, #5fe08a, #178a3a); color: #fff; font: 400 22px/1 var(--display); }
 /* on the table itself the chat lines can stay small */
 .tc-line { font-size: 22px; padding: 4px 16px 4px 6px; gap: 8px; }
 .tbl-chat { gap: 5px; top: 150px; }
-.pchat-top b { font-size: 22px; white-space: nowrap; }
-.pchat-top .chat-toggle { zoom: .6; }
+
+/* the game's own keyboard inside the chat box (phones and tablets): turns with the game, sits under the text box */
+.chat-overlay.own-keys .chat-custom { height: auto; top: auto; bottom: 0; padding: 8px 10px 10px; align-items: stretch; }
+.chat-overlay.own-keys .chat-recent { top: 70px; }
+.ck-wrap { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ck-bar { display: flex; gap: 10px; align-items: center; }
+.ck-field { flex: 1; min-width: 0; height: 50px; display: flex; align-items: center; padding: 0 14px; border-radius: 12px; font-size: 22px; color: #fff; background: rgba(0,0,0,.4); border: 2px solid #ffc83d; overflow: hidden; white-space: nowrap; }
+.ck-field span { overflow: hidden; text-overflow: clip; direction: ltr; }
+.ck-field .ph { opacity: .55; }
+.ck-caret { width: 2px; height: 28px; margin-left: 2px; background: #ffc83d; animation: ckBlink 1s steps(1) infinite; flex: none; }
+@keyframes ckBlink { 50% { opacity: 0; } }
+.ck { display: flex; flex-direction: column; gap: 6px; }
+.ck-row { display: flex; gap: 5px; justify-content: center; }
+.ck-key { flex: 1 1 0; min-width: 0; max-width: 56px; height: 48px; border-radius: 9px; border: 2px solid #cfd8ff; background: linear-gradient(180deg, #e8ecff, #aeb8ee); color: #101a78; font: 400 26px/1 var(--display); }
+.ck-key:active { transform: translateY(2px); filter: brightness(.9); }
+.ck-key.wide { flex: 1.5 1 0; max-width: 84px; }
+.ck-key.wide2 { flex: 1.6 1 0; max-width: 110px; font-size: 22px; }
+.ck-key.on { background: linear-gradient(180deg, #ffe58a, #f0b323); }
+.ck-key.space { flex: 6 1 0; max-width: none; font-size: 20px; }
+.ck-key.go { background: linear-gradient(180deg, #5fe08a, #178a3a); color: #fff; border-color: #d9ffe6; }
