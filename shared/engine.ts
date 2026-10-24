@@ -96,10 +96,11 @@ export function shuffle<T>(a: T[], rnd: () => number = Math.random): T[] {
   return arr;
 }
 
-// Hand order, left to right: diamonds, clubs, hearts, spades (highest card first within a suit)
+// Hand order, left to right: diamonds, clubs, hearts, spades. Within each suit the low cards are on the left and the high cards on the right
+// (so reading from the right: spades, hearts, clubs, diamonds, each starting with its Ace).
 const SUIT_ORDER: Record<Suit, number> = { D: 0, C: 1, H: 2, S: 3 };
 export function sortHand(h: Card[]): Card[] {
-  return h.slice().sort((a, b) => SUIT_ORDER[a.s] - SUIT_ORDER[b.s] || b.r - a.r);
+  return h.slice().sort((a, b) => SUIT_ORDER[a.s] - SUIT_ORDER[b.s] || a.r - b.r);
 }
 
 export function createGame(settings: TableSettings, seats: (Seat | null)[] = [null, null, null, null]): GameState {
