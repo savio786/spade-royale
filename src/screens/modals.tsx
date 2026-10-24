@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
-import { buy, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
+import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, type AuthConfig } from '../lib/auth';
 import { EmailModal } from './Login';
 import { PRODUCTS, priceLabel } from '../../shared/products';
@@ -140,7 +140,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
 // ---------------- Store (coins + Chat Pass) ----------------
 export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClose: () => void; tab?: 'coins' | 'chat'; need?: number }) {
   const p = useProfile();
-  const [tab, setTab] = useState<'coins' | 'chat'>(initialTab);
+  const [tab, setTab] = useState<'coins' | 'chat'>(CHAT_PASS_FOR_SALE ? initialTab : 'coins');
   const [busy, setBusy] = useState<string | null>(null);
   const shortBy = need && need > p.coins ? need - p.coins : 0;
   const pass = chatPassLabel(p);
@@ -149,13 +149,15 @@ export function StoreModal({ onClose, tab: initialTab = 'coins', need }: { onClo
   const appOff = nativeStoreOff();
   return (
     <Modal title="Store" onClose={onClose} wide className="store-modal">
-      <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === 'coins'} className={`tab ${tab === 'coins' ? 'on' : ''}`} onClick={() => setTab('coins')}>Coins</button>
-        <button role="tab" aria-selected={tab === 'chat'} className={`tab ${tab === 'chat' ? 'on' : ''}`} onClick={() => setTab('chat')}>Chat Pass</button>
-      </div>
+      {CHAT_PASS_FOR_SALE && (
+        <div className="tabs" role="tablist">
+          <button role="tab" aria-selected={tab === 'coins'} className={`tab ${tab === 'coins' ? 'on' : ''}`} onClick={() => setTab('coins')}>Coins</button>
+          <button role="tab" aria-selected={tab === 'chat'} className={`tab ${tab === 'chat' ? 'on' : ''}`} onClick={() => setTab('chat')}>Chat Pass</button>
+        </div>
+      )}
       {tab === 'coins' && shortBy > 0 && <p className="need-banner"><Coin size={22} /> You need <b>{fmt(shortBy)}</b> more coins for that table. Any pack below covers it{shortBy > 25_000 ? ' except the smallest' : ''}.</p>}
       {tab === 'chat' && <p className="need-banner chat"><Icon name="chat" size={22} /> {pass ? <>You have a <b>{pass}</b>. Buying more adds to it.</> : <>Quick phrases and emoji are free. A Chat Pass lets you type your own messages at the table.</>}</p>}
-      {appOff && <p className="need-banner"><Icon name="star" size={22} /> Coin packs and Chat Passes are coming soon to the app. Free coins: the daily gift, the Mega Bonus wheel and +100 coins every 30 minutes.</p>}
+      {appOff && <p className="need-banner"><Icon name="star" size={22} /> Coin packs are coming soon to the app. Free coins: the daily gift, the Mega Bonus wheel and +100 coins every 30 minutes.</p>}
       <div className={`packs ${tab === 'chat' ? 'three' : ''}`}>
         {items.map((k) => {
           const bonus = k.kind === 'coins' && p.vip ? Math.round(k.coins! * 0.2) : 0;
@@ -191,7 +193,7 @@ export function VipModal({ onClose }: { onClose: () => void }) {
         <li><Icon name="star" /> +10% on every prize you win</li>
         <li><Icon name="gift" /> +20% coins on every store pack</li>
         <li><Icon name="bolt" /> Double daily-spin rewards</li>
-        <li><Icon name="chat" /> Chat Pass included: type your own messages</li>
+        {CHAT_PASS_FOR_SALE && <li><Icon name="chat" /> Chat Pass included: type your own messages</li>}
       </ul>
       {p.vip && <p className="center gold-text">You're a VIP member{p.vipUntil > 0 ? ` until ${new Date(p.vipUntil).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}.{nativeStoreOff() ? '' : ' Buying more adds to it.'}</p>}
       {nativeStoreOff()

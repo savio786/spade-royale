@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './ui';
 import { BotAction, FALLBACK, findTopic, helpBot, starterTopics, Topic, topicById, useHelpBotOpen } from '../lib/helpbot';
-import { store } from '../lib/payments';
+import { CHAT_PASS_FOR_SALE, store } from '../lib/payments';
 import { RulesModal } from '../screens/Table';
 import { sfx } from '../lib/sound';
 
@@ -45,7 +45,7 @@ export function HelpBot({ variant }: { variant: 'stage' | 'page' }) {
     if (a === 'rules') { setRules(true); return; }
     if (variant === 'page' || a === 'play') window.location.hash = '#play';
     if (a === 'store-coins') store.open({ tab: 'coins' });
-    if (a === 'store-chat') store.open({ tab: 'chat' });
+    if (a === 'store-chat') store.open({ tab: CHAT_PASS_FOR_SALE ? 'chat' : 'coins' });
     helpBot.close();
   };
 

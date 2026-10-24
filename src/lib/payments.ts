@@ -12,6 +12,8 @@ import { sfx } from './sound';
 const apiBase = serverOrigin;
 
 // ---------- chat pass ----------
+// The Chat Pass is off the shelf for now: set this to true (and canChat back to the pass check) when payments are ready.
+export const CHAT_PASS_FOR_SALE = false;
 // Chat is free for everybody now (typing your own messages included); the Chat Pass is no longer needed.
 export const canChat = (_p: Profile) => true;
 export function chatPassLabel(p: Profile) {
