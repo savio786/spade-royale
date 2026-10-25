@@ -134,7 +134,7 @@ Every seat on a public table gets its own **15-second** countdown. When someone 
 
 ## Computer player skill
 
-Computer players play at **expert** skill at tables with a bet of 50,000 coins or more, **high** skill from 25,000, and **medium** skill at smaller tables (they misjudge some bids and make the odd loose play). Expert players count the cards already played and, before each card, try every legal card against many possible deals of the cards still unseen, playing the rest of the round out each time and choosing the best average result. In testing, expert players win about 60% of games against high-skill ones, and high-skill players win about 64% against medium ones. Change the thresholds with `HIGH_SKILL_BET` and `EXPERT_SKILL_BET` in `shared/bot.ts`.
+Computer players play at **expert** skill at tables with a bet of 100,000 coins or more, **high** skill from 50,000, and **medium** skill at smaller tables (they misjudge some bids and make the odd loose play). Expert players count the cards already played and, before each card, try every legal card against many possible deals of the cards still unseen, playing the rest of the round out each time and choosing the best average result. In testing, expert players win about 60% of games against high-skill ones, and high-skill players win about 64% against medium ones. Change the thresholds with `HIGH_SKILL_BET` and `EXPERT_SKILL_BET` in `shared/bot.ts`.
 
 ## Turn timer and inactivity
 
