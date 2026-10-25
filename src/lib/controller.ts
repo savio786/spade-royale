@@ -41,7 +41,7 @@ export class LocalController implements TableController {
   constructor(settings: TableSettings, opts: { code?: string } = {}) {
     this.view = { snap: null, code: opts.code ?? null, host: true, online: false, error: null, settings, kicked: null, conn: 'ok' };
     this.rt = new TableRuntime(settings, {
-      fillBotsAfterMs: null, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED, botSpeed: profile.get().settings.fast ? 0.55 : 1,
+      hostId: me().id, fillBotsAfterMs: null, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED, botSpeed: profile.get().settings.fast ? 0.55 : 1,
       onInactive: () => { this.view = { ...this.view, kicked: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` }; this.subs.forEach((f) => f(this.view)); },
     });
     this.seat = this.rt.addHuman(me(), 0);

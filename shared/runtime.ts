@@ -30,6 +30,8 @@ export interface RuntimeOptions {
   /** called when a player is removed for inactivity, before their seat goes to a computer player */
   onInactive?: (seat: number, playerId: string) => void;
   botSpeed?: number; // 1 = normal
+  /** the player who set up the table: they deal first, so they act last in round 1 (the deal then moves to the next player each round) */
+  hostId?: string;
   /** a player still on the face-down "See your cards?" prompt when their bidding time runs out gets their cards turned over and this long to bid before the computer does (default 5 s, 0 = off) */
   bidGraceMs?: number;
   /** countdown before the first deal once all four seats are filled (default 10 s) */
@@ -269,7 +271,7 @@ export class TableRuntime {
       // everyone is seated: count down, then deal
       const delay = this.opts.startDelayMs ?? 10_000;
       if (!this.startAt) this.startAt = Date.now() + delay;
-      this.timer = setTimeout(() => { this.timer = null; if (this.destroyed || !isFull(this.g)) return; this.startAt = null; this.g = startRound(this.g); this.system('New game — good luck!'); this.changed(); }, Math.max(0, this.startAt - Date.now()));
+      this.timer = setTimeout(() => { this.timer = null; if (this.destroyed || !isFull(this.g)) return; this.startAt = null; const hs = this.opts.hostId ? this.g.seats.findIndex((x) => x?.id === this.opts.hostId && !x?.bot) : -1; this.g = startRound(hs >= 0 ? { ...this.g, dealer: hs } : this.g); this.system('New game — good luck!'); this.changed(); }, Math.max(0, this.startAt - Date.now()));
       return;
     }
     if (g.phase !== 'roundEnd') this.startAt = null;

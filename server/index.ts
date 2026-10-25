@@ -108,7 +108,7 @@ function makeCode() {
 function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean): Room {
   const id = `t${++roomSeq}`;
   const rt = new TableRuntime({ ...settings, isPrivate }, {
-    fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
+    hostId, fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
     onInactive: (_seat, playerId) => {
       for (const c of room.clients) if (c.player?.id === playerId) {
         send(c, { t: 'kicked', reason: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` });
