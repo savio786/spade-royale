@@ -47,7 +47,7 @@ export type ServerMsg =
   | { t: 'error'; message: string }
   | { t: 'left' }
   | { t: 'kicked'; reason: string }
-  | { t: 'tableGone' }                  // the table no longer exists (e.g. the server restarted)
+  | { t: 'tableGone'; forfeit?: boolean }                  // the table no longer exists (e.g. the server restarted)
   | { t: 'notice'; message: string }
   | ({ t: 'social' } & SocialView)
   | { t: 'friendMsg'; message: string; ok: boolean };

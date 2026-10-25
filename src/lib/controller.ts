@@ -13,6 +13,7 @@ export interface CtlView {
   settings: TableSettings;
   kicked: string | null;          // set when removed from the table for inactivity
   conn: 'ok' | 'lost' | 'gone';   // online tables: connection to the server
+  forfeited?: boolean;            // with conn 'gone': you were out of the game for too long (or left), so the bet is lost
 }
 
 export interface TableController {
@@ -76,7 +77,7 @@ export class RemoteController implements TableController {
       else if (m.t === 'snap') this.update({ snap: m.snap });
       else if (m.t === 'error') this.update({ error: m.message });
       else if (m.t === 'kicked') this.update({ kicked: m.reason });
-      else if (m.t === 'tableGone') this.update({ conn: 'gone' });
+      else if (m.t === 'tableGone') this.update({ conn: 'gone', forfeited: !!m.forfeit });
     });
     // dropped connection: show it, and once reconnected ask for our seat back
     let wasOnline = net.status === 'online';

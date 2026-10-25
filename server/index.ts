@@ -27,6 +27,10 @@ const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>> }
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
+/** Players who left (or were dropped from) a game in progress: their bet is lost, so a late return must not refund it. Only a table that vanished (server restart) refunds. */
+const forfeits = new Set<string>();
+const forfeit = (playerId: string, tableId: string) => { if (forfeits.size > 20_000) forfeits.clear(); forfeits.add(`${playerId}:${tableId}`); };
+const inProgress = (r: Room) => r.rt.g.phase !== 'waiting' && r.rt.g.phase !== 'gameOver';
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
 interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
 
@@ -142,7 +146,7 @@ function dropped(c: Client) {
   clearTimeout(r.away.get(id));
   r.away.set(id, setTimeout(() => {
     r.away?.delete(id);
-    if (![...r.clients].some((x) => x.player?.id === id)) { r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
+    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) forfeit(id, r.id); r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
   }, REJOIN_MS));
 }
 
@@ -150,7 +154,7 @@ function dropped(c: Client) {
 function rejoin(c: Client, tableId: string) {
   const r = rooms.get(String(tableId)), id = c.player?.id;
   const seat = r && id ? r.rt.g.seats.findIndex((s) => s?.id === id && !s.bot) : -1;
-  if (!r || !id || seat < 0) return send(c, { t: 'tableGone' });
+  if (!r || !id || seat < 0) return send(c, { t: 'tableGone', forfeit: !!id && forfeits.has(`${id}:${String(tableId)}`) });
   clearTimeout(r.away?.get(id)); r.away?.delete(id);
   for (const other of [...r.clients]) if (other !== c && other.player?.id === id) { other.unsub?.(); r.clients.delete(other); other.room = null; }
   c.room = r; r.clients.add(c);
@@ -174,7 +178,7 @@ function leave(c: Client, notify = true) {
   if (!r) return;
   c.unsub?.(); c.unsub = null;
   r.clients.delete(c);
-  if (c.player) r.rt.removeHuman(c.player.id);
+  if (c.player) { if (inProgress(r)) forfeit(c.player.id, r.id); r.rt.removeHuman(c.player.id); }
   c.room = null;
   if (r.rt.humanCount() === 0) closeRoom(r);
   if (notify) send(c, { t: 'left' });

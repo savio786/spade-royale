@@ -112,7 +112,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     }
     if (view.online && view.conn === 'gone' && charged.current && !settled.current && st.phase !== 'gameOver') {
       settled.current = true;
-      profile.set((x) => ({ coins: x.coins + st.settings.bet }));
+      if (!view.forfeited) profile.set((x) => ({ coins: x.coins + st.settings.bet }));   // a table that vanished (server update) refunds; leaving or being away too long does not
     }
     if (view.error) toast(view.error, 'error');
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -287,9 +287,11 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       {view.online && view.conn === 'gone' && st.phase !== 'gameOver' && (
         <div className="modal-backdrop">
           <div className="modal kicked" role="alertdialog" aria-label="Game interrupted">
-            <h2 className="modal-title">Game interrupted</h2>
-            <p className="center">This table closed before the game finished — usually because the game server restarted for an update.</p>
-            {charged.current && <p className="center gold-text">Your {fmt(st.settings.bet)} coin bet has been refunded.</p>}
+            <h2 className="modal-title">{view.forfeited ? 'You left the game' : 'Game interrupted'}</h2>
+            {view.forfeited
+              ? <p className="center">You were away from the table for too long, so a computer player took your seat. Your {fmt(st.settings.bet)} coin bet was forfeited.</p>
+              : <p className="center">This table closed before the game finished — usually because the game server restarted for an update.</p>}
+            {!view.forfeited && charged.current && <p className="center gold-text">Your {fmt(st.settings.bet)} coin bet has been refunded.</p>}
             <div className="btn-row"><Pill color="green" onClick={leave}>Back to lobby</Pill></div>
           </div>
         </div>
