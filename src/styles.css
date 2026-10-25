@@ -540,7 +540,7 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .hcard { --w: 116px; margin-left: min(6px, calc((100% - var(--n) * 116px) / (var(--n) - 1))); transition: transform .14s, filter .14s; }
 .hcard:first-child { margin-left: 0; }
 .hcard.legal { cursor: pointer; transform: translateY(-14px); box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(255,200,61,.8); }
-.hcard.legal:hover { transform: translateY(-30px); }
+@media (hover: hover) { .hcard.legal:hover { transform: translateY(-30px); } }
 .hcard.dim { filter: brightness(.55); }
 
 /* bidding */
@@ -1049,7 +1049,7 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .fan .hcard { --w: 140px; position: absolute; left: 0; bottom: 0; margin: 0; transform-origin: 50% 140%;
   translate: calc(var(--x) - 50%) var(--y); rotate: var(--r); transition: transform .15s, filter .15s, box-shadow .15s; box-shadow: -3px 0 8px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.25); }
 .fan .hcard.legal { transform: translateY(-26px); box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(255,200,61,.85); }
-.fan .hcard.legal:hover { transform: translateY(-44px); }
+@media (hover: hover) { .fan .hcard.legal:hover { transform: translateY(-44px); } }
 .fan .hcard.dim { filter: brightness(.6); }
 .fan .pcard.back { border-width: 5px; }
 @keyframes dealIn { from { translate: calc(var(--x, 0px) - 50%) -520px; rotate: 0deg; opacity: 0; } }
@@ -1163,7 +1163,7 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .fan { bottom: -16px; }
 .fan .hcard { --w: 132px; cursor: pointer; }
 .fan .hcard.legal { transform: translateY(-34px); }
-.fan .hcard.legal:hover { transform: translateY(-50px); }
+@media (hover: hover) { .fan .hcard.legal:hover { transform: translateY(-50px); } }
 .fan .hcard.dim { filter: brightness(.62) saturate(.8); cursor: not-allowed; }
 /* during play your picture moves to the bottom-left so it never covers your cards */
 .seat-bottom.in-play { left: -44px; translate: 0 0; bottom: -150px; }
@@ -1256,7 +1256,7 @@ button.mode-card:hover { transform: translateY(-6px) scale(1.02); }
 .fan { left: calc(50% + 86px); bottom: -64px; }
 .fan .hcard { --w: 172px; }
 .fan .hcard.legal { transform: translateY(-40px); }
-.fan .hcard.legal:hover { transform: translateY(-56px); }
+@media (hover: hover) { .fan .hcard.legal:hover { transform: translateY(-56px); } }
 .score-panel .sp-spade { display: none; }
 /* when the game is shown sideways on an upright phone, turn toasts the same way */
 body.rotated .toasts { left: 50%; top: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%) rotate(90deg); }
