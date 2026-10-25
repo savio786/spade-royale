@@ -146,9 +146,9 @@ export const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 // ---------------- Skill levels ----------------
 export type BotSkill = 'medium' | 'high' | 'expert';
 /** Tables with a bet at or above this use high-skill computer players; smaller tables use medium. */
-export const HIGH_SKILL_BET = 25_000;
+export const HIGH_SKILL_BET = 50_000;
 /** Tables with a bet at or above this use expert computer players: they count cards and play to the score. */
-export const EXPERT_SKILL_BET = 50_000;
+export const EXPERT_SKILL_BET = 100_000;
 export const skillForBet = (bet: number): BotSkill => (bet >= EXPERT_SKILL_BET ? 'expert' : bet >= HIGH_SKILL_BET ? 'high' : 'medium');
 
 /** High plays the full strategy. Medium misjudges some bids and makes occasional loose plays. */
