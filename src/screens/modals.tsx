@@ -41,20 +41,21 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
   const soc = useSocial();
   const [tab, setTab] = useState<'global' | 'friends' | 'fame'>('global');
-  const [showLast, setShowLast] = useState(false);
+  const [last, setLast] = useState(false);   // false = this week, true = last week's final results
   const [data, setData] = useState<Board | null | 'loading'>('loading');
   useEffect(() => { let live = true; fetchBoard(p.id).then((b) => live && setData(b)); return () => { live = false; }; }, [p.id]);
   const b = data === 'loading' ? null : data;
   const ends = useCountdown(b?.endsAt ?? weekEndsAt());
 
   const rows: BoardRow[] = useMemo(() => {
-    if (!b) return p.weekEarnings > 0 ? [{ name: p.name, avatar: p.avatar, earnings: p.weekEarnings, me: true }] : [];
+    if (!b) return p.weekEarnings > 0 && !last ? [{ name: p.name, avatar: p.avatar, earnings: p.weekEarnings, me: true }] : [];
+    const src = last ? (b.lastWeek?.rows ?? []) : b.rows;
     if (tab === 'friends') {
       const names = new Set(soc.friends.map((f) => f.name.toLowerCase()));
-      return b.rows.filter((r) => r.me || names.has(r.name.toLowerCase()));
+      return src.filter((r) => r.me || names.has(r.name.toLowerCase()));
     }
-    return b.rows;
-  }, [b, tab, soc.friends, p.name, p.avatar, p.weekEarnings]);
+    return src;
+  }, [b, tab, last, soc.friends, p.name, p.avatar, p.weekEarnings]);
 
   const lastRank = b?.lastWeek?.rank ?? null;
   const lastWeekKey = b?.lastWeek?.week ?? '';
@@ -63,7 +64,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={onClose} wide className="lb-modal">
-      <h2 className="lb-title">LEADERBOARD — CURRENT WEEK</h2>
+      <h2 className="lb-title">LEADERBOARD — {last ? 'LAST WEEK' : 'CURRENT WEEK'}</h2>
       <div className="lb-wrap">
         <div className="lb-main">
           <div className="tabs" role="tablist">
@@ -73,10 +74,11 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
-          {data === 'loading' ? empty('Loading this week’s results…') : tab !== 'fame' ? (
+          {data === 'loading' ? empty('Loading results…') : tab !== 'fame' ? (
             rows.length === 0 ? empty(
               !b ? 'The leaderboard is shown when the game server is running. Your wins this week still count on this device.'
-                : tab === 'friends' ? 'None of your friends have won a game this week yet. Add friends by their player name.'
+                : tab === 'friends' ? `None of your friends ${last ? 'finished in last week’s results' : 'have won a game this week yet'}. Add friends by their player name.`
+                : last ? 'No results from last week. Win games this week to climb the board.'
                 : 'No wins yet this week. Win a game to take the #1 spot.'
             ) : (
               <>
@@ -127,7 +129,17 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
             )
           )}
           {tab === 'fame' && b?.meAllTime && <div className="lb-me">Your all-time rank: <b>{b.meAllTime.rank ? `#${b.meAllTime.rank}` : 'not ranked yet'}</b> · {fmt(b.meAllTime.earnings)} won in total</div>}
-          {tab === 'global' && b && <div className="lb-me">Your rank: <b>{b.me.rank ? `#${b.me.rank}` : 'not ranked yet'}</b> · {fmt(b.me.earnings)} won this week</div>}
+          {tab === 'global' && b && !last && <div className="lb-me">Your rank: <b>{b.me.rank ? `#${b.me.rank}` : 'not ranked yet'}</b> · {fmt(b.me.earnings)} won this week</div>}
+          {tab !== 'fame' && b && last && (
+            <div className="lb-me">
+              {lastRank ? <>You finished <b>#{lastRank}</b>. </> : 'You were not ranked last week. '}
+              {lastRank && rewardForRank(lastRank) > 0 && !claimed ? (
+                <Pill color="gold" onClick={() => { profile.set((x) => ({ coins: x.coins + rewardForRank(lastRank), claimedWeeks: [...x.claimedWeeks, lastWeekKey].slice(-20) })); sfx.coins(); toast(`+${fmt(rewardForRank(lastRank))} coins`, 'coins'); }}>
+                  Claim <Coin size={18} /> {fmt(rewardForRank(lastRank))}
+                </Pill>
+              ) : lastRank ? <span>{rewardForRank(lastRank) ? 'Reward claimed.' : 'Finish in the top 100 to earn a reward.'}</span> : null}
+            </div>
+          )}
         </div>
         <aside className="lb-side">
           <div className="rewards">
@@ -136,36 +148,10 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               <div key={k} className={`reward-row r${i}`}><span>{k}</span><span>{i < 3 && <Coin size={20} />}{fmt(v as number)}</span></div>
             ))}
           </div>
-          <div className="ends">ENDS IN: <b>{ends}</b></div>
-          <Pill color="green" onClick={() => setShowLast(true)}>Last week results</Pill>
+          {!last && <div className="ends">ENDS IN: <b>{ends}</b></div>}
+          <Pill color="green" onClick={() => { sfx.click(); setLast(!last); }}>{last ? 'Current week results' : 'Last week results'}</Pill>
         </aside>
       </div>
-      {showLast && (
-        <Modal title="Last week" onClose={() => setShowLast(false)}>
-          {lastRank ? (
-            <div className="center-col">
-              <p>You finished <b>#{lastRank}</b>.</p>
-              {rewardForRank(lastRank) > 0 && !claimed ? (
-                <Pill color="gold" onClick={() => { profile.set((x) => ({ coins: x.coins + rewardForRank(lastRank), claimedWeeks: [...x.claimedWeeks, lastWeekKey].slice(-20) })); sfx.coins(); toast(`+${fmt(rewardForRank(lastRank))} coins`, 'coins'); setShowLast(false); }}>
-                  Claim <Coin size={18} /> {fmt(rewardForRank(lastRank))}
-                </Pill>
-              ) : <p className="muted">{rewardForRank(lastRank) ? 'Reward claimed.' : 'Finish in the top 100 to earn a reward.'}</p>}
-            </div>
-          ) : <p className="muted">No results from last week. Win games this week to climb the board.</p>}
-          {!!b?.lastWeek?.rows?.length && (
-            <ol className="lb-list lw-list">
-              {b.lastWeek.rows.map((r, i) => (
-                <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''}`}>
-                  <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
-                  <Avatar k={r.avatar} size={36} />
-                  <span className="lb-name">{r.name}{r.me ? ' (you)' : ''}</span>
-                  <span className="lb-earn"><Coin size={20} />{fmt(r.earnings)}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Modal>
-      )}
     </Modal>
   );
 }
