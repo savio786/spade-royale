@@ -145,6 +145,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const t = setTimeout(() => setMissedBanner(false), 6000);
     return () => clearTimeout(t);
   }, [missedNow]);
+  const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Halloween rooms this table uses
   useEffect(() => { if (p.settings.music !== false) music.start(p.settings.track); else music.stop(); }, [p.settings.music, p.settings.track]);
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
 
@@ -154,7 +155,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   };
 
   if (!view || !st) {
-    return <div className="screen table-screen felt-bg"><div className="connecting">Connecting to table…</div>
+    return <div className={`screen table-screen felt-bg fall-${fall}`}><div className="connecting">Connecting to table…</div>
       <Pill color="ghost" onClick={leave}>Back</Pill></div>;
   }
 
@@ -169,7 +170,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me)) lastBySeat.set(m.seat, m);
 
   return (
-    <div className="screen table-screen felt-bg" style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
+    <div className={`screen table-screen felt-bg fall-${fall}`} style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
       <div className="tbl-top-left">
         <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>BUY COINS</button>
         <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">VIP</span><small>CLUB</small></button>
