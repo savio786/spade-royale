@@ -94,7 +94,24 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               </>
             )
           ) : (
-            !b || b.fame.length === 0 ? empty('Each week’s champion is added here when the week ends. The first one is still to be decided.') : (
+            !b || (b.fame.length === 0 && !(b.allTime?.length)) ? empty('The best players of all time appear here. Win games to get on the Wall of Fame.') : (
+              <>
+              {!!b.allTime?.length && (
+                <>
+                  <div className="lb-head"><span>Rank</span><span>Player</span><span>Total won</span></div>
+                  <ol className="lb-list">
+                    {b.allTime.map((r, i) => (
+                      <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''}`}>
+                        <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
+                        <Avatar k={r.avatar} size={44} />
+                        <span className="lb-name">{r.name}{r.me ? ' (you)' : ''}</span>
+                        <span className="lb-earn"><Coin size={24} />{fmt(r.earnings)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+              {b.fame.length > 0 && <div className="lb-head lb-head2"><span>Weekly champions</span></div>}
               <ol className="lb-list">
                 {b.fame.map((f) => (
                   <li key={f.week} className="lb-row">
@@ -106,8 +123,10 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
                   </li>
                 ))}
               </ol>
+              </>
             )
           )}
+          {tab === 'fame' && b?.meAllTime && <div className="lb-me">Your all-time rank: <b>{b.meAllTime.rank ? `#${b.meAllTime.rank}` : 'not ranked yet'}</b> · {fmt(b.meAllTime.earnings)} won in total</div>}
           {tab === 'global' && b && <div className="lb-me">Your rank: <b>{b.me.rank ? `#${b.me.rank}` : 'not ranked yet'}</b> · {fmt(b.me.earnings)} won this week</div>}
         </div>
         <aside className="lb-side">
@@ -133,6 +152,18 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               ) : <p className="muted">{rewardForRank(lastRank) ? 'Reward claimed.' : 'Finish in the top 100 to earn a reward.'}</p>}
             </div>
           ) : <p className="muted">No results from last week. Win games this week to climb the board.</p>}
+          {!!b?.lastWeek?.rows?.length && (
+            <ol className="lb-list lw-list">
+              {b.lastWeek.rows.map((r, i) => (
+                <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''}`}>
+                  <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
+                  <Avatar k={r.avatar} size={36} />
+                  <span className="lb-name">{r.name}{r.me ? ' (you)' : ''}</span>
+                  <span className="lb-earn"><Coin size={20} />{fmt(r.earnings)}</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </Modal>
       )}
     </Modal>

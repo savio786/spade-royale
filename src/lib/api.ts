@@ -9,8 +9,10 @@ export interface Board {
   endsAt: number;
   rows: BoardRow[];
   me: { rank: number | null; earnings: number };
-  lastWeek: { week: string; rank: number | null } | null;
+  lastWeek: { week: string; rank: number | null; rows?: BoardRow[] } | null;
   fame: FameRow[];
+  allTime?: BoardRow[];
+  meAllTime?: { rank: number | null; earnings: number };
 }
 
 const apiBase = serverOrigin;

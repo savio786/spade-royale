@@ -1897,3 +1897,5 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
   .vm-right { gap: 10px; } .vm-tier { min-height: 62px; padding: 6px 16px; border-radius: 16px; } .vm-t, .vm-p { font-size: 22px; }
 }
 .inv-rewards small em { font-style: normal; color: #7dffb0; font-weight: 700; }
+
+.lb-head2 { margin-top: 14px; } .lw-list { max-height: 46vh; overflow-y: auto; margin-top: 12px; width: 100%; }
