@@ -2,9 +2,9 @@
 import { useEffect } from 'react';
 
 const env = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
-const OPERATOR = env.VITE_OPERATOR_NAME || '';
+const OPERATOR = env.VITE_OPERATOR_NAME || 'SE Digital Transformation';
 const BY = OPERATOR ? ` (operated by ${OPERATOR})` : '';
-const EMAIL = env.VITE_SUPPORT_EMAIL || '';
+const EMAIL = env.VITE_SUPPORT_EMAIL || 'support@sedigitaltransformation.com';
 const UPDATED = 'October 17, 2026';
 
 export function LegalPage({ page }: { page: 'privacy' | 'terms' }) {

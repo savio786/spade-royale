@@ -105,8 +105,8 @@ Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 
 The site has a Privacy Policy (`#privacy`) and Terms of Service (`#terms`), linked from the landing-page footer and from Settings. Before you publish to Google Play or the App Store, add two environment variables in Render so the pages show who runs the game and how to reach you:
 
-- `VITE_OPERATOR_NAME` — your name or business name
-- `VITE_SUPPORT_EMAIL` — the email players should use for help and data-deletion requests
+- `VITE_OPERATOR_NAME` — your name or business name (default: SE Digital Transformation)
+- `VITE_SUPPORT_EMAIL` — the email players should use for help and data-deletion requests (default: support@sedigitaltransformation.com)
 
 Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://spade-haven.onrender.com/#privacy`.
 
