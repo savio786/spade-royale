@@ -145,6 +145,14 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const t = setTimeout(() => setMissedBanner(false), 6000);
     return () => clearTimeout(t);
   }, [missedNow]);
+  // the card just tapped: hidden at once (so a slow connection doesn't leave it hanging in your hand) and further taps are ignored until the server confirms
+  const [sent, setSent] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sent) return;
+    if (view?.error || !st?.hand.some((c) => c.s + c.r === sent)) { setSent(null); return; }
+    const t = setTimeout(() => setSent(null), 2500);
+    return () => clearTimeout(t);
+  }, [sent, st?.hand, view?.error]);
   const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Halloween rooms this table uses
   useEffect(() => { if (p.settings.music !== false) music.start(p.settings.track); else music.stop(); }, [p.settings.music, p.settings.track]);
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
@@ -259,9 +267,10 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
               const pos = { ['--x' as string]: `${off * gap}px`, ['--y' as string]: `${off * off * 1.2}px`, ['--r' as string]: `${off * 2.2}deg`, ['--i' as string]: i, zIndex: i } as React.CSSProperties;
               if (!c) return <CardView key={`${st.round}-b${i}`} back className="hcard deal" style={pos} />;
               const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
-              return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} dataCard={`${c.s}${c.r}`} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`}
+              return <CardView key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} dataCard={`${c.s}${c.r}`} className={`hcard deal ${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''} ${sent === c.s + c.r ? 'sent' : ''}`}
                 onClick={() => {
-                  if (ok) { vibrate(10); { const h = document.querySelector(`.fan [data-card="${c.s}${c.r}"]`); if (h) Object.assign(playedFrom, screenCenter(h), { at: Date.now() }); } ctl.act({ type: 'play', seat: me, card: c }); return; }
+                  if (sent) return;
+                  if (ok) { setSent(c.s + c.r); vibrate(10); { const h = document.querySelector(`.fan [data-card="${c.s}${c.r}"]`); if (h) Object.assign(playedFrom, screenCenter(h), { at: Date.now() }); } ctl.act({ type: 'play', seat: me, card: c }); return; }
                   // explain why this card can't be played right now
                   if (st.phase !== 'playing') return;
                   if (!myTurn) return toast(`Wait for your turn — ${st.seats[st.turn]?.name ?? 'another player'} is playing`);
