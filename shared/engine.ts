@@ -59,6 +59,7 @@ export interface GameState {
   leadSeat: number;
   spadesBroken: boolean;
   lastTrickWinner: number | null;
+  played?: Card[];              // every card played so far this round (public; lets strong computer players count cards)
   scores: number[];             // per side (2 for partners, 4 for solo)
   bags: number[];               // per side
   history: RoundResult[];
@@ -152,6 +153,7 @@ export function startRound(g: GameState, rnd: () => number = Math.random): GameS
     leadSeat: (dealer + 1) % 4,
     spadesBroken: false,
     lastTrickWinner: null,
+    played: [],
   };
 }
 
@@ -220,14 +222,15 @@ export function applyAction(g: GameState, a: Action, rnd: () => number = Math.ra
       const hands = g.hands.slice();
       hands[a.seat] = hands[a.seat].filter((c) => !sameCard(c, a.card));
       const trick = [...g.trick, { seat: a.seat, card: a.card }];
+      const played = [...(g.played ?? []), a.card];
       const spadesBroken = g.spadesBroken || a.card.s === 'S';
       if (trick.length < 4) {
-        return { ...g, hands, trick, spadesBroken, turn: (a.seat + 1) % 4 };
+        return { ...g, hands, trick, played, spadesBroken, turn: (a.seat + 1) % 4 };
       }
       const w = trickWinner(trick);
       const tricks = g.tricks.slice();
       tricks[w]++;
-      return { ...g, hands, trick, spadesBroken, tricks, lastTrickWinner: w, turn: w, phase: 'trickEnd' };
+      return { ...g, hands, trick, played, spadesBroken, tricks, lastTrickWinner: w, turn: w, phase: 'trickEnd' };
     }
     case 'collect': {
       if (g.phase !== 'trickEnd') return g;
