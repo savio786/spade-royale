@@ -64,9 +64,9 @@ function botStats(level: number): PublicStats {
 export function makeBot(exclude: string[] = []): Seat {
   const lvl = 5 + Math.floor(Math.random() * 60);
   const base = { id: `bot:${++botCounter}`, level: lvl, bot: true, stats: botStats(lvl) };
-  // computer players with a real picture come first: half of the time one of them sits down, if any are still free
+  // computer players with a real picture come first: most of the time (80%) one of them sits down, if any are still free
   const photos = BOT_PHOTOS.filter((b) => !exclude.includes(b.name));
-  if (photos.length && Math.random() < 0.5) { const b = pick(photos); return { ...base, name: b.name, avatar: b.id }; }
+  if (photos.length && Math.random() < 0.8) { const b = pick(photos); return { ...base, name: b.name, avatar: b.id }; }
   const free = PEOPLE_NAMES.map((n, i) => [n, i] as const).filter(([n]) => !exclude.includes(n));
   if (free.length) { const [name, i] = pick(free); return { ...base, name, avatar: `p${i + 1}` }; }
   const names = BOT_NAMES.filter((n) => !exclude.includes(n));

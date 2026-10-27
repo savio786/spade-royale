@@ -112,7 +112,7 @@ Then redeploy. The text is a sensible starting point, not legal advice — have 
 
 ## Computer players with pictures
 
-`shared/botphotos.ts` lists computer players who have a real picture. Put a square picture (about 360×360, `.webp` or `.jpg`) in `public/brand/bots/`, add a line with an id (`b3`, `b4`, …), a name and the file path, and redeploy. When a computer player sits down at a table there is a 50% chance it is one of these (while any are free); otherwise it is one of the drawn portraits.
+`shared/botphotos.ts` lists computer players who have a real picture. Put a square picture (about 360×360, `.webp` or `.jpg`) in `public/brand/bots/`, add a line with an id (`b3`, `b4`, …), a name and the file path, and redeploy. When a computer player sits down at a table there is an 80% chance it is one of these (while any are free); otherwise it is one of the drawn portraits.
 
 ## Avatars and profile photos
 
