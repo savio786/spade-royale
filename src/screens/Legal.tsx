@@ -7,17 +7,18 @@ const BY = OPERATOR ? ` (operated by ${OPERATOR})` : '';
 const EMAIL = env.VITE_SUPPORT_EMAIL || 'support@sedigitaltransformation.com';
 const UPDATED = 'October 17, 2026';
 
-export function LegalPage({ page }: { page: 'privacy' | 'terms' }) {
-  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : 'Terms of Service · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
-  const back = () => { if (history.length > 1) history.back(); else window.location.hash = ''; };
+export function LegalPage({ page }: { page: 'privacy' | 'terms' | 'delete' }) {
+  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : page === 'terms' ? 'Terms of Service · Spade Haven' : 'Delete your data · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
+  const home = () => { if (/^\/(privacy|terms|data-deletion)\/?$/.test(window.location.pathname)) window.location.href = '/'; else window.location.hash = ''; };
+  const back = () => { if (history.length > 1) history.back(); else home(); };
   return (
     <div className="legal-page">
       <header className="legal-top">
-        <a href="#" className="legal-brand" onClick={(e) => { e.preventDefault(); window.location.hash = ''; }}>♠ Spade Haven</a>
-        <nav><a href="#privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="#terms" className={page === 'terms' ? 'on' : ''}>Terms</a><button onClick={back}>Back</button></nav>
+        <a href="/" className="legal-brand" onClick={(e) => { e.preventDefault(); home(); }}>♠ Spade Haven</a>
+        <nav><a href="/privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="/terms" className={page === 'terms' ? 'on' : ''}>Terms</a><button onClick={back}>Back</button></nav>
       </header>
       <article className="legal-body">
-        {page === 'privacy' ? <Privacy /> : <Terms />}
+        {page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : <DeleteData />}
         <p className="legal-meta">Last updated {UPDATED}.{EMAIL && <> Questions: <a href={`mailto:${EMAIL}`}>{EMAIL}</a></>}</p>
       </article>
     </div>
@@ -46,6 +47,25 @@ function Privacy() {
     <p>Spade Haven is intended for players aged 18 and over and is not directed to children. If you believe a child has given us information, contact us and we will delete it.</p>
     <h2>Changes</h2>
     <p>We may update this policy. The date below shows when it last changed.</p>
+  </>);
+}
+
+function DeleteData() {
+  const subject = encodeURIComponent('Delete my Spade Haven data');
+  return (<>
+    <h1>Delete your data</h1>
+    <p>You can ask us to delete your Spade Haven account and the information we hold about you at any time.</p>
+    <h2>How to ask</h2>
+    <ol>
+      <li>Email <a href={`mailto:${EMAIL}?subject=${subject}`}>{EMAIL}</a> from the address you signed up with (or tell us your player name or guest code).</li>
+      <li>Put “Delete my Spade Haven data” in the subject.</li>
+      <li>We will confirm by email and delete your account within 30 days.</li>
+    </ol>
+    <h2>What is deleted</h2>
+    <p>Your profile, name, avatar and photo, coins, level, game history, leaderboard entries, and the email, name and ID that came from Email, Google or Facebook sign-in. If you signed in with Facebook, you can also remove Spade Haven in Facebook under Settings → Apps and Websites.</p>
+    <h2>What we may keep</h2>
+    <p>Records of purchases that we are required by law to keep (for tax and accounting). These are held by our payment provider and contain no game data.</p>
+    <p>See also our <a href="/privacy">Privacy Policy</a>.</p>
   </>);
 }
 
