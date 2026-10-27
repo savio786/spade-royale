@@ -110,6 +110,10 @@ The site has a Privacy Policy (`#privacy`) and Terms of Service (`#terms`), link
 
 Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://spade-haven.onrender.com/#privacy`.
 
+## Computer players with pictures
+
+`shared/botphotos.ts` lists computer players who have a real picture. Put a square picture (about 360×360, `.webp` or `.jpg`) in `public/brand/bots/`, add a line with an id (`b3`, `b4`, …), a name and the file path, and redeploy. When a computer player sits down at a table there is a 50% chance it is one of these (while any are free); otherwise it is one of the drawn portraits.
+
 ## Avatars and profile photos
 
 Players pick from 24 illustrated people (computer players always use one of these, with the matching name) or 24 animals and characters, or tap **Use my photo**. Photos are cropped and shrunk to a small 160×160 JPEG in the browser, then stored on the server (`/api/photo`, max 10 uploads per hour per address) and shown to the other players. Uploaded photos are not reviewed automatically — if you want to vet them, add a moderation service before going big.

@@ -56,7 +56,7 @@ function rollover() {
 }
 
 /** Picture keys the game can show: drawn avatars and portraits, or an uploaded photo (u: + 24 hex). */
-const okAvatar = (v: unknown) => { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : null; };
+const okAvatar = (v: unknown) => { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|b\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : null; };
 
 /** Keeps a ranked player's name and picture up to date when they change them (not only when they next win). */
 export function touch(p: { id: string; name: string; avatar: string }) {

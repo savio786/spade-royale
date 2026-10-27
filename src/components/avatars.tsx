@@ -2,6 +2,7 @@
 // Keys a1–a12 keep working for existing players; a13–a24 are new.
 import { useId, type ReactNode } from 'react';
 import { PEOPLE, PEOPLE_KEYS, PersonArt } from './people';
+import { BOT_PHOTO_BY_ID } from '../../shared/botphotos';
 
 const INK = '#1d1a24';
 const BLUSH = '#ff8fa3';
@@ -294,11 +295,13 @@ export const AVATARS: Record<string, Def> = {
 /** People first (most realistic), then animals and characters. */
 export const AVATAR_KEYS = [...PEOPLE_KEYS, ...Object.keys(AVATARS)];
 export const isPhoto = (k: string) => k.startsWith('u:');
-export const avatarName = (k: string) => (isPhoto(k) ? 'Your photo' : PEOPLE[k]?.name ?? AVATARS[k]?.name ?? 'Player');
+export const avatarName = (k: string) => (isPhoto(k) ? 'Your photo' : BOT_PHOTO_BY_ID[k]?.name ?? PEOPLE[k]?.name ?? AVATARS[k]?.name ?? 'Player');
 
 export function AvatarArt({ k }: { k: string }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const person = PEOPLE[k];
+  const photo = BOT_PHOTO_BY_ID[k];
+  if (photo) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><image href={photo.file} width="100" height="100" preserveAspectRatio="xMidYMid slice" /></svg>;
   if (person) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><PersonArt p={person} uid={`pa${uid}`} /></svg>;
   const a = AVATARS[k] ?? AVATARS.a1;
   return (
