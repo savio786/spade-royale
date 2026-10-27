@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://spade-haven.onrender.com/sitemap.xml
+Sitemap: https://play.sedigitaltransformation.com/sitemap.xml

@@ -90,7 +90,7 @@ export default function App() {
     setScreen('table');
   }, []);
 
-  // the install link: spade-haven.onrender.com/install (or #install)
+  // the install link: play.sedigitaltransformation.com/install (or #install)
   if (hash === '#install' || /^\/install\/?$/.test(window.location.pathname)) return <InstallPage installPrompt={installPrompt} />;
   const legal = hash === '#privacy' ? 'privacy' : hash === '#terms' ? 'terms' : null;
   if (legal) return <LegalPage page={legal} />;

@@ -84,7 +84,7 @@ The version code is GitHub's build number, so each new bundle can be uploaded as
 
 **Purchases in the app:** Google requires Google Play Billing for coins, Chat Passes and VIP inside an Android app, so buying is switched off in the app build (the store shows "coming soon"; free coins still work). Once the Play developer account exists and the products are created in the Play Console, connect Google Play Billing (for example with RevenueCat) and turn the store back on.
 
-Publishing checklist: Google Play developer account ($25 one-time) → create the app (package `com.spadehaven.app`) → enroll in Play App Signing → upload the `.aab` to Internal / Closed testing → store listing, privacy policy `https://spade-haven.onrender.com/#privacy`, content rating (simulated gambling with virtual coins, 18+), data safety → production. New personal accounts may need a closed test with 12+ testers for 14 days first.
+Publishing checklist: Google Play developer account ($25 one-time) → create the app (package `com.spadehaven.app`) → enroll in Play App Signing → upload the `.aab` to Internal / Closed testing → store listing, privacy policy `https://play.sedigitaltransformation.com/#privacy`, content rating (simulated gambling with virtual coins, 18+), data safety → production. New personal accounts may need a closed test with 12+ testers for 14 days first.
 
 ## Apple App Store (iPhone / iPad)
 
@@ -108,7 +108,7 @@ The site has a Privacy Policy (`#privacy`) and Terms of Service (`#terms`), link
 - `VITE_OPERATOR_NAME` — your name or business name (default: SE Digital Transformation)
 - `VITE_SUPPORT_EMAIL` — the email players should use for help and data-deletion requests (default: support@sedigitaltransformation.com)
 
-Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://spade-haven.onrender.com/#privacy`.
+Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://play.sedigitaltransformation.com/#privacy`.
 
 ## Computer players with pictures
 
@@ -152,8 +152,8 @@ Computer players play at **expert** skill at tables with a bet of 100,000 coins 
 Players can sign out and sign back in on any phone or computer and keep their coins, level and stats:
 
 - **Email + password** — works now, no setup. Passwords are stored as scrypt hashes; accounts and progress are saved in Upstash. Guests can turn their guest into an account from **Settings → Save your progress** and keep everything.
-- **Google** — create an OAuth client: Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID → *Web application*, add `https://spade-haven.onrender.com` under *Authorized JavaScript origins*. Put the client ID in Render as `GOOGLE_CLIENT_ID`. The Google button appears on the sign-in screen automatically (website; Google doesn't allow its button inside Android app web views).
-- **Facebook** — developers.facebook.com → Create app → *Authenticate and request data from users with Facebook Login*, add the website `https://spade-haven.onrender.com/`, then put `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in Render. Switch the app to *Live* when ready.
+- **Google** — create an OAuth client: Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID → *Web application*, add `https://play.sedigitaltransformation.com` under *Authorized JavaScript origins*. Put the client ID in Render as `GOOGLE_CLIENT_ID`. The Google button appears on the sign-in screen automatically (website; Google doesn't allow its button inside Android app web views).
+- **Facebook** — developers.facebook.com → Create app → *Authenticate and request data from users with Facebook Login*, add the website `https://play.sedigitaltransformation.com/`, then put `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in Render. Switch the app to *Live* when ready.
 - **Instagram** — Meta no longer offers Instagram sign-in for other apps; Facebook Login covers the same accounts.
 
 Not yet included: "forgot password" emails (needs an email-sending service such as Resend).
@@ -224,7 +224,7 @@ These are wired up in the UI but use placeholders until you add your own account
 - The game ends when any side reaches the max points or drops to the min points. The highest score wins, and a tie plays another round.
 - Prize: Partners winners get 1.8× the bet each. The Solo winner gets 3.6× the bet. VIP adds 10%.
 
-Live site: https://spade-haven.onrender.com
+Live site: https://play.sedigitaltransformation.com
 
 ## Forgot password (email)
 

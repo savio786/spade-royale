@@ -84,7 +84,7 @@ export async function changePassword(b: Record<string, unknown>) {
 }
 
 // ---- forgot password: an emailed link that works once, for 30 minutes ----
-const SITE = () => (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://spade-haven.onrender.com').replace(/\/+$/, '');
+const SITE = () => (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://play.sedigitaltransformation.com').replace(/\/+$/, '');
 const resetKey = (token: string) => `reset-${createHash('sha256').update(token).digest('hex').slice(0, 40)}`;
 const lastAsk = new Map<string, number>();
 

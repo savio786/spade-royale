@@ -4,7 +4,7 @@
 //   Override with VITE_SERVER_URL (e.g. wss://your-domain.com/ws) when building the apps.
 import { Capacitor } from '@capacitor/core';
 
-export const LIVE_SERVER = 'https://spade-haven.onrender.com';
+export const LIVE_SERVER = 'https://play.sedigitaltransformation.com';
 
 /** https://… origin of the game server, or null when there is none (offline build). */
 export function serverOrigin(): string | null {
