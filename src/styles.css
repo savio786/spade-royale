@@ -1920,4 +1920,9 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .hostess.left { left: -40px; -webkit-mask-image: linear-gradient(90deg, #000 55%, transparent 100%), linear-gradient(180deg, transparent 0%, #000 14%, #000 72%, transparent 100%); mask-image: linear-gradient(90deg, #000 55%, transparent 100%), linear-gradient(180deg, transparent 0%, #000 14%, #000 72%, transparent 100%); -webkit-mask-composite: source-in; mask-composite: intersect; }
 .hostess.right { right: -40px; -webkit-mask-image: linear-gradient(270deg, #000 55%, transparent 100%), linear-gradient(180deg, transparent 0%, #000 14%, #000 72%, transparent 100%); mask-image: linear-gradient(270deg, #000 55%, transparent 100%), linear-gradient(180deg, transparent 0%, #000 14%, #000 72%, transparent 100%); -webkit-mask-composite: source-in; mask-composite: intersect; }
 .login-inner { position: relative; z-index: 1; }
-@media (max-width: 900px) { .hostess { display: none; } }
+/* phones: no room beside the buttons, so the two ladies sit softly behind them, one in each lower corner */
+@media (max-width: 900px) {
+  .hostess { width: 58vw; max-width: 360px; height: 70%; max-height: 520px; opacity: .5; filter: none; }
+  .hostess.left { left: -8vw; }
+  .hostess.right { right: -8vw; }
+}
