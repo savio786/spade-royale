@@ -1,3 +1,4 @@
+import { HOSTESS_LEFT, HOSTESS_RIGHT, PersonArt, PersonSpec } from '../components/people';
 import { useEffect, useRef, useState } from 'react';
 import { emailSignIn, emailSignUp, facebookSignIn, forgotPassword, loadAuthConfig, mountGoogleButton, resetPassword, type AuthConfig } from '../lib/auth';
 import { AVATAR_KEYS, AvatarPicker, Icon, Logo, Modal, Pill } from '../components/ui';
@@ -47,6 +48,8 @@ export function Login({ resetToken }: { resetToken?: string }) {
 
   return (
     <div className="screen login felt-bg">
+      <Hostess spec={HOSTESS_LEFT} side="left" />
+      <Hostess spec={HOSTESS_RIGHT} side="right" />
       <div className="login-inner">
         <Logo />
         <div className="login-glow" />
@@ -176,5 +179,19 @@ function ResetModal({ token }: { token: string }) {
         <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : 'Save new password & sign in'}</Pill>
       </form>
     </Modal>
+  );
+}
+
+/** A hostess standing at the side of the sign-in screen, in a gold-framed arch with a gold spade pin on her lapel. */
+function Hostess({ spec, side }: { spec: PersonSpec; side: 'left' | 'right' }) {
+  return (
+    <div className={`hostess ${side}`} aria-hidden="true">
+      <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMax slice">
+        <PersonArt p={spec} uid={`host${side}`} />
+        <g transform={`translate(${side === 'left' ? 31 : 69} 85) scale(.95)`} fill="#f5c542" stroke="#8a5a05" strokeWidth=".5">
+          <path d="M0 -6 C-1 -4 -5 -2 -5 1 C-5 3 -3 4 -1.6 3 C-1.6 4.5 -2.3 5.5 -3.2 6 L3.2 6 C2.3 5.5 1.6 4.5 1.6 3 C3 4 5 3 5 1 C5 -2 1 -4 0 -6Z" />
+        </g>
+      </svg>
+    </div>
   );
 }

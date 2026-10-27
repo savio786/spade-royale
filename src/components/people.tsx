@@ -270,4 +270,7 @@ export const PEOPLE: Record<string, PersonSpec> = {
   p23: { name: 'Ava', skin: 's1', hair: 'bun', hairColor: '#e0c07a', eyes: '#3b7bbf', top: 'vneck', topColor: '#c2307e', bg: '#4a3a7a', fem: true, earrings: true, lip: '#d6455e', shadow: '#c46aa0', smile: true },
   p24: { name: 'Dante', skin: 's4', hair: 'buzz', hairColor: '#120d0b', eyes: '#2b1a10', top: 'collar', topColor: '#222222', bg: '#6a4a2a', beard: 'stubble', smile: true },
 };
+/** The two hostesses who greet players on the sign-in screen (original artwork, same painted style as the table players). */
+export const HOSTESS_LEFT: PersonSpec = { name: 'Hostess', skin: 's4', hair: 'long', hairColor: '#0f0a09', eyes: '#2b1a10', top: 'jacket', topColor: '#8e1233', bg: '#3a1030', fem: true, earrings: true, lip: '#b3153a', shadow: '#c08a40', smile: true };
+export const HOSTESS_RIGHT: PersonSpec = { name: 'Hostess', skin: 's1', hair: 'long', hairColor: '#e3c26a', eyes: '#3b7bbf', top: 'jacket', topColor: '#8e1233', bg: '#3a1030', fem: true, earrings: true, lip: '#c8325a', shadow: '#b07a9a', smile: true };
 export const PEOPLE_KEYS = Object.keys(PEOPLE);
