@@ -47,6 +47,8 @@ export function Login({ resetToken }: { resetToken?: string }) {
 
   return (
     <div className="screen login felt-bg">
+      <img className="hostess left" src="/brand/hostess-left.webp" alt="" aria-hidden="true" draggable={false} />
+      <img className="hostess right" src="/brand/hostess-right.webp" alt="" aria-hidden="true" draggable={false} />
       <div className="login-inner">
         <Logo />
         <div className="login-glow" />
