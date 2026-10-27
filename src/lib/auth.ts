@@ -3,7 +3,11 @@ import { serverOrigin } from './config';
 import { profile } from './profile';
 import { applyAccount, type Account } from './guest';
 
-export interface AuthConfig { google: string | null; facebook: string | null; resetMail?: boolean }
+export interface AuthConfig { google: string | null; facebook: string | null; resetMail?: boolean; facebookPublic?: boolean }
+
+/** The Facebook button is hidden from players until the server says FACEBOOK_PUBLIC=1 (Meta business verification done).
+    The owner and testers can still reach it by adding ?fb=1 to the address. */
+export const showFacebook = (cfg: AuthConfig) => !!cfg.facebook && (!!cfg.facebookPublic || /[?&]fb=1\b/.test(window.location.search));
 
 async function post(path: string, body: unknown): Promise<Account> {
   const base = serverOrigin();

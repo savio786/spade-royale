@@ -6,7 +6,7 @@ import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../c
 import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
-import { facebookSignIn, loadAuthConfig, mountGoogleButton, type AuthConfig } from '../lib/auth';
+import { facebookSignIn, loadAuthConfig, mountGoogleButton, showFacebook, type AuthConfig } from '../lib/auth';
 import { EmailModal } from './Login';
 import { PRODUCTS, priceLabel } from '../../shared/products';
 import { activeTheme, THEMES, themeVars } from '../lib/themes';
@@ -596,7 +596,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
               <small className="st-exit-note">Back to the sign-in screen. {p.name} stays saved on this device.</small>
             </div>
             <div className="st-social">
-              <button className="social fb" onClick={fb} disabled={busy}><span className="social-ico">f</span><span>Sign in with Facebook</span></button>
+              {showFacebook(cfg) && <button className="social fb" onClick={fb} disabled={busy}><span className="social-ico">f</span><span>Sign in with Facebook</span></button>}
               {cfg.google
                 ? <div className="google-slot" ref={googleRef} />
                 : <button className="social gp" onClick={() => { sfx.click(); toast('Google sign-in is coming soon — use email for now'); }}><span className="social-ico"><svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6" fill="#fff" /><path d="M7 10v4M5 12h4" stroke="#1a7f37" strokeWidth="2" strokeLinecap="round" /><circle cx="16" cy="11" r="1.2" fill="#1a7f37" /><circle cx="18" cy="13" r="1.2" fill="#1a7f37" /></svg></span><span>Google Play Games</span></button>}

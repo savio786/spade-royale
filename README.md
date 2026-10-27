@@ -153,7 +153,7 @@ Players can sign out and sign back in on any phone or computer and keep their co
 
 - **Email + password** — works now, no setup. Passwords are stored as scrypt hashes; accounts and progress are saved in Upstash. Guests can turn their guest into an account from **Settings → Save your progress** and keep everything.
 - **Google** — create an OAuth client: Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID → *Web application*, add `https://play.sedigitaltransformation.com` under *Authorized JavaScript origins*. Put the client ID in Render as `GOOGLE_CLIENT_ID`. The Google button appears on the sign-in screen automatically (website; Google doesn't allow its button inside Android app web views).
-- **Facebook** — developers.facebook.com → Create app → *Authenticate and request data from users with Facebook Login*, add the website `https://play.sedigitaltransformation.com/`, then put `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in Render. Switch the app to *Live* when ready.
+- **Facebook** — developers.facebook.com → Create app → *Authenticate and request data from users with Facebook Login*, add the website `https://play.sedigitaltransformation.com/`, then put `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` in Render. The button stays hidden from players until Meta business verification is done and you add `FACEBOOK_PUBLIC=1` in Render; you and testers can still use it any time at `https://play.sedigitaltransformation.com/?fb=1`. Switch the app to *Live* when ready.
 - **Instagram** — Meta no longer offers Instagram sign-in for other apps; Facebook Login covers the same accounts.
 
 Not yet included: "forgot password" emails (needs an email-sending service such as Resend).

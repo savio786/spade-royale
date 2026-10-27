@@ -12,7 +12,7 @@ const GOOGLE_CLIENT_ID = (process.env.GOOGLE_CLIENT_ID || '').trim();
 const FACEBOOK_APP_ID = (process.env.FACEBOOK_APP_ID || '').trim();
 const FACEBOOK_APP_SECRET = (process.env.FACEBOOK_APP_SECRET || '').trim();
 
-export const authConfig = () => ({ google: GOOGLE_CLIENT_ID || null, facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? FACEBOOK_APP_ID : null, resetMail: mailConfigured() });
+export const authConfig = () => ({ google: GOOGLE_CLIENT_ID || null, facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? FACEBOOK_APP_ID : null, resetMail: mailConfigured(), facebookPublic: (process.env.FACEBOOK_PUBLIC || '').trim() === '1' });
 
 export class AuthError extends Error { constructor(msg: string, public status = 400) { super(msg); } }
 

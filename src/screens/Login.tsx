@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { emailSignIn, emailSignUp, facebookSignIn, forgotPassword, loadAuthConfig, mountGoogleButton, resetPassword, type AuthConfig } from '../lib/auth';
+import { emailSignIn, emailSignUp, facebookSignIn, forgotPassword, loadAuthConfig, mountGoogleButton, resetPassword, showFacebook, type AuthConfig } from '../lib/auth';
 import { AVATAR_KEYS, AvatarPicker, Icon, Logo, Modal, Pill } from '../components/ui';
 import { profile } from '../lib/profile';
 import { sfx } from '../lib/sound';
@@ -53,9 +53,11 @@ export function Login({ resetToken }: { resetToken?: string }) {
         <Logo />
         <div className="login-glow" />
         <div className="login-buttons">
-          <button className="social fb" onClick={fb} disabled={busy}>
-            <span className="social-ico">f</span><span>Sign in with Facebook</span>
-          </button>
+          {showFacebook(cfg) && (
+            <button className="social fb" onClick={fb} disabled={busy}>
+              <span className="social-ico">f</span><span>Sign in with Facebook</span>
+            </button>
+          )}
           {cfg.google ? <div className="google-slot" ref={googleRef} /> : (
             <button className="social gp" onClick={() => { sfx.click(); setErr('Google sign-in is coming soon — sign in with email for now.'); }}>
               <span className="social-ico"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6" fill="#fff" /><path d="M7 10v4M5 12h4" stroke="#1a7f37" strokeWidth="2" strokeLinecap="round" /><circle cx="16" cy="11" r="1.2" fill="#1a7f37" /><circle cx="18" cy="13" r="1.2" fill="#1a7f37" /></svg></span>
