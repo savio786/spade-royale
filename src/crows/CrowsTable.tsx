@@ -135,8 +135,25 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
             <div className="crows-scores">
               <span className="us">US</span><span className="them">THEM</span>
               <b>{st.scores[sideOf(ME)]}</b><b>{st.scores[1 - sideOf(ME)]}</b>
-              {(st.phase === 'playing' || st.phase === 'trickEnd') && <small>taken this hand: {takenNow[sideOf(ME)]} · {takenNow[1 - sideOf(ME)]}</small>}
             </div>
+            {(st.phase === 'playing' || st.phase === 'trickEnd') && st.highBidder !== null && (() => {
+              const us = sideOf(ME), them = 1 - us, bs = sideOf(st.highBidder!);
+              const have = takenNow[bs], need = st.highBid!;
+              const made = have >= need;
+              return (
+                <div className="crows-live" aria-live="polite">
+                  <div className="cl-label">POINTS THIS HAND</div>
+                  <div className="crows-scores live">
+                    <b className={bs === us ? 'bidder' : ''}>{takenNow[us]}</b><b className={bs === them ? 'bidder' : ''}>{takenNow[them]}</b>
+                  </div>
+                  <div className={`cl-bar ${made ? 'made' : ''}`} title={`${bs === us ? 'Your side' : 'Their side'} bid ${need}`}>
+                    <i style={{ width: `${Math.min(100, (have / need) * 100)}%` }} />
+                    <span>{bs === us ? 'US' : 'THEM'} {have} / {need}{made ? ' ✓' : ''}</span>
+                  </div>
+                  <small>+ {st.nestCount} put-down cards go to the last trick</small>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="felt-center">
@@ -146,6 +163,12 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
           </div>
           <div className="crows-trick">
             {st.trick.map((t) => <CrowCard key={`${st.round}-${t.card.s}${t.card.r}`} card={t.card} className={`at-${rel(t.seat)}`} />)}
+            {st.phase === 'trickEnd' && st.lastTrickWinner !== null && (() => {
+              const pts = pointsOf(st.trick.map((t) => t.card));
+              const ours = sideOf(st.lastTrickWinner!) === sideOf(ME);
+              const who = st.lastTrickWinner === ME ? 'You' : st.seats[st.lastTrickWinner!]?.name ?? '';
+              return <div className={`crows-pop ${ours ? 'us' : 'them'} to-${rel(st.lastTrickWinner!)}`}>{pts > 0 ? `+${pts}` : '0'}<small>{who}</small></div>;
+            })()}
           </div>
         </div>
       </div>
