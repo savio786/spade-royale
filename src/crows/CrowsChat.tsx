@@ -1,21 +1,10 @@
 // Crows Haven table chat: preset phrases and emoji only (no typing), like the free chat at Spades tables.
 // Computer players answer now and then, using the same fixed list.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { QUICK_PHRASES, FREE_EMOJI } from '../../shared/chat';
 import { Modal } from '../components/ui';
 import { sfx } from '../lib/sound';
-
-/** The fixed phrases: the Spades list without the Spades-only lines, plus a few for Crows Haven. */
-export const CROWS_PHRASES = [
-  ...QUICK_PHRASES.filter((p) => !/nil/i.test(p)),
-  'Nice nest', 'Take the Crow!', 'Great trump call', 'We got this',
-];
-export const CROWS_EMOJI = FREE_EMOJI;
-
-const BOT_REPLY = ['Ha ha', 'Thanks', 'Good job', 'Lucky', '😂', '👍', '😎', 'Well played', 'No way', '🔥'];
-const BOT_GREET = ['Hello', 'Good luck', '😃', 'We got this'];
-const BOT_MADE = ['Nice bid', 'Well played', 'Good job', '😎', '🔥'];
-const BOT_SET = ['So close', 'Oops', 'Nice try', '😞', 'No way'];
+import { CROWS_PHRASES, CROWS_EMOJI, BOT_REPLY, BOT_GREET, BOT_MADE, BOT_SET } from '../../shared/crows/chat';
+export { CROWS_PHRASES, CROWS_EMOJI };
 
 export interface ChatMsg { id: number; seat: number; text: string; at: number }
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];

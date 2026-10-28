@@ -34,6 +34,9 @@ Crows Haven-only files:
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
 
 - `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen
+- `src/crows/online.ts` — online play: Play online / private tables, the live connection, reconnects
+- `shared/crows/protocol.ts`, `shared/crows/chat.ts` — messages and fixed chat list shared by the game and the server
+- `crows-server/` — the Cloudflare game server (own package.json; not part of the Spades build)
 - `src/crows/CrowsChat.tsx` — table chat: preset phrases + emoji only (no typing), bubbles on seats, computer players reply
 - `src/crows/CrowsRanking.tsx` — weekly ranking page; each finished game is sent to the ranking
 - `api/crows-rank.ts` — Vercel function for the weekly ranking (Render/Spades never runs it). Needs an Upstash Redis
@@ -129,12 +132,21 @@ Items marked *(default)* are our choice where the published versions differ; the
   the simple bot works. Skill levels by table bet, same as Spades.
 
 ### Hosting (owner decision, 2026-10-27)
-- Crows Haven does **not** go on Render. It goes on **Vercel** as a static app.
-- Vercel can't run the websocket server, so **version one is played against computer
-  players only**. Vercel project settings: branch `second-game`, environment variables
-  `VITE_CROWS=1` and `VITE_OFFLINE=1`, build command from `vercel.json`.
-- Live: Vercel project **crows-haven** in the **Royal** team (set up 2026-10-27). Production branch is
-  `second-game`, so every push to `second-game` redeploys it; pushes to `main` do not. Online/private tables wait until a separate multiplayer host is chosen.
+- Crows Haven does **not** go on Render. The site is on **Vercel** (project crows-haven, branch `second-game`,
+  `VITE_CROWS=1`, `VITE_OFFLINE=1`).
+- Online play (owner decision 2026-10-28): a separate **Crows Haven game server on Cloudflare**
+  (`crows-server/`: a Worker with Durable Objects — `Lobby` matches players, one `Table` per table).
+  It runs the same `shared/crows` engine and bots. Deployed by `.github/workflows/crows-server.yml` on pushes to
+  `second-game` once the repo has the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+  The site finds it through `VITE_CROWS_SERVER` (the server's https address) in Vercel; without it, online
+  buttons are hidden and only "vs computer" play shows.
+- Online tables, like Spades: "Play online" seats you at a public table with the same game points; each empty
+  seat gets a 15 s countdown, then a computer player (AI portrait) sits down; "Start now" fills all seats.
+  Private tables get a 5-letter code and wait for the host to start. 20 s per turn (40 s for the nest), then the
+  game plays for you; after 3 missed turns or a lost connection a computer player plays your seat until you're
+  back (a reload puts you back in your seat). Chat is the fixed phrase/emoji list, checked on the server.
+- Test locally: `cd crows-server && npx wrangler dev --var TIME_SCALE:0.1` and build the site with
+  `VITE_CROWS_SERVER=http://127.0.0.1:8787`.
 - Spades stays exactly as it is: on Render, from `main`. Nothing in this work changes it.
 
 How to build it without touching Spades:

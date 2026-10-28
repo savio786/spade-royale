@@ -1,0 +1,54 @@
+# Crows Haven game server → Cloudflare (crows-server/). Spades is not built or deployed here.
+# Needs two repository secrets (GitHub → Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   a Cloudflare API token made from the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account ID
+# Until both are set, this workflow only checks the code and skips the deploy.
+name: Crows Haven server
+
+on:
+  push:
+    branches: [second-game]
+    paths:
+      - 'crows-server/**'
+      - 'shared/crows/**'
+      - 'shared/chat.ts'
+      - 'shared/botphotos.ts'
+      - 'src/crows/portraits.ts'
+      - '.github/workflows/crows-server.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: crows-server
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install
+        working-directory: crows-server
+        run: npm ci
+      - name: Type-check
+        working-directory: crows-server
+        run: npx tsc --noEmit
+      - name: Deploy to Cloudflare
+        if: env.HAS_TOKEN == 'true'
+        working-directory: crows-server
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler deploy 2>&1 | tee deploy.log
+          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "### Crows Haven server is live" >> "$GITHUB_STEP_SUMMARY"
+          echo "Server address: **${URL}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "Put it in Vercel (crows-haven project → Settings → Environment Variables) as \`VITE_CROWS_SERVER\` and redeploy." >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy skipped
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::notice::Cloudflare secrets are not set yet, so the server was checked but not deployed."

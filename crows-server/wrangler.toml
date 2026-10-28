@@ -1,0 +1,16 @@
+# Crows Haven game server (Cloudflare Workers + Durable Objects). Deployed by .github/workflows/crows-server.yml.
+name = "crows-haven-server"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[durable_objects.bindings]]
+name = "TABLE"
+class_name = "Table"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Lobby", "Table"]

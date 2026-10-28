@@ -308,3 +308,22 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
 .ch-points button.on { background: linear-gradient(180deg, #ffe27a, #f5b82e); color: #2a1d06; box-shadow: 0 3px 8px rgba(0,0,0,.4); }
 .ch-row { flex-wrap: wrap; justify-content: center; max-width: 100%; }
 .ch-row .cl-btn { font-size: 18px; padding: 9px 18px; }
+
+/* online: waiting room, invite code, turn clock, away players, private table */
+.crows-waiting { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; color: #f3e6c4; }
+.crows-waiting b { font: 400 40px var(--display); letter-spacing: 2px; color: #ffd36a; }
+.crows-waiting span { font-size: 16px; }
+.crows-fill b { color: #ffd36a; }
+.crows-code { display: inline-flex; align-items: center; gap: 8px; padding: 6px 18px; border-radius: 12px; border: 2px dashed #ffd36a; background: rgba(0,0,0,.35); color: #ffd36a; font: 400 40px var(--display); letter-spacing: 8px; cursor: pointer; }
+.crows-empty-seat .seat-av { width: 104px; height: 104px; border-radius: 50%; display: grid; place-items: center; background: rgba(0,0,0,.3); border: 3px dashed rgba(243,230,196,.4); }
+.crows-empty-seat .q-mark { font: 400 48px var(--display); color: rgba(243,230,196,.6); }
+.crows-away .seat-av { filter: grayscale(.7) brightness(.8); }
+.crows-away-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #444; color: #fff; }
+.crows-clock { position: absolute; right: 24px; bottom: 24px; z-index: 16; padding: 8px 16px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font: 400 22px var(--display); letter-spacing: 1px; border: 2px solid #7ee08f; }
+.crows-clock.hurry { border-color: #ff6b5a; color: #ffb4aa; animation: pulse 1s infinite; }
+.cl-btn.ghost.strong { font-size: 22px; padding: 10px 24px; }
+.crows-private { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.crows-private h3 { margin: 0 0 4px; font: 400 26px var(--display); letter-spacing: 1.5px; }
+.crows-private p { margin: 0 0 12px; font-size: 15px; opacity: .9; }
+.crows-private form { display: flex; gap: 8px; }
+.crows-private input { width: 150px; padding: 10px 14px; border-radius: 12px; border: 2px solid rgba(243,230,196,.5); background: rgba(0,0,0,.3); color: #fff; font: 400 28px var(--display); letter-spacing: 6px; text-transform: uppercase; }

@@ -1,22 +1,25 @@
-// Crows Haven table: you (seat 0) and your partner (seat 2) against two computer players.
-// Version one runs in the browser only (no server, no coins). Spades' Table.tsx is not used or changed.
+// Crows Haven table. Two ways to play, same screen:
+//  · against computer players in the browser (LocalTable — works offline)
+//  · online with other people on the Crows Haven game server (OnlineTable — see ./online.ts and crows-server/)
+// Spades' Table.tsx is not used or changed.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './crows.css';
 import {
   applyAction, createGame, startRound, legalCards, viewFor, sameCard, sideOf, partnerOf, minNextBid, canAskRedeal, sortHand,
-  Card, Colour, COLOURS, COLOUR_NAME, CrowsAction, CrowsState, RuleError, MAX_BID, MIN_BID, BID_STEP, NEST_SIZE, DEFAULT_TARGET, isCrow, suitOf, pointsOf,
+  Card, Colour, COLOURS, COLOUR_NAME, CrowsAction, CrowsState, CrowsPublicState, RuleError, MAX_BID, MIN_BID, BID_STEP, NEST_SIZE, DEFAULT_TARGET, isCrow, suitOf, pointsOf,
 } from '../../shared/crows/engine';
+import type { TableInfo } from '../../shared/crows/protocol';
 import { botAction, bestTrump, estimateBid } from '../../shared/crows/bot';
 import { profile, levelFromXp, useProfile } from '../lib/profile';
-import { Avatar, Icon, Modal, Pill } from '../components/ui';
+import { Icon, Modal, Pill } from '../components/ui';
 import { toast } from '../lib/toast';
 import { sfx } from '../lib/sound';
 import { CrowCard, Emblem } from './CrowCard';
 import { CrowsAvatar, PictureModal, randomPortrait, portraitName } from './CrowsExtras';
-import { ChatPanel, useCrowsChat } from './CrowsChat';
+import { ChatPanel, useCrowsChat, ChatMsg } from './CrowsChat';
 import { reportGame } from './CrowsRanking';
+import { useOnlineTable } from './online';
 
-const ME = 0;
 const POS = ['bottom', 'left', 'top', 'right'] as const;
 const BOT_DELAY = 800, TRICK_PAUSE = 1200;
 
@@ -32,8 +35,27 @@ function newTable(target: number = DEFAULT_TARGET): CrowsState {
   return startRound(createGame({ target, city: 'Crows Haven' }, [me, bots[0], bots[1], bots[2]]));
 }
 
-/** Runs one local game: applies your actions and lets the computer players act after a short pause. */
-function useCrowsGame(target: number) {
+/** Everything the table screen needs, from either the local game or the game server. */
+interface Source {
+  g: CrowsState;                 // online: the public state, with only your own hand filled in
+  st: CrowsPublicState;
+  me: number;
+  act: (a: CrowsAction) => boolean;
+  chat: { msgs: ChatMsg[]; say: (text: string) => void; bubble: (seat: number) => string | null };
+  online?: {
+    info: TableInfo;
+    left: (at: number | null | undefined) => number | null;
+    status: string;
+    start: () => void;
+    ready: () => void;
+  };
+  onAgain: () => void;
+  onExit: () => void;
+}
+
+/** Against computer players, in the browser. */
+function LocalTable({ target, onExit }: { target: number; onExit: () => void }) {
+  const ME = 0;
   const [g, setGState] = useState<CrowsState>(() => newTable(target));
   const cur = useRef(g);
   const setG = (next: CrowsState) => { cur.current = next; setGState(next); };
@@ -57,12 +79,73 @@ function useCrowsGame(target: number) {
     }
     return () => clearTimeout(t);
   }, [g]);
-  return { g, act, restart: () => setG(newTable(target)) };
+  const chat = useCrowsChat([1, 2, 3]);
+  useEffect(() => { chat.greet(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (g.phase !== 'roundEnd') return;
+    const r = g.history[g.history.length - 1];
+    if (r) chat.handEnded(sideOf(r.bidder), r.made);
+  }, [g.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <TableUI src={{
+    g, st: viewFor(g, ME), me: ME, act,
+    chat: { msgs: chat.msgs, bubble: chat.bubble, say: (t) => { chat.say(ME, t); chat.botMaybeReply(ME); } },
+    onAgain: () => setG(newTable(target)), onExit,
+  }} />;
 }
 
-export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => void; target?: number }) {
-  const { g, act, restart } = useCrowsGame(target);
-  const st = viewFor(g, ME);
+/** Online, on the Crows Haven game server. */
+function OnlineTable({ tableId, onExit, onAgain, onFull }: { tableId: string; onExit: () => void; onAgain: () => void; onFull: () => void }) {
+  const o = useOnlineTable(tableId);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
+  useEffect(() => { if (o.status === 'full') onFull(); }, [o.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (o.error) toast(o.error.text); }, [o.error]);
+  const prevChats = useRef(0);
+  useEffect(() => { if (o.chats.length > prevChats.current) sfx.chat(); prevChats.current = o.chats.length; }, [o.chats.length]);
+  const leave = () => { o.leave(); onExit(); };
+  if (o.status === 'closed') {
+    return (
+      <div className="screen crows-home felt-bg"><div className="ch-card"><h1>TABLE CLOSED</h1><p>{o.reason ?? 'This table has closed.'}</p>
+        <button className="cl-btn" onClick={onExit}>Back</button></div></div>
+    );
+  }
+  if (!o.view || !o.info || o.seat < 0) {
+    return <div className="screen crows-home felt-bg"><div className="ch-card"><h1>CONNECTING…</h1><p>Finding your seat at the table.</p>
+      <button className="cl-btn ghost" onClick={leave}>Cancel</button></div></div>;
+  }
+  const v = o.view;
+  const hands = [[], [], [], []] as Card[][]; hands[o.seat] = v.hand;
+  const g = { ...v, hands } as unknown as CrowsState;
+  const bubble = (seat: number) => {
+    for (let i = o.chats.length - 1; i >= 0; i--) if (o.chats[i].seat === seat) return now - o.chats[i].at < 4000 ? o.chats[i].text : null;
+    return null;
+  };
+  return <TableUI src={{
+    g, st: v, me: o.seat,
+    act: (a) => { o.send({ t: 'act', action: a }); return true; },
+    chat: { msgs: o.chats, bubble, say: (t) => o.send({ t: 'chat', text: t }) },
+    online: { info: o.info, left: o.left, status: o.status, start: () => o.send({ t: 'start' }), ready: () => o.send({ t: 'ready' }) },
+    onAgain: () => { o.leave(); onAgain(); }, onExit: leave,
+  }} />;
+}
+
+export type TableMode = { kind: 'local' } | { kind: 'online'; tableId: string };
+
+export function CrowsTable({ onExit, target = DEFAULT_TARGET, mode = { kind: 'local' }, onAgainOnline, onFull }: {
+  onExit: () => void; target?: number; mode?: TableMode; onAgainOnline?: () => void; onFull?: () => void;
+}) {
+  if (mode.kind === 'online') return <OnlineTable key={mode.tableId} tableId={mode.tableId} onExit={onExit} onAgain={onAgainOnline ?? onExit} onFull={onFull ?? onExit} />;
+  return <LocalTable target={target} onExit={onExit} />;
+}
+
+const secs = (ms: number | null) => (ms === null ? null : Math.ceil(ms / 1000));
+
+function TableUI({ src }: { src: Source }) {
+  const { g, st, act, chat, online, onExit } = src;
+  const ME = src.me;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { if (!online) return; const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, [online ? 1 : 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  void now;
   const myAvatar = useProfile().avatar;
   /** Is this card trump right now? (the Crow always is, once trump is named) */
   const isTrump = (c: Card) => !!st.trump && (isCrow(c) || c.s === st.trump);
@@ -78,24 +161,20 @@ export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => 
     }
     prevPhase.current = g.phase;
   }, [g.phase, g.trump]);
+  // sounds for cards other people play (online), tricks taken
+  const prevTrick = useRef(st.trick.length);
+  useEffect(() => { if (online && st.trick.length > prevTrick.current) sfx.card(); prevTrick.current = st.trick.length; }, [st.trick.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const [menu, setMenu] = useState(false);
-  const chat = useCrowsChat([1, 2, 3]);
   const [chatOpen, setChatOpen] = useState(false);
   const [seenMsgs, setSeenMsgs] = useState(0);
-  useEffect(() => { chat.greet(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (g.phase !== 'roundEnd') return;
-    const r = g.history[g.history.length - 1];
-    if (r) chat.handEnded(sideOf(r.bidder), r.made);
-  }, [g.phase]); // eslint-disable-line react-hooks/exhaustive-deps
   const unread = chatOpen ? 0 : chat.msgs.filter((m) => m.seat !== ME).length - seenMsgs;
   const [rules, setRules] = useState(false);
   const [picture, setPicture] = useState(false);
   const [picked, setPicked] = useState<Card[]>([]);
   const [trump, setTrump] = useState<Colour | null>(null);
   const rel = (seat: number) => POS[(seat - ME + 4) % 4];
-  const myTurn = st.turn === ME;
-  const legal = useMemo(() => legalCards(g, ME), [g]);
+  const myTurn = st.turn === ME && st.phase !== 'waiting';
+  const legal = useMemo(() => legalCards(g, ME), [g, ME]);
   const choosingNest = st.phase === 'nest' && st.highBidder === ME;
 
   // new nest: clear picks and suggest trump
@@ -125,37 +204,52 @@ export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => 
   const hand = st.hand;
   const n = hand.length;
   const gap = Math.min(78, 820 / Math.max(1, n));
-  const bidSide = st.highBidder === null ? null : sideOf(st.highBidder);
   const takenNow = [0, 1].map((s) => pointsOf(g.taken[s]));
+  const info = online?.info;
+  const turnLeft = online && myTurn && (st.phase === 'bidding' || st.phase === 'nest' || st.phase === 'playing') ? secs(online.left(info!.turnAt)) : null;
 
   const seatView = (seat: number) => {
-            const s = st.seats[seat]; if (!s) return null;
+            const s = st.seats[seat];
             const pos = rel(seat);
+            if (!s) {
+              return st.phase === 'waiting' ? (
+                <div key={seat} className={`seat seat-${pos} in-play crows-empty-seat`}>
+                  <div className="seat-av"><span className="q-mark">?</span></div>
+                  <div className="seat-name">Open seat</div>
+                </div>
+              ) : null;
+            }
             const lb = lastBid(seat);
             const active = st.turn === seat && (st.phase === 'bidding' || st.phase === 'nest' || st.phase === 'playing');
             const team = sideOf(seat) === sideOf(ME) ? 'blue' : 'red';
+            const away = !!info?.away[seat];
             let pill: React.ReactNode = null, pillCls = '';
             if (st.phase === 'bidding') {
               if (st.passed[seat]) { pill = 'PASS'; pillCls = 'pass'; }
               else if (lb?.bid) { pill = lb.bid; pillCls = st.highBidder === seat ? 'high' : ''; }
             } else if (st.highBidder === seat) { pill = `BID ${st.highBid}`; pillCls = 'high'; }
             return (
-              <div key={seat} className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} in-play`}>
+              <div key={seat} className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} in-play ${away ? 'crows-away' : ''}`}>
                 <div className="seat-av">
                   <span className="bezel" aria-hidden="true" />
                   <CrowsAvatar k={seat === ME ? myAvatar : s.avatar} size={pos === 'bottom' ? 108 : 104} name={s.name} />
-                  {st.dealer === seat && <span className="dealer" title="Dealer">D</span>}
+                  {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}
                 </div>
                 <div className="seat-name">{seat === ME ? 'You' : s.name}{seat === partnerOf(ME) && <small> · partner</small>}</div>
+                {away && <div className="crows-away-tag">Away · computer playing</div>}
                 {pill !== null && <div className={`crows-pill ${pillCls}`}>{pill}</div>}
                 {chat.bubble(seat) && <div className="bubble">{chat.bubble(seat)}</div>}
               </div>
             );
   };
 
+  const fillLeft = info ? secs(online!.left(info.fillAt)) : null;
+  const startLeft = info ? secs(online!.left(info.startAt)) : null;
+  const seatedCount = st.seats.filter(Boolean).length;
+
   return (
     <div className={`screen table-screen crows-screen felt-bg ${st.trump ? `trump-${st.trump}` : ''}`}>
-      <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">Practice · no coins</span></div>
+      <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">{online ? (info!.isPrivate ? `Private table · ${info!.code}` : 'Online table') : 'Practice · no coins'}</span></div>
       <div className="tbl-top-right">
         <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label="Open chat"><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>
         <button className="round-ui" onClick={() => { sfx.click(); setMenu(true); }} aria-label="Menu"><Icon name="menu" size={26} /></button>
@@ -171,13 +265,13 @@ export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => 
         <div className="felt">
           {[1, 2, 3].map((seat) => seatView((ME + seat) % 4))}
 
-          <div className="crows-panel left">
+          {st.phase !== 'waiting' && <div className="crows-panel left">
             <h3>THIS HAND</h3>
             <div className="crows-info-row"><span>BID</span><b>{st.highBid ?? '—'}{st.highBidder !== null && <small> · {st.highBidder === ME ? 'you' : sideOf(st.highBidder) === sideOf(ME) ? 'partner' : 'them'}</small>}</b></div>
             <div className="crows-info-row"><span>TRUMP</span>{st.trump ? <span className={`crows-trump c-${st.trump}`}><Emblem s={st.trump} size={18} /> {COLOUR_NAME[st.trump]}</span> : <b>—</b>}</div>
             <div className="crows-info-row"><span>NEST</span><b>{st.phase === 'bidding' ? `${st.nestCount} cards` : st.phase === 'nest' ? 'with bidder' : 'last trick'}</b></div>
-          </div>
-          <div className="crows-panel right">
+          </div>}
+          {st.phase !== 'waiting' && <div className="crows-panel right">
             <h3>SCORE · TO {st.settings.target}</h3>
             <div className="crows-scores">
               <span className="us">US</span><span className="them">THEM</span>
@@ -201,9 +295,27 @@ export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => 
                 </div>
               );
             })()}
-          </div>
+          </div>}
 
           <div className="felt-center">
+            {st.phase === 'waiting' && info && (
+              <div className="crows-waiting">
+                <b>{startLeft !== null ? `STARTING IN ${startLeft}` : 'WAITING FOR PLAYERS'}</b>
+                <span>{seatedCount} of 4 seats taken · first to {info.target}</span>
+                {info.isPrivate ? (
+                  <>
+                    <span>Invite friends with this code:</span>
+                    <button className="crows-code" onClick={() => { navigator.clipboard?.writeText(info.code!).then(() => toast('Invite code copied'), () => toast(`Invite code: ${info.code}`)); }}>{info.code} <Icon name="copy" size={18} /></button>
+                    {startLeft === null && <button className="cl-btn small" onClick={() => { sfx.click(); online!.start(); }}>Fill with computer players &amp; start</button>}
+                  </>
+                ) : (
+                  <>
+                    {fillLeft !== null && startLeft === null && <span className="crows-fill">Waiting for player {seatedCount + 1} · a computer player joins in <b>{fillLeft}s</b></span>}
+                    {startLeft === null && <button className="cl-btn small" onClick={() => { sfx.click(); online!.start(); }}>Start now</button>}
+                  </>
+                )}
+              </div>
+            )}
             {st.phase === 'bidding' && !myTurn && <div className="crows-msg">BIDDING<small>{st.seats[st.turn]?.name} is thinking…{st.highBid ? ` High bid ${st.highBid}.` : ''}</small></div>}
             {st.phase === 'nest' && !choosingNest && <div className="crows-msg">THE NEST<small>{st.seats[st.highBidder!]?.name} took the nest at {st.highBid} and is choosing trump…</small></div>}
             {st.phase === 'playing' && st.trick.length === 0 && myTurn && <div className="crows-msg">YOUR LEAD</div>}
@@ -238,20 +350,24 @@ export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => 
         })}
       </div>
       <div className="crows-me">{seatView(ME)}</div>
+      {turnLeft !== null && <div className={`crows-clock ${turnLeft <= 5 ? 'hurry' : ''}`} role="timer">Your turn · {turnLeft}s</div>}
+      {online && online.status === 'lost' && <div className="conn-banner" role="status"><span className="conn-spin" aria-hidden="true" /> Connection lost — reconnecting… a computer player keeps your seat warm</div>}
 
-      {st.phase === 'bidding' && myTurn && <BidDialog g={g} onAct={act} />}
+      {st.phase === 'bidding' && myTurn && <BidDialog g={g} me={ME} onAct={act} />}
       {choosingNest && (
         <NestDialog picked={picked} trump={trump} hand={g.hands[ME]} bid={st.highBid!} forced={st.forced}
           onTrump={setTrump} onConfirm={() => { if (trump && act({ type: 'nest', seat: ME, discard: picked, trump })) setPicked([]); }} />
       )}
-      {st.phase === 'roundEnd' && <RoundSummary g={g} onNext={() => act({ type: 'nextRound' })} />}
-      {st.phase === 'gameOver' && <GameOver g={g} weekRank={weekRank} onAgain={() => { setWeekRank(null); restart(); }} onLobby={onExit} />}
+      {st.phase === 'roundEnd' && <RoundSummary g={g} me={ME}
+        online={online ? { waiting: !!info!.ready[ME], left: secs(online.left(info!.nextAt)) } : undefined}
+        onNext={() => (online ? online.ready() : act({ type: 'nextRound' }))} />}
+      {st.phase === 'gameOver' && <GameOver g={g} me={ME} weekRank={weekRank} onAgain={() => { setWeekRank(null); src.onAgain(); }} onLobby={onExit} />}
       {menu && (
         <Modal title="Menu" onClose={() => setMenu(false)}>
           <div className="btn-row" style={{ flexDirection: 'column', gap: 10 }}>
             <Pill color="blue" onClick={() => { setMenu(false); setRules(true); }}>How to play Crows Haven</Pill>
             <Pill color="purple" onClick={() => { setMenu(false); setPicture(true); }}>Change my picture</Pill>
-            <Pill color="red" onClick={onExit}>Leave table</Pill>
+            <Pill color="red" onClick={onExit}>{online && st.phase !== 'waiting' && st.phase !== 'gameOver' ? 'Leave table (a computer player takes your seat)' : 'Leave table'}</Pill>
           </div>
         </Modal>
       )}
@@ -259,7 +375,7 @@ export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => 
       {picture && <PictureModal onClose={() => setPicture(false)} />}
       {chatOpen && (
         <ChatPanel msgs={chat.msgs} me={ME} names={st.seats.map((x) => x?.name ?? '')}
-          onSend={(t) => { chat.say(ME, t); chat.botMaybeReply(ME); setChatOpen(false); setSeenMsgs(chat.msgs.filter((m) => m.seat !== ME).length); }}
+          onSend={(t) => { chat.say(t); setChatOpen(false); setSeenMsgs(chat.msgs.filter((m) => m.seat !== ME).length); }}
           onClose={() => { setChatOpen(false); setSeenMsgs(chat.msgs.filter((m) => m.seat !== ME).length); }} />
       )}
     </div>
@@ -270,7 +386,7 @@ function CrowMark() {
   return <svg width="34" height="34" viewBox="0 0 100 100" aria-hidden="true"><path fill="#f3e6c4" d="M70 30c-4-6-12-8-18-4-5 3-7 8-7 13-8 1-17 7-21 16l-7 2 8 3c1 5 6 9 13 10l-4 9h4l5-8h7l-2 8h4l3-9c9-2 15-9 15-18 0-5-2-9-5-12l10-3-10-1c0-2 1-4 0-6z" /></svg>;
 }
 
-function BidDialog({ g, onAct }: { g: CrowsState; onAct: (a: CrowsAction) => boolean }) {
+function BidDialog({ g, me: ME, onAct }: { g: CrowsState; me: number; onAct: (a: CrowsAction) => boolean }) {
   const need = minNextBid(g);
   const sug = estimateBid(g.hands[ME]);
   const partnerHigh = g.highBidder === partnerOf(ME);
@@ -318,17 +434,18 @@ function NestDialog({ picked, trump, hand, bid, forced, onTrump, onConfirm }: {
   );
 }
 
-function RoundSummary({ g, onNext }: { g: CrowsState; onNext: () => void }) {
+function RoundSummary({ g, me: ME, onNext, online }: { g: CrowsState; me: number; onNext: () => void; online?: { waiting: boolean; left: number | null } }) {
   const r = g.history[g.history.length - 1];
   const us = sideOf(ME), them = 1 - us;
   const bidderName = r.bidder === ME ? 'You' : r.bidder === partnerOf(ME) ? 'Your partner' : g.seats[r.bidder]?.name;
   const weBid = sideOf(r.bidder) === us;
-  const [left, setLeft] = useState(20);
+  const [localLeft, setLeft] = useState(20);
   const done = useRef(false);
-  useEffect(() => { const t = setInterval(() => setLeft((s) => s - 1), 1000); return () => clearInterval(t); }, []);
-  useEffect(() => { if (left <= 0 && !done.current) { done.current = true; onNext(); } }, [left, onNext]);
+  useEffect(() => { if (online) return; const t = setInterval(() => setLeft((s) => s - 1), 1000); return () => clearInterval(t); }, [online ? 1 : 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!online && localLeft <= 0 && !done.current) { done.current = true; onNext(); } }, [localLeft, onNext, online]);
+  const left = online ? online.left ?? 0 : localLeft;
   return (
-    <Modal title={`Hand ${g.round}`} onClose={onNext}>
+    <Modal title={`Hand ${g.round}`} onClose={() => { if (!online?.waiting) onNext(); }}>
       <div className={`crows-verdict ${r.made ? 'made' : 'set'}`}>{bidderName} bid {r.bid}{r.forced ? ' (everyone passed)' : ''} — {r.made ? 'MADE IT' : 'SET'}</div>
       <p className="center muted small">Trump was {COLOUR_NAME[r.trump]}. The put-down cards ({r.nestPoints} pts) went to {r.nestSide === us ? 'your side' : 'their side'} with the last trick:</p>
       <div className="crows-nest">{sortHand(g.nest).map((c, i) => <CrowCard key={i} card={c} />)}</div>
@@ -341,12 +458,14 @@ function RoundSummary({ g, onNext }: { g: CrowsState; onNext: () => void }) {
         </tbody>
       </table>
       {!r.made && <p className="center muted small">{weBid ? 'Your side' : 'Their side'} needed {r.bid} but took {r.points[sideOf(r.bidder)]}, so {weBid ? 'you lose' : 'they lose'} {r.bid}.</p>}
-      <div className="btn-row"><Pill color="green" onClick={onNext}>Next hand ({Math.max(0, left)}s)</Pill></div>
+      <div className="btn-row">{online?.waiting
+        ? <Pill color="ghost" disabled>Waiting for the others · {Math.max(0, left)}s</Pill>
+        : <Pill color="green" onClick={onNext}>Next hand ({Math.max(0, left)}s)</Pill>}</div>
     </Modal>
   );
 }
 
-function GameOver({ g, weekRank, onAgain, onLobby }: { g: CrowsState; weekRank: number | null; onAgain: () => void; onLobby: () => void }) {
+function GameOver({ g, me: ME, weekRank, onAgain, onLobby }: { g: CrowsState; me: number; weekRank: number | null; onAgain: () => void; onLobby: () => void }) {
   const won = g.winners[0] === sideOf(ME);
   const us = sideOf(ME);
   return (

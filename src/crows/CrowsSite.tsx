@@ -1,9 +1,12 @@
 // The Crows Haven site (builds with VITE_CROWS=1): welcome page, start screen and home screen.
 // Nothing here is used by the Spades site.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './crows.css';
 import { CrowCard, CrowArt } from './CrowCard';
-import { CrowsTable, CrowsRules, CrowsRulesBody } from './CrowsTable';
+import { Modal } from '../components/ui';
+import { CrowsTable, CrowsRules, CrowsRulesBody, TableMode } from './CrowsTable';
+import { onlineAvailable, quickMatch, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
+import { toast } from '../lib/toast';
 import { CrowsRanking } from './CrowsRanking';
 import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, randomPlayerPicture } from './CrowsExtras';
 import { alreadyInstalled } from '../lib/device';
@@ -78,11 +81,16 @@ const GAME_POINTS = [300, 400, 500];
 /** Inside the game: start as a guest, then the home screen, then a table. */
 export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
-  const [screen, setScreen] = useState<'home' | 'table' | 'ranking'>('home');
+  // back from a reload in the middle of an online game: straight back to that table
+  const resume = currentTable();
+  const [screen, setScreen] = useState<'home' | 'table' | 'ranking'>(resume ? 'table' : 'home');
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState<null | 'picture' | 'install'>(null);
+  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private'>(null);
+  const [mode, setMode] = useState<TableMode>(resume ? { kind: 'online', tableId: resume } : { kind: 'local' });
+  const [finding, setFinding] = useState(false);
+  const fullTries = useRef(0);
   const [target, setTargetState] = useState<number>(() => { try { const v = Number(localStorage.getItem('crowsTarget')); return GAME_POINTS.includes(v) ? v : 500; } catch { return 500; } });
   const setTarget = (v: number) => { sfx.click(); setTargetState(v); try { localStorage.setItem('crowsTarget', String(v)); } catch { /* private mode */ } };
   useEffect(() => { document.body.classList.add('crows-site'); return () => document.body.classList.remove('crows-site'); }, []);
@@ -108,7 +116,19 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
     );
   }
 
-  if (screen === 'table') return <CrowsTable key={tableKey} target={target} onExit={() => setScreen('home')} />;
+  const openTable = (m: TableMode) => { if (m.kind === 'online') rememberTable(m.tableId); else forgetTable(); setMode(m); setTableKey((k) => k + 1); setScreen('table'); };
+  /** "Play online": the server seats you at a public table with the same game points (or starts one). */
+  const playOnline = async () => {
+    sfx.click(); setFinding(true);
+    try { openTable({ kind: 'online', tableId: await quickMatch(target) }); }
+    catch (e) { toast((e as Error).message); }
+    finally { setFinding(false); }
+  };
+  if (screen === 'table') {
+    return <CrowsTable key={tableKey} target={target} mode={mode} onExit={() => { fullTries.current = 0; forgetTable(); setScreen('home'); }}
+      onAgainOnline={() => { forgetTable(); void playOnline(); }}
+      onFull={() => { if (++fullTries.current <= 3 && mode.kind === 'online') void playOnline(); else { toast('That table is full.'); setScreen('home'); } }} />;
+  }
   if (screen === 'ranking') return <CrowsRanking onBack={() => setScreen('home')} />;
 
 
@@ -124,18 +144,62 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
           <span>GAME POINTS</span>
           {GAME_POINTS.map((v) => <button key={v} role="radio" aria-checked={target === v} className={target === v ? 'on' : ''} onClick={() => setTarget(v)}>{v}</button>)}
         </div>
-        <button className="cl-btn big" onClick={() => { sfx.click(); setTableKey((k) => k + 1); setScreen('table'); }}>▶ PLAY</button>
+        {onlineAvailable() ? (
+          <>
+            <button className="cl-btn big" disabled={finding} onClick={() => void playOnline()}>{finding ? 'Finding a table…' : '▶ PLAY ONLINE'}</button>
+            <div className="ch-row">
+              <button className="cl-btn ghost strong" onClick={() => { sfx.click(); setModal('private'); }}>🔒 Private table</button>
+              <button className="cl-btn ghost strong" onClick={() => { sfx.click(); openTable({ kind: 'local' }); }}>🤖 Play vs computer</button>
+            </div>
+          </>
+        ) : (
+          <button className="cl-btn big" onClick={() => { sfx.click(); openTable({ kind: 'local' }); }}>▶ PLAY</button>
+        )}
         <div className="ch-row">
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setScreen('ranking'); }}>🏆 Weekly ranking</button>
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
           {!alreadyInstalled() && <button className="cl-btn ghost" onClick={() => { sfx.click(); setModal('install'); }}>⤓ Install the app</button>}
           <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>
         </div>
-        <p className="ch-note">You and your partner (across the table) against two computer players. First side to {target} wins. Online tables with friends are coming.</p>
+        <p className="ch-note">{onlineAvailable()
+          ? <>Play online with other people — empty seats get a computer player after 15 seconds, or press Start now. First side to {target} wins.</>
+          : <>You and your partner (across the table) against two computer players. First side to {target} wins.</>}</p>
       </div>
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
       {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
+      {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); openTable({ kind: 'online', tableId }); }} />}
     </div>
+  );
+}
+
+/** Private table: make one and share its code, or join a friend's with their code. */
+function PrivateModal({ target, onClose, onOpen }: { target: number; onClose: () => void; onOpen: (tableId: string) => void }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const run = async (f: () => Promise<string>) => {
+    setBusy(true); setErr(null);
+    try { onOpen(await f()); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title="Private table" onClose={onClose}>
+      <div className="crows-private">
+        <div>
+          <h3>Make a table</h3>
+          <p>You get a 5-letter code to send to friends. Computer players only sit down when you press Start. First to {target}.</p>
+          <button className="cl-btn" disabled={busy} onClick={() => run(async () => (await createPrivate(target)).tableId)}>Create table</button>
+        </div>
+        <div>
+          <h3>Join a friend</h3>
+          <p>Type the code your friend sent you.</p>
+          <form onSubmit={(e) => { e.preventDefault(); if (code.trim().length === 5) void run(() => findCode(code)); }}>
+            <input value={code} onChange={(e) => setCode(e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 5).toUpperCase())} placeholder="ABCDE" aria-label="Table code" autoCapitalize="characters" />
+            <button className="cl-btn" type="submit" disabled={busy || code.length !== 5}>Join</button>
+          </form>
+        </div>
+      </div>
+      {err && <p className="ap-err center" role="alert">{err}</p>}
+    </Modal>
   );
 }
