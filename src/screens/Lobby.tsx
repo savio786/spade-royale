@@ -17,9 +17,9 @@ import { helpBot } from '../lib/helpbot';
 import { toast } from '../lib/toast';
 import '../crows/crows.css';
 
-/** Which game the lobby's PLAY NOW starts. Spades is the default; the choice is remembered on this device. */
+/** Which game the lobby's PLAY NOW starts. Builds with Crows Haven switched on start on Crows Haven; the player's choice is remembered on this device. */
 type GameChoice = 'spades' | 'crows';
-const readGame = (): GameChoice => { try { return localStorage.getItem('lobbyGame') === 'crows' ? 'crows' : 'spades'; } catch { return 'spades'; } };
+const readGame = (): GameChoice => { try { return localStorage.getItem('lobbyGame') === 'spades' ? 'spades' : 'crows'; } catch { return 'crows'; } };
 import {
   AdModal, bonusLeftMs, FriendsModal, GiftsModal, ProfileEditModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal, InviteModal,
 } from './modals';
