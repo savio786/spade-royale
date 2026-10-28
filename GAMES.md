@@ -23,7 +23,12 @@ Shared by every game (change with care — it affects the live game):
 - the websocket server and protocol (`server/index.ts`, `shared/protocol.ts`)
 - legal pages, sign-in screen, site pages, Cloudflare/Render setup
 
-## 2. Second game: Crows Haven (rules settled — not coded yet)
+## 2. Second game: Crows Haven (rules engine and bots built — no table screen yet)
+
+Crows Haven-only files:
+- `shared/crows/engine.ts` — deck, bidding, nest, trump, tricks, scoring, `CrowsState`
+- `shared/crows/bot.ts` — computer players: bid, nest + trump, card play
+- `scripts/simulate-crows.ts` — rule tests + 4,000 bot games (`npm run sim:crows`)
 
 A four-player **partnership trick-taking game with bidding, a trump-suit choice and a
 "nest" of extra cards** — in the style of the classic game Rook, but with its own name,
