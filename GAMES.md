@@ -23,17 +23,17 @@ Shared by every game (change with care — it affects the live game):
 - the websocket server and protocol (`server/index.ts`, `shared/protocol.ts`)
 - legal pages, sign-in screen, site pages, Cloudflare/Render setup
 
-## 2. Second game: Nest Haven (PLANNED — not started)
+## 2. Second game: Crows Haven (PLANNED — not started)
 
 A four-player **partnership trick-taking game with bidding, a trump-suit choice and a
 "nest" of extra cards** — in the style of the classic game Rook, but with its own name,
 its own rules text and its own card art.
 
-Working name: **Nest Haven** (chosen by the owner; "Nest" = the nest of extra cards).
+Working name: **Crows Haven** (chosen by the owner; the rook is a kind of crow, and "crow's nest" echoes the nest of extra cards).
 
 Naming: do NOT call it "Rook" (or "Rook Haven") and do not copy the original game's deck or branding
 (the name and deck are commercially owned). Before launch, search the trademark database
-for "Nest Haven" and have a lawyer confirm; this file is not legal advice.
+for "Crows Haven" (also "Crow Haven" and "Haven") and have a lawyer confirm; this file is not legal advice.
 
 Rules to settle with the owner BEFORE coding (write the decisions here):
 - deck (standard 52 cards or a custom deck), number of cards, point cards
@@ -52,7 +52,7 @@ How to build it without touching Spades:
 - run the existing checks and test a full Spades game before every merge
 
 ## Working rules for any chat
-- Say which game you mean ("Spades" or "Nest Haven") in every request.
+- Say which game you mean ("Spades" or "Crows Haven") in every request.
 - Never paste Stripe keys, Upstash tokens, the Resend key or webhook secrets into chat or files.
 - Anything that wipes data needs the owner's explicit confirmation.
 - Do not use screenshots of robots or dolls as avatars. No fake leaderboard players.
