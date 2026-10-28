@@ -3,13 +3,18 @@
 import { useRef, useState } from 'react';
 import { Avatar, Modal, Pill } from '../components/ui';
 import { BOT_PHOTOS } from '../../shared/botphotos';
+import { CROWS_PORTRAITS } from './portraits';
 import { profile } from '../lib/profile';
 import { installGuide, thisDevice, alreadyInstalled } from '../lib/device';
 import { Rich } from '../screens/Install';
 import { sfx } from '../lib/sound';
 
-/** The pictures Crows Haven uses: the same AI portraits as the Spades computer players (no cartoon or drawn pictures). */
-export const PORTRAITS = BOT_PHOTOS.map((b) => b.id);
+/** The pictures Crows Haven uses: its own AI portraits plus the Spades computer players' AI portraits (no cartoon or drawn pictures). */
+const ALL = [...CROWS_PORTRAITS, ...BOT_PHOTOS];
+const BY_ID: Record<string, { name: string; file: string }> = Object.fromEntries(ALL.map((p) => [p.id, p]));
+export const PORTRAITS = ALL.map((p) => p.id);
+/** The name that goes with a portrait (used for computer players). */
+export const portraitName = (k: string) => BY_ID[k]?.name ?? 'Player';
 export const isPortrait = (k: string) => PORTRAITS.includes(k);
 export const randomPortrait = (exclude: string[] = []) => {
   const free = PORTRAITS.filter((k) => !exclude.includes(k));
@@ -27,7 +32,10 @@ export function CrowsAvatar({ k, size = 64, name }: { k: string; size?: number; 
   if (k === MY_PHOTO) {
     const src = readPhoto();
     if (src) return <span className="avatar" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s photo` : 'Your photo'}><img src={src} alt="" draggable={false} /></span>;
-    return <Avatar k={PORTRAITS[0]} size={size} name={name} />;
+    return <CrowsAvatar k={PORTRAITS[0]} size={size} name={name} />;
+  }
+  if (k.startsWith('c') && BY_ID[k]) {
+    return <span className="avatar" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s picture` : 'Picture'}><img src={BY_ID[k].file} alt="" draggable={false} loading="lazy" /></span>;
   }
   return <Avatar k={k} size={size} name={name} />;
 }
@@ -65,7 +73,7 @@ export function PictureModal({ onClose }: { onClose: () => void }) {
   };
   const tile = (k: string, i: number) => (
     <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`} onClick={() => pick(k)} aria-label={`Picture ${i + 1}`}>
-      <Avatar k={k} size={60} />
+      <CrowsAvatar k={k} size={60} />
     </button>
   );
   return (

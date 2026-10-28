@@ -1,7 +1,6 @@
 // Crows Haven weekly ranking: sends each finished game to /api/crows-rank and shows the week's top players.
 import { useEffect, useState } from 'react';
 import { profile } from '../lib/profile';
-import { Avatar } from '../components/ui';
 import { CrowsAvatar, MY_PHOTO } from './CrowsExtras';
 import { sfx } from '../lib/sound';
 
@@ -86,7 +85,7 @@ export function CrowsRanking({ onBack }: { onBack: () => void }) {
                     <div key={r.rank} className={`cr-row ${mine ? 'me' : ''} ${r.rank <= 3 ? `top${r.rank}` : ''}`} role="row">
                       <span className="cr-rank">{r.rank <= 3 ? ['🥇', '🥈', '🥉'][r.rank - 1] : r.rank}</span>
                       <span className="cr-name">
-                        {mine ? <CrowsAvatar k={me.avatar} size={34} /> : r.avatar ? <Avatar k={r.avatar} size={34} /> : <span className="cr-initial">{r.name.slice(0, 1).toUpperCase()}</span>}
+                        {mine ? <CrowsAvatar k={me.avatar} size={34} /> : r.avatar ? <CrowsAvatar k={r.avatar} size={34} /> : <span className="cr-initial">{r.name.slice(0, 1).toUpperCase()}</span>}
                         {r.name}{mine && <small> (you)</small>}
                       </span>
                       <span>{r.wins}</span><span>{r.games}</span><span>{r.points}</span>

@@ -7,13 +7,12 @@ import {
   Card, Colour, COLOURS, COLOUR_NAME, CrowsAction, CrowsState, RuleError, MAX_BID, MIN_BID, BID_STEP, NEST_SIZE, DEFAULT_TARGET, isCrow, suitOf, pointsOf,
 } from '../../shared/crows/engine';
 import { botAction, bestTrump, estimateBid } from '../../shared/crows/bot';
-import { BOT_PHOTO_BY_ID } from '../../shared/botphotos';
 import { profile, levelFromXp, useProfile } from '../lib/profile';
 import { Avatar, Icon, Modal, Pill } from '../components/ui';
 import { toast } from '../lib/toast';
 import { sfx } from '../lib/sound';
 import { CrowCard, Emblem } from './CrowCard';
-import { CrowsAvatar, PictureModal, randomPortrait } from './CrowsExtras';
+import { CrowsAvatar, PictureModal, randomPortrait, portraitName } from './CrowsExtras';
 import { ChatPanel, useCrowsChat } from './CrowsChat';
 import { reportGame } from './CrowsRanking';
 
@@ -28,7 +27,7 @@ function newTable(): CrowsState {
   const taken = [p.avatar];
   const bots = [0, 1, 2].map((i) => {
     const avatar = randomPortrait(taken); taken.push(avatar);
-    return { id: `bot:${Date.now().toString(36)}${i}`, name: BOT_PHOTO_BY_ID[avatar].name, avatar, level: 5 + Math.floor(Math.random() * 60), bot: true };
+    return { id: `bot:${Date.now().toString(36)}${i}`, name: portraitName(avatar), avatar, level: 5 + Math.floor(Math.random() * 60), bot: true };
   });
   return startRound(createGame({ target: DEFAULT_TARGET, city: 'Crows Haven' }, [me, bots[0], bots[1], bots[2]]));
 }
