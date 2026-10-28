@@ -40,7 +40,7 @@ Crows Haven-only files:
   database connected to the crows-haven Vercel project (Storage → Upstash for Redis); until then the page says "almost ready".
   Weeks start Sunday 00:00 UTC; ranked by games won, then points. Results come from the browser (no game server),
   so each player id is tied to a device secret, rate-limited (1 game / 2 min) and capped.
-- `src/crows/CrowsExtras.tsx` — change your picture (photo kept on the device; this site has no server), install-the-app help
+- `src/crows/CrowsExtras.tsx` — pictures: only the 42 AI portraits from `public/brand/bots/` (same as the Spades computer players) or your own photo; change your picture (photo kept on the device; this site has no server), install-the-app help
 - `public/crows/` — crow icons (SVG + PNG 192/512/maskable/apple) and the app manifest for the Crows Haven site
 
 The Crows Haven site is the same app built with `VITE_CROWS=1` (the crows-haven Vercel project).

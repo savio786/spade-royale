@@ -5,8 +5,7 @@ import './crows.css';
 import { CrowCard, CrowArt } from './CrowCard';
 import { CrowsTable, CrowsRules, CrowsRulesBody } from './CrowsTable';
 import { CrowsRanking } from './CrowsRanking';
-import { AVATAR_KEYS } from '../components/ui';
-import { CrowsAvatar, InstallHelp, InstallModal, PictureModal } from './CrowsExtras';
+import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, MY_PHOTO, isPortrait, randomPortrait } from './CrowsExtras';
 import { alreadyInstalled } from '../lib/device';
 import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
@@ -82,13 +81,15 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<null | 'picture' | 'install'>(null);
   useEffect(() => { document.body.classList.add('crows-site'); return () => document.body.classList.remove('crows-site'); }, []);
+  // Crows Haven uses only the AI portraits (or your own photo): move anyone still on a cartoon picture to a portrait
+  useEffect(() => { if (p.provider && p.avatar !== MY_PHOTO && !isPortrait(p.avatar)) profile.set({ avatar: randomPortrait() }); }, [p.provider, p.avatar]);
 
   if (!p.provider) {
     const start = async () => {
       sfx.click(); setBusy(true);
       const r = await continueAsGuest();
       if (r.returning) notifyReturning(r.name);
-      else finishNewGuest(profile.get().avatar || AVATAR_KEYS[Math.floor(Math.random() * AVATAR_KEYS.length)]);
+      else finishNewGuest(randomPortrait());
       setBusy(false);
     };
     return (

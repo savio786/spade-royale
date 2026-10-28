@@ -2,12 +2,20 @@
 // The Crows Haven site has no game server, so photos are stored in this browser instead of uploaded.
 import { useRef, useState } from 'react';
 import { Avatar, Modal, Pill } from '../components/ui';
-import { AVATAR_KEYS, avatarName } from '../components/avatars';
-import { PEOPLE_KEYS } from '../components/people';
+import { BOT_PHOTOS } from '../../shared/botphotos';
 import { profile } from '../lib/profile';
 import { installGuide, thisDevice, alreadyInstalled } from '../lib/device';
 import { Rich } from '../screens/Install';
 import { sfx } from '../lib/sound';
+
+/** The pictures Crows Haven uses: the same AI portraits as the Spades computer players (no cartoon or drawn pictures). */
+export const PORTRAITS = BOT_PHOTOS.map((b) => b.id);
+export const isPortrait = (k: string) => PORTRAITS.includes(k);
+export const randomPortrait = (exclude: string[] = []) => {
+  const free = PORTRAITS.filter((k) => !exclude.includes(k));
+  const list = free.length ? free : PORTRAITS;
+  return list[Math.floor(Math.random() * list.length)];
+};
 
 /** Avatar key for "my own photo", kept in this browser only. */
 export const MY_PHOTO = 'crows-photo';
@@ -19,7 +27,7 @@ export function CrowsAvatar({ k, size = 64, name }: { k: string; size?: number; 
   if (k === MY_PHOTO) {
     const src = readPhoto();
     if (src) return <span className="avatar" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s photo` : 'Your photo'}><img src={src} alt="" draggable={false} /></span>;
-    return <Avatar k="a1" size={size} name={name} />;
+    return <Avatar k={PORTRAITS[0]} size={size} name={name} />;
   }
   return <Avatar k={k} size={size} name={name} />;
 }
@@ -55,25 +63,22 @@ export function PictureModal({ onClose }: { onClose: () => void }) {
     } catch (e) { setErr((e as Error).message); }
     finally { if (fileRef.current) fileRef.current.value = ''; }
   };
-  const tile = (k: string) => (
-    <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`} onClick={() => pick(k)} aria-label={avatarName(k)} title={avatarName(k)}>
-      <Avatar k={k} size={52} /><small>{avatarName(k)}</small>
+  const tile = (k: string, i: number) => (
+    <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`} onClick={() => pick(k)} aria-label={`Picture ${i + 1}`}>
+      <Avatar k={k} size={60} />
     </button>
   );
   return (
     <Modal title="Your picture" onClose={onClose} wide>
       <div className="avatar-picker">
-        <div className="ap-preview"><CrowsAvatar k={value} size={84} /><b>{value === MY_PHOTO ? 'Your photo' : avatarName(value)}</b>
+        <div className="ap-preview"><CrowsAvatar k={value} size={84} /><b>{value === MY_PHOTO ? 'Your photo' : 'Your picture'}</b>
           <button type="button" className="ap-upload" onClick={() => fileRef.current?.click()}>{value === MY_PHOTO ? 'Change photo' : 'Use my photo'}</button>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
         </div>
         {err && <p className="ap-err" role="alert">{err}</p>}
         <p className="crows-small-note">Your photo stays on this device; other players at your table see it during the game.</p>
-        <div className="avatar-grid" role="radiogroup" aria-label="Choose a picture">
-          <span className="ap-group">People</span>
-          {PEOPLE_KEYS.map(tile)}
-          <span className="ap-group">Animals & characters</span>
-          {AVATAR_KEYS.filter((k) => !PEOPLE_KEYS.includes(k)).map(tile)}
+        <div className="avatar-grid crows-portraits" role="radiogroup" aria-label="Choose a picture">
+          {PORTRAITS.map(tile)}
         </div>
       </div>
       <div className="btn-row"><Pill color="green" onClick={onClose}>Done</Pill></div>

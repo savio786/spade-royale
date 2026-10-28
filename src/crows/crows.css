@@ -260,3 +260,6 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
 .cr-name small { opacity: .7; font-weight: 400; }
 .cr-initial { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #3d9447; color: #fff; font-weight: 700; flex: none; }
 .cr-after { font-size: 26px; margin: 4px 0; }
+
+/* picture picker: the AI portraits */
+.avatar-grid.crows-portraits { grid-template-columns: repeat(9, 1fr); max-height: 330px; }
