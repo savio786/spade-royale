@@ -25,15 +25,18 @@ export function CrowArt({ size = 80 }: { size?: number }) {
   );
 }
 
-export function CrowCard({ card, back, className, style, onClick, dataCard }: {
+export function CrowCard({ card, back, className, style, onClick, dataCard, trump }: {
   card?: Card; back?: boolean; className?: string; style?: React.CSSProperties; onClick?: () => void; dataCard?: string;
+  /** mark this card as trump (glow + TRUMP tag) */
+  trump?: boolean;
 }) {
   if (back || !card) return <div className={`ccard back ${className ?? ''}`} style={style} aria-hidden="true"><span className="cc-back-mark"><CrowArt size={54} /></span></div>;
   const Tag = onClick ? 'button' : 'div';
   const pts = cardPoints(card);
   if (isCrow(card)) {
     return (
-      <Tag className={`ccard crow ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick} aria-label="The Crow, 20 points, highest trump">
+      <Tag className={`ccard crow ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick} aria-label="The Crow, 20 points, highest trump">
+        {trump && <span className="cc-trump">TRUMP</span>}
         <span className="cc-corner"><b>C</b><i className="cc-cpts">20</i></span>
         <span className="cc-crow"><CrowArt /></span>
         <span className="cc-name">CROW</span>
@@ -43,8 +46,9 @@ export function CrowCard({ card, back, className, style, onClick, dataCard }: {
   }
   const s = card.s as Colour;
   return (
-    <Tag className={`ccard c-${s} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
-      aria-label={`${card.r} ${COLOUR_NAME[s]}${pts ? `, ${pts} points` : ''}`}>
+    <Tag className={`ccard c-${s} ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
+      aria-label={`${card.r} ${COLOUR_NAME[s]}${trump ? ', trump' : ''}${pts ? `, ${pts} points` : ''}`}>
+      {trump && <span className="cc-trump">TRUMP</span>}
       <span className="cc-corner"><b>{card.r}</b><Emblem s={s} size={20} />{pts > 0 && <i className="cc-cpts">{pts}</i>}</span>
       <span className="cc-big">{card.r}</span>
       <span className="cc-emblem"><Emblem s={s} size={40} /></span>

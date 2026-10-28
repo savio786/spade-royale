@@ -263,3 +263,40 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
 
 /* picture picker: the AI portraits */
 .avatar-grid.crows-portraits { grid-template-columns: repeat(9, 1fr); max-height: 330px; }
+
+/* ---------- trump: easy to spot while playing ---------- */
+.ccard.c-sky, .crows-trump-banner.c-sky, .crows-announce.c-sky { --tc: var(--sky, #2f86d6); }
+.ccard.c-ember, .crows-trump-banner.c-ember, .crows-announce.c-ember { --tc: var(--ember, #e2621f); }
+.ccard.c-moss, .crows-trump-banner.c-moss, .crows-announce.c-moss { --tc: var(--moss, #3d9447); }
+.ccard.c-plum, .crows-trump-banner.c-plum, .crows-announce.c-plum { --tc: var(--plum, #8a3fb3); }
+.ccard.crow { --tc: #d9a520; }
+/* trump cards: tinted face, solid coloured frame, glow and a TRUMP tag in the corner you can see */
+.ccard.is-trump { background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 22%, #fffdf6), color-mix(in srgb, var(--tc) 12%, #f1ead8)); }
+.ccard.crow.is-trump { background: linear-gradient(180deg, #2b2440, #120f1e); }
+.ccard.is-trump::before { opacity: 1; border-width: 3px; border-color: var(--tc); }
+.cfan .ccard.is-trump, .crows-trick .ccard.is-trump { box-shadow: 0 0 0 3px var(--tc), 0 0 16px color-mix(in srgb, var(--tc) 80%, transparent), -3px 0 8px rgba(0,0,0,.35); }
+.cfan .ccard.is-trump.legal { box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px var(--tc), 0 0 18px rgba(255,200,61,.85); }
+.cc-trump { position: absolute; top: 6px; right: 6px; z-index: 2; padding: 2px 6px; border-radius: 6px; background: var(--tc); color: #fff;
+  font: 400 calc(var(--w) * .13) var(--display); letter-spacing: 1px; line-height: 1.1; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.ccard.crow .cc-trump { color: #1d1a12; }
+/* the trump colour stays on the table all hand, just above your cards */
+.crows-trump-banner { position: absolute; left: 50%; bottom: 30px; translate: -50% 0; z-index: 3; display: flex; align-items: center; gap: 8px;
+  padding: 6px 18px 6px 14px; border-radius: 999px; background: #fffdf6; color: var(--tc); border: 3px solid var(--tc);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--tc) 70%, transparent), 0 4px 10px rgba(0,0,0,.4); }
+.crows-trump-banner span { font: 400 18px var(--display); letter-spacing: 2px; color: #3a2a0a; }
+.crows-trump-banner b { font: 400 28px var(--display); letter-spacing: 2px; font-weight: 400; }
+/* the felt's inner ring takes the trump colour */
+.crows-screen.trump-sky .crows-oval::after { border: 3px solid var(--sky); opacity: .55; }
+.crows-screen.trump-ember .crows-oval::after { border: 3px solid var(--ember); opacity: .55; }
+.crows-screen.trump-moss .crows-oval::after { border: 3px solid #6fd47c; opacity: .45; }
+.crows-screen.trump-plum .crows-oval::after { border: 3px solid var(--plum); opacity: .6; }
+/* "EMBER IS TRUMP" when trump is named */
+.crows-announce { position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 9; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 18px 40px; border-radius: 22px; background: #fffdf6; color: var(--tc); border: 4px solid var(--tc);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--tc) 75%, transparent), 0 14px 40px rgba(0,0,0,.55); animation: crowsAnnounce 2.3s ease-out both; pointer-events: none; }
+.crows-announce b { font: 400 52px/1 var(--display); letter-spacing: 3px; font-weight: 400; white-space: nowrap; }
+.crows-announce small { font: 600 14px system-ui, sans-serif; color: #3a2a0a; }
+@keyframes crowsAnnounce { 0% { opacity: 0; scale: .6; } 12% { opacity: 1; scale: 1.06; } 22% { scale: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .crows-announce { animation: none; } }
+/* in your fanned hand only the left strip of each card shows: put the TRUMP tag there, under the corner */
+.cfan .cc-trump { top: calc(var(--w) * .76); right: auto; left: 5px; font-size: calc(var(--w) * .12); padding: 2px 4px; }

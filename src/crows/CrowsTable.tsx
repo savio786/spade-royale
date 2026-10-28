@@ -64,6 +64,20 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
   const { g, act, restart } = useCrowsGame();
   const st = viewFor(g, ME);
   const myAvatar = useProfile().avatar;
+  /** Is this card trump right now? (the Crow always is, once trump is named) */
+  const isTrump = (c: Card) => !!st.trump && (isCrow(c) || c.s === st.trump);
+  // big "EMBER IS TRUMP" for a moment when the bidder names trump
+  const [announce, setAnnounce] = useState<Colour | null>(null);
+  const prevPhase = useRef(g.phase);
+  useEffect(() => {
+    if (prevPhase.current === 'nest' && g.phase === 'playing' && g.trump) {
+      setAnnounce(g.trump);
+      const t = setTimeout(() => setAnnounce(null), 2300);
+      prevPhase.current = g.phase;
+      return () => clearTimeout(t);
+    }
+    prevPhase.current = g.phase;
+  }, [g.phase, g.trump]);
   const [menu, setMenu] = useState(false);
   const chat = useCrowsChat([1, 2, 3]);
   const [chatOpen, setChatOpen] = useState(false);
@@ -140,7 +154,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
   };
 
   return (
-    <div className="screen table-screen crows-screen felt-bg">
+    <div className={`screen table-screen crows-screen felt-bg ${st.trump ? `trump-${st.trump}` : ''}`}>
       <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">Practice · no coins</span></div>
       <div className="tbl-top-right">
         <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label="Open chat"><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>
@@ -149,6 +163,11 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
 
       <div className="felt-wrap">
         <div className="crows-oval" aria-hidden="true" />
+        {st.trump && (st.phase === 'playing' || st.phase === 'trickEnd') && (
+          <div className={`crows-trump-banner c-${st.trump}`} role="status" aria-label={`${COLOUR_NAME[st.trump]} is trump`}>
+            <Emblem s={st.trump} size={26} /> <span>TRUMP</span> <b>{COLOUR_NAME[st.trump].toUpperCase()}</b>
+          </div>
+        )}
         <div className="felt">
           {[1, 2, 3].map((seat) => seatView((ME + seat) % 4))}
 
@@ -189,8 +208,15 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
             {st.phase === 'nest' && !choosingNest && <div className="crows-msg">THE NEST<small>{st.seats[st.highBidder!]?.name} took the nest at {st.highBid} and is choosing trump…</small></div>}
             {st.phase === 'playing' && st.trick.length === 0 && myTurn && <div className="crows-msg">YOUR LEAD</div>}
           </div>
+          {announce && (
+            <div className={`crows-announce c-${announce}`} role="alert">
+              <Emblem s={announce} size={64} />
+              <b>{COLOUR_NAME[announce].toUpperCase()} IS TRUMP</b>
+              <small>{st.highBidder === ME ? 'You' : st.seats[st.highBidder!]?.name} named trump · bid {st.highBid}</small>
+            </div>
+          )}
           <div className="crows-trick">
-            {st.trick.map((t) => <CrowCard key={`${st.round}-${t.card.s}${t.card.r}`} card={t.card} className={`at-${rel(t.seat)}`} />)}
+            {st.trick.map((t) => <CrowCard key={`${st.round}-${t.card.s}${t.card.r}`} card={t.card} trump={isTrump(t.card)} className={`at-${rel(t.seat)}`} />)}
             {st.phase === 'trickEnd' && st.lastTrickWinner !== null && (() => {
               const pts = pointsOf(st.trick.map((t) => t.card));
               const ours = sideOf(st.lastTrickWinner!) === sideOf(ME);
@@ -208,7 +234,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
           const ok = myTurn && st.phase === 'playing' && legal.some((l) => sameCard(l, c));
           const isPicked = picked.some((x) => sameCard(x, c));
           const cls = choosingNest ? `pick ${isPicked ? 'picked' : ''}` : `${ok ? 'legal' : ''} ${myTurn && st.phase === 'playing' && !ok ? 'dim' : ''}`;
-          return <CrowCard key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} className={cls} onClick={() => clickCard(c)} />;
+          return <CrowCard key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} className={cls} trump={isTrump(c)} onClick={() => clickCard(c)} />;
         })}
       </div>
       <div className="crows-me">{seatView(ME)}</div>
