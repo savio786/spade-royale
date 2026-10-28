@@ -107,7 +107,7 @@ export default function App() {
     const toSite = () => { window.location.hash = ''; };
     return (
       <>
-        {inApp ? <Stage><CrowsApp onLeaveSite={toSite} /></Stage> : <CrowsLanding onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />}
+        {inApp ? <Stage><CrowsApp onLeaveSite={toSite} installPrompt={installPrompt} /></Stage> : <CrowsLanding onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />}
         <div className="toasts" aria-live="polite">
           {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
         </div>

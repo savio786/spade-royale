@@ -8,11 +8,12 @@ import {
 } from '../../shared/crows/engine';
 import { botAction, bestTrump, estimateBid } from '../../shared/crows/bot';
 import { makeBot } from '../../shared/runtime';
-import { profile, levelFromXp } from '../lib/profile';
+import { profile, levelFromXp, useProfile } from '../lib/profile';
 import { Avatar, Icon, Modal, Pill } from '../components/ui';
 import { toast } from '../lib/toast';
 import { sfx } from '../lib/sound';
 import { CrowCard, Emblem } from './CrowCard';
+import { CrowsAvatar, PictureModal } from './CrowsExtras';
 
 const ME = 0;
 const POS = ['bottom', 'left', 'top', 'right'] as const;
@@ -57,8 +58,10 @@ function useCrowsGame() {
 export function CrowsTable({ onExit }: { onExit: () => void }) {
   const { g, act, restart } = useCrowsGame();
   const st = viewFor(g, ME);
+  const myAvatar = useProfile().avatar;
   const [menu, setMenu] = useState(false);
   const [rules, setRules] = useState(false);
+  const [picture, setPicture] = useState(false);
   const [picked, setPicked] = useState<Card[]>([]);
   const [trump, setTrump] = useState<Colour | null>(null);
   const rel = (seat: number) => POS[(seat - ME + 4) % 4];
@@ -86,21 +89,11 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
 
   const hand = st.hand;
   const n = hand.length;
-  const gap = Math.min(70, 780 / Math.max(1, n));
+  const gap = Math.min(78, 820 / Math.max(1, n));
   const bidSide = st.highBidder === null ? null : sideOf(st.highBidder);
   const takenNow = [0, 1].map((s) => pointsOf(g.taken[s]));
 
-  return (
-    <div className="screen table-screen crows-screen felt-bg">
-      <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">Practice · no coins</span></div>
-      <div className="tbl-top-right">
-        <button className="round-ui" onClick={() => { sfx.click(); setMenu(true); }} aria-label="Menu"><Icon name="menu" size={26} /></button>
-      </div>
-
-      <div className="felt-wrap">
-        <div className="crows-oval" aria-hidden="true" />
-        <div className="felt">
-          {[0, 1, 2, 3].map((seat) => {
+  const seatView = (seat: number) => {
             const s = st.seats[seat]; if (!s) return null;
             const pos = rel(seat);
             const lb = lastBid(seat);
@@ -115,14 +108,26 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
               <div key={seat} className={`seat seat-${pos} team-${team} ${active ? 'active' : ''} in-play`}>
                 <div className="seat-av">
                   <span className="bezel" aria-hidden="true" />
-                  <Avatar k={s.avatar} size={pos === 'bottom' ? 112 : 104} name={s.name} />
+                  <CrowsAvatar k={seat === ME ? myAvatar : s.avatar} size={pos === 'bottom' ? 108 : 104} name={s.name} />
                   {st.dealer === seat && <span className="dealer" title="Dealer">D</span>}
                 </div>
                 <div className="seat-name">{seat === ME ? 'You' : s.name}{seat === partnerOf(ME) && <small> · partner</small>}</div>
                 {pill !== null && <div className={`crows-pill ${pillCls}`}>{pill}</div>}
               </div>
             );
-          })}
+  };
+
+  return (
+    <div className="screen table-screen crows-screen felt-bg">
+      <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">Practice · no coins</span></div>
+      <div className="tbl-top-right">
+        <button className="round-ui" onClick={() => { sfx.click(); setMenu(true); }} aria-label="Menu"><Icon name="menu" size={26} /></button>
+      </div>
+
+      <div className="felt-wrap">
+        <div className="crows-oval" aria-hidden="true" />
+        <div className="felt">
+          {[1, 2, 3].map((seat) => seatView((ME + seat) % 4))}
 
           <div className="crows-panel left">
             <h3>THIS HAND</h3>
@@ -183,6 +188,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
           return <CrowCard key={`${st.round}-${c.s}${c.r}`} card={c} style={pos} className={cls} onClick={() => clickCard(c)} />;
         })}
       </div>
+      <div className="crows-me">{seatView(ME)}</div>
 
       {st.phase === 'bidding' && myTurn && <BidDialog g={g} onAct={act} />}
       {choosingNest && (
@@ -195,11 +201,13 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
         <Modal title="Menu" onClose={() => setMenu(false)}>
           <div className="btn-row" style={{ flexDirection: 'column', gap: 10 }}>
             <Pill color="blue" onClick={() => { setMenu(false); setRules(true); }}>How to play Crows Haven</Pill>
+            <Pill color="purple" onClick={() => { setMenu(false); setPicture(true); }}>Change my picture</Pill>
             <Pill color="red" onClick={onExit}>Leave table</Pill>
           </div>
         </Modal>
       )}
       {rules && <CrowsRules onClose={() => setRules(false)} />}
+      {picture && <PictureModal onClose={() => setPicture(false)} />}
     </div>
   );
 }

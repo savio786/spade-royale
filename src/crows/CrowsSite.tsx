@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import './crows.css';
 import { CrowCard, CrowArt } from './CrowCard';
 import { CrowsTable, CrowsRules, CrowsRulesBody } from './CrowsTable';
-import { AVATAR_KEYS, Avatar } from '../components/ui';
+import { AVATAR_KEYS } from '../components/ui';
+import { CrowsAvatar, InstallHelp, InstallModal, PictureModal } from './CrowsExtras';
+import { alreadyInstalled } from '../lib/device';
 import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
 import { sfx } from '../lib/sound';
@@ -26,6 +28,7 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
         <a className="cl-brand" href="#top"><CrowArt size={38} /> CROWS HAVEN</a>
         <nav>
           <a href="#how">How to play</a>
+          <a href="#get-app">Get the app</a>
           <button className="cl-btn small" onClick={onPlay}>PLAY FREE</button>
         </nav>
       </header>
@@ -36,7 +39,7 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
           <p>The partnership card game of bids, nests and trump. Win the auction, pick up the nest, name trump — and catch the Crow.</p>
           <div className="cl-actions">
             <button className="cl-btn" onClick={onPlay}>▶ PLAY IN YOUR BROWSER</button>
-            {installPrompt && <button className="cl-btn ghost" onClick={installPrompt}>Install on this device</button>}
+            {!alreadyInstalled() && <a className="cl-btn ghost" href="#get-app" onClick={(e) => { if (installPrompt) { e.preventDefault(); installPrompt(); } }}>⤓ Install the app</a>}
           </div>
           <small>Free · no sign-up · you and a partner against two computer players</small>
         </div>
@@ -55,6 +58,11 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
         <button className="cl-btn" onClick={onPlay}>▶ PLAY NOW</button>
       </section>
 
+      <section className="cl-how" id="get-app">
+        <h2>Get the app</h2>
+        <InstallHelp installPrompt={installPrompt} />
+      </section>
+
       <footer className="cl-foot">
         <span><CrowArt size={22} /> Crows Haven</span>
         <a href="#privacy">Privacy</a>
@@ -65,12 +73,13 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
 }
 
 /** Inside the game: start as a guest, then the home screen, then a table. */
-export function CrowsApp({ onLeaveSite }: { onLeaveSite: () => void }) {
+export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
   const [screen, setScreen] = useState<'home' | 'table'>('home');
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [modal, setModal] = useState<null | 'picture' | 'install'>(null);
   useEffect(() => { document.body.classList.add('crows-site'); return () => document.body.classList.remove('crows-site'); }, []);
 
   if (!p.provider) {
@@ -96,20 +105,26 @@ export function CrowsApp({ onLeaveSite }: { onLeaveSite: () => void }) {
 
   if (screen === 'table') return <CrowsTable key={tableKey} onExit={() => setScreen('home')} />;
 
+
   return (
     <div className="screen crows-home felt-bg">
       <div className="ch-card">
         <CrowArt size={110} />
         <h1>CROWS HAVEN</h1>
-        <div className="ch-me"><Avatar k={p.avatar} size={56} name={p.name} /> <b>{p.name}</b></div>
+        <button className="ch-me" onClick={() => { sfx.click(); setModal('picture'); }} aria-label="Change your picture">
+          <CrowsAvatar k={p.avatar} size={64} name={p.name} /> <b>{p.name}</b> <span className="ch-edit">Change picture</span>
+        </button>
         <button className="cl-btn big" onClick={() => { sfx.click(); setTableKey((k) => k + 1); setScreen('table'); }}>▶ PLAY</button>
         <div className="ch-row">
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
+          {!alreadyInstalled() && <button className="cl-btn ghost" onClick={() => { sfx.click(); setModal('install'); }}>⤓ Install the app</button>}
           <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>
         </div>
         <p className="ch-note">You and your partner (across the table) against two computer players. First side to 500 wins. Online tables with friends are coming.</p>
       </div>
       {rules && <CrowsRules onClose={() => setRules(false)} />}
+      {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
+      {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
     </div>
   );
 }

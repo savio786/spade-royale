@@ -16,7 +16,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 );
 
 // Offline support + installability (Windows / macOS / iPadOS / Android browsers)
-if ('serviceWorker' in navigator && import.meta.env.PROD && import.meta.env.VITE_OFFLINE !== '1' && location.protocol.startsWith('http')) {
+// (The Crows Haven site has no game server — VITE_OFFLINE=1 — but still installs and works offline, so it registers too.)
+if ('serviceWorker' in navigator && import.meta.env.PROD && (import.meta.env.VITE_OFFLINE !== '1' || import.meta.env.VITE_CROWS === '1') && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('./sw.js').catch(() => {}); // registered right away so app stores (PWABuilder) detect it
 }
 

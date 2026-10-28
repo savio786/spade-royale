@@ -22,7 +22,7 @@ function crowsHtml(): Plugin {
         .replace(/<meta name="apple-mobile-web-app-title"[^>]*>/, '<meta name="apple-mobile-web-app-title" content="Crows Haven" />')
         .replace(/<link rel="manifest"[^>]*>/, '<link rel="manifest" href="./crows/manifest.webmanifest" />')
         .replace(/<link rel="icon"[^>]*>/, '<link rel="icon" type="image/svg+xml" href="./crows/icon.svg" />')
-        .replace(/<link rel="apple-touch-icon"[^>]*>\s*/, '')
+        .replace(/<link rel="apple-touch-icon"[^>]*>/, '<link rel="apple-touch-icon" href="./crows/apple-touch-icon.png" />')
         .replace(/\s*<meta (property|name)="(og|twitter):image[^>]*>/g, '')
         .replace(/<meta property="og:site_name"[^>]*>/, '<meta property="og:site_name" content="Crows Haven" />')
         .replace(/<meta (property|name)="(og|twitter):title"[^>]*>/g, (_m, a, b) => `<meta ${a}="${b}:title" content="Crows Haven — bid for the nest, capture the Crow" />`)

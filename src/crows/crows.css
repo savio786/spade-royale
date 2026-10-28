@@ -110,9 +110,9 @@
 .crows-rules ul { margin: 0; padding-left: 20px; }
 
 
-/* your picture sits bottom-left so it never covers the hand (14 cards while you hold the nest) */
-.crows-screen .seat-bottom, .crows-screen .seat-bottom.in-play { left: -34px; translate: 0 0; bottom: -166px; flex-direction: column-reverse; }
-.crows-screen .seat-bottom .seat-av .avatar { width: 100px !important; height: 100px !important; }
+/* your picture sits at the bottom centre, your cards fanned behind it (like the Spades table) */
+.crows-screen .seat-bottom .seat-name { display: none; }
+.crows-screen .seat-bottom .crows-pill { position: absolute; left: calc(100% + 6px); top: 50%; translate: 0 -50%; white-space: nowrap; }
 
 /* ---------- Crows Haven site: welcome page ---------- */
 .crows-land { --sky: #2f86d6; --ember: #e2621f; --moss: #3d9447; --plum: #8a3fb3; --gold: #ffc83d;
@@ -195,3 +195,36 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
   font: 400 calc(var(--w) * .14) var(--display); font-style: normal; letter-spacing: .5px; text-align: center; line-height: 1.15; }
 .ccard.crow .cc-cpts { background: #ffd36a; color: #1d1a12; }
 .crows-nest .cc-cpts { font-size: 11px; min-width: 0; padding: 0 3px; }
+
+/* bigger cards and numbers (owner request 2026-10-27) */
+.cfan .ccard { --w: 150px; }
+.cfan { bottom: -34px; }
+.crows-trick .ccard { --w: 106px; margin: -74px 0 0 -53px; }
+.crows-trick .at-bottom { transform: translate(0, 62px); } .crows-trick .at-top { transform: translate(0, -62px); }
+.crows-trick .at-left { transform: translate(-90px, 0) rotate(-8deg); } .crows-trick .at-right { transform: translate(90px, 0) rotate(8deg); }
+.cc-corner b { font-size: calc(var(--w) * .3); }
+.cc-corner svg { width: calc(var(--w) * .17); height: calc(var(--w) * .17); }
+.cc-cpts { font-size: calc(var(--w) * .18); min-width: calc(var(--w) * .22); padding: 1px 5px; }
+.crows-scores b { font-size: 44px; }
+.crows-scores.live b { font-size: 38px; }
+.cl-bar { height: 28px; } .cl-bar span { font-size: 20px; line-height: 28px; }
+.crows-pop { font-size: 48px; }
+
+/* picture picker + install help */
+.ch-me { display: flex; align-items: center; gap: 12px; font-size: 22px; background: rgba(0,0,0,.25); border: 2px solid rgba(243,230,196,.3); border-radius: 999px; padding: 6px 18px 6px 6px; color: #f3e6c4; cursor: pointer; }
+.ch-me:hover { border-color: #ffd36a; }
+.ch-edit { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: #ffd36a; color: #2a1d06; font-weight: 700; }
+.crows-small-note { font-size: 13px; opacity: .75; text-align: center; margin: 6px 0; }
+.crows-install { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; font-size: 17px; line-height: 1.5; }
+.crows-install p { margin: 0; }
+.crows-install .crows-small-note { text-align: left; }
+.crows-install-steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.modal .crows-install { align-items: center; text-align: center; }
+.modal .crows-install-steps { text-align: left; }
+
+/* your picture in front of your hand, bottom centre */
+.crows-me { position: absolute; left: 50%; bottom: 8px; translate: -50% 0; z-index: 15; pointer-events: none; }
+.crows-me .seat.seat-bottom, .crows-me .seat.seat-bottom.in-play { position: relative; left: auto; bottom: auto; translate: none; }
+.crows-me .seat-av { pointer-events: auto; }
+.ch-card { max-width: 760px; }
+.ch-row .cl-btn { white-space: nowrap; }

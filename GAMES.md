@@ -34,12 +34,14 @@ Crows Haven-only files:
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
 
 - `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen
-- `public/crows/` — crow icon and app manifest for the Crows Haven site
+- `src/crows/CrowsExtras.tsx` — change your picture (photo kept on the device; this site has no server), install-the-app help
+- `public/crows/` — crow icons (SVG + PNG 192/512/maskable/apple) and the app manifest for the Crows Haven site
 
 The Crows Haven site is the same app built with `VITE_CROWS=1` (the crows-haven Vercel project).
 Shared files touched (Spades behaves exactly as before; without `VITE_CROWS` nothing changes):
 - `src/App.tsx` — with `VITE_CROWS=1` it shows only the Crows Haven screens
 - `vite.config.ts` — with `VITE_CROWS=1` the page title, icon, manifest and link previews say Crows Haven
+- `src/main.tsx` — with `VITE_CROWS=1` the offline/install service worker is registered even though `VITE_OFFLINE=1`
   (checked: the Spades build's index.html is identical to `main`'s)
 - The Spades lobby is unchanged (no game switch).
 
