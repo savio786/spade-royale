@@ -112,7 +112,9 @@ are not spelled out in those rules; the owner can change them.
 - Crows Haven does **not** go on Render. It goes on **Vercel** as a static app.
 - Vercel can't run the websocket server, so **version one is played against computer
   players only**. Vercel project settings: branch `second-game`, environment variables
-  `VITE_CROWS=1` and `VITE_OFFLINE=1`, build command from `vercel.json`. Online/private tables wait until a separate multiplayer host is chosen.
+  `VITE_CROWS=1` and `VITE_OFFLINE=1`, build command from `vercel.json`.
+- Live: Vercel project **crows-haven** in the **Royal** team (set up 2026-10-27). Production branch is
+  `second-game`, so every push to `second-game` redeploys it; pushes to `main` do not. Online/private tables wait until a separate multiplayer host is chosen.
 - Spades stays exactly as it is: on Render, from `main`. Nothing in this work changes it.
 
 How to build it without touching Spades:
