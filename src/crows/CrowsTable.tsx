@@ -20,7 +20,7 @@ const ME = 0;
 const POS = ['bottom', 'left', 'top', 'right'] as const;
 const BOT_DELAY = 800, TRICK_PAUSE = 1200;
 
-function newTable(): CrowsState {
+function newTable(target: number = DEFAULT_TARGET): CrowsState {
   const p = profile.get();
   const me = { id: p.id, name: p.name || 'You', avatar: p.avatar, level: levelFromXp(p.xp), bot: false };
   // computer players always get one of the AI portraits (with the name that goes with it), never your picture
@@ -29,12 +29,12 @@ function newTable(): CrowsState {
     const avatar = randomPortrait(taken); taken.push(avatar);
     return { id: `bot:${Date.now().toString(36)}${i}`, name: portraitName(avatar), avatar, level: 5 + Math.floor(Math.random() * 60), bot: true };
   });
-  return startRound(createGame({ target: DEFAULT_TARGET, city: 'Crows Haven' }, [me, bots[0], bots[1], bots[2]]));
+  return startRound(createGame({ target, city: 'Crows Haven' }, [me, bots[0], bots[1], bots[2]]));
 }
 
 /** Runs one local game: applies your actions and lets the computer players act after a short pause. */
-function useCrowsGame() {
-  const [g, setGState] = useState<CrowsState>(newTable);
+function useCrowsGame(target: number) {
+  const [g, setGState] = useState<CrowsState>(() => newTable(target));
   const cur = useRef(g);
   const setG = (next: CrowsState) => { cur.current = next; setGState(next); };
   const act = (a: CrowsAction): boolean => {
@@ -57,11 +57,11 @@ function useCrowsGame() {
     }
     return () => clearTimeout(t);
   }, [g]);
-  return { g, act, restart: () => setG(newTable()) };
+  return { g, act, restart: () => setG(newTable(target)) };
 }
 
-export function CrowsTable({ onExit }: { onExit: () => void }) {
-  const { g, act, restart } = useCrowsGame();
+export function CrowsTable({ onExit, target = DEFAULT_TARGET }: { onExit: () => void; target?: number }) {
+  const { g, act, restart } = useCrowsGame(target);
   const st = viewFor(g, ME);
   const myAvatar = useProfile().avatar;
   /** Is this card trump right now? (the Crow always is, once trump is named) */
@@ -392,7 +392,7 @@ export function CrowsRulesBody() {
           <li>The Crow is the highest trump. You may play it on any trick, even when you could follow. You must play it if trump is led and it's your only trump.</li></ul>
         <h4>Scoring</h4>
         <ul><li>If the bidding side takes at least its bid, it scores every point it took. If not, it loses the amount it bid.</li>
-          <li>The other side always scores what it took. First side to 500 wins.</li></ul>
+          <li>The other side always scores what it took. The first side to reach the game points wins — you choose 300, 400 or 500 before you play.</li></ul>
       </div>
   );
 }

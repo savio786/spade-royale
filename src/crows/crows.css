@@ -300,3 +300,11 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
 @media (prefers-reduced-motion: reduce) { .crows-announce { animation: none; } }
 /* in your fanned hand only the left strip of each card shows: put the TRUMP tag there, under the corner */
 .cfan .cc-trump { top: calc(var(--w) * .76); right: auto; left: 5px; font-size: calc(var(--w) * .12); padding: 2px 4px; }
+
+/* game points choice on the home screen */
+.ch-points { display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 16px; border-radius: 999px; background: rgba(0,0,0,.35); border: 2px solid rgba(243,230,196,.3); }
+.ch-points span { font: 400 18px var(--display); letter-spacing: 2px; margin-right: 4px; }
+.ch-points button { border: 0; cursor: pointer; min-width: 64px; padding: 6px 14px; border-radius: 999px; background: rgba(243,230,196,.12); color: #f3e6c4; font: 400 24px var(--display); letter-spacing: 1px; }
+.ch-points button.on { background: linear-gradient(180deg, #ffe27a, #f5b82e); color: #2a1d06; box-shadow: 0 3px 8px rgba(0,0,0,.4); }
+.ch-row { flex-wrap: wrap; justify-content: center; max-width: 100%; }
+.ch-row .cl-btn { font-size: 18px; padding: 9px 18px; }

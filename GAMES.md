@@ -116,7 +116,8 @@ Items marked *(default)* are our choice where the published versions differ; the
 - The other side always scores what it took. Scores can go below zero.
 
 **Game end**
-- First side to **500** wins. If both pass 500 in the same hand, the higher total wins;
+- First side to the **game points** wins: the player picks **300, 400 or 500** on the home screen
+  (default 500, remembered on the device). If both pass it in the same hand, the higher total wins;
   if tied, play another hand *(default)*.
 
 **Bots (first version)**

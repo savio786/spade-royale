@@ -72,6 +72,9 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
   );
 }
 
+/** The game lengths players can choose: first side to this many points wins. */
+const GAME_POINTS = [300, 400, 500];
+
 /** Inside the game: start as a guest, then the home screen, then a table. */
 export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
@@ -80,6 +83,8 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<null | 'picture' | 'install'>(null);
+  const [target, setTargetState] = useState<number>(() => { try { const v = Number(localStorage.getItem('crowsTarget')); return GAME_POINTS.includes(v) ? v : 500; } catch { return 500; } });
+  const setTarget = (v: number) => { sfx.click(); setTargetState(v); try { localStorage.setItem('crowsTarget', String(v)); } catch { /* private mode */ } };
   useEffect(() => { document.body.classList.add('crows-site'); return () => document.body.classList.remove('crows-site'); }, []);
 
   if (!p.provider) {
@@ -103,7 +108,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
     );
   }
 
-  if (screen === 'table') return <CrowsTable key={tableKey} onExit={() => setScreen('home')} />;
+  if (screen === 'table') return <CrowsTable key={tableKey} target={target} onExit={() => setScreen('home')} />;
   if (screen === 'ranking') return <CrowsRanking onBack={() => setScreen('home')} />;
 
 
@@ -115,6 +120,10 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
         <button className="ch-me" onClick={() => { sfx.click(); setModal('picture'); }} aria-label="Change your picture">
           <CrowsAvatar k={p.avatar} size={64} name={p.name} /> <b>{p.name}</b> <span className="ch-edit">Change picture</span>
         </button>
+        <div className="ch-points" role="radiogroup" aria-label="Game points">
+          <span>GAME POINTS</span>
+          {GAME_POINTS.map((v) => <button key={v} role="radio" aria-checked={target === v} className={target === v ? 'on' : ''} onClick={() => setTarget(v)}>{v}</button>)}
+        </div>
         <button className="cl-btn big" onClick={() => { sfx.click(); setTableKey((k) => k + 1); setScreen('table'); }}>▶ PLAY</button>
         <div className="ch-row">
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setScreen('ranking'); }}>🏆 Weekly ranking</button>
@@ -122,7 +131,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
           {!alreadyInstalled() && <button className="cl-btn ghost" onClick={() => { sfx.click(); setModal('install'); }}>⤓ Install the app</button>}
           <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>
         </div>
-        <p className="ch-note">You and your partner (across the table) against two computer players. First side to 500 wins. Online tables with friends are coming.</p>
+        <p className="ch-note">You and your partner (across the table) against two computer players. First side to {target} wins. Online tables with friends are coming.</p>
       </div>
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
