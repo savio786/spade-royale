@@ -280,7 +280,15 @@ function GameOver({ g, onAgain, onLobby }: { g: CrowsState; onAgain: () => void;
 export function CrowsRules({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="How to play Crows Haven" onClose={onClose} wide>
-      <div className="crows-rules">
+      <CrowsRulesBody />
+    </Modal>
+  );
+}
+
+/** The rules text, shared by the table's rules window and the Crows Haven welcome page. */
+export function CrowsRulesBody() {
+  return (
+    <div className="crows-rules">
         <h4>The deck</h4>
         <ul><li>41 cards: four colours (Sky, Ember, Moss, Plum) numbered 5 to 14, plus the Crow.</li>
           <li>Point cards: every 5 is worth 5, every 10 and 14 is worth 10, the Crow is worth 20 — 120 in all.</li></ul>
@@ -299,6 +307,5 @@ export function CrowsRules({ onClose }: { onClose: () => void }) {
         <ul><li>If the bidding side takes at least its bid, it scores every point it took. If not, it loses the amount it bid.</li>
           <li>The other side always scores what it took. First side to 300 wins.</li></ul>
       </div>
-    </Modal>
   );
 }

@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "lang": "en-US",
+  "name": "Crows Haven",
+  "short_name": "Crows Haven",
+  "description": "A four-player partnership card game: bid for the nest, name trump and capture the Crow. Free to play in your browser against computer players.",
+  "start_url": "./#play",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0f2b22",
+  "theme_color": "#0f2b22",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "crows/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "crows/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

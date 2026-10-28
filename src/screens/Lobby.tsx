@@ -14,12 +14,6 @@ import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
 import { syncReferral } from '../lib/referral';
 import { helpBot } from '../lib/helpbot';
-import { toast } from '../lib/toast';
-import '../crows/crows.css';
-
-/** Which game the lobby's PLAY NOW starts. Builds with Crows Haven switched on start on Crows Haven; the player's choice is remembered on this device. */
-type GameChoice = 'spades' | 'crows';
-const readGame = (): GameChoice => { try { return localStorage.getItem('lobbyGame') === 'spades' ? 'spades' : 'crows'; } catch { return 'crows'; } };
 import {
   AdModal, bonusLeftMs, FriendsModal, GiftsModal, ProfileEditModal, LeaderboardModal, PrivateGameModal, RoomTypeModal, SettingsModal, SpinModal, StartRequest, TrophyModal, VipModal, InviteModal,
 } from './modals';
@@ -32,12 +26,8 @@ const SLIDES = [
   { k: 'leaders', title: 'WEEKLY', sub: 'Top 100 win coin rewards!' },
 ] as const;
 
-export function Lobby({ onStart, onOnlineLobby, installPrompt, onCrows }: { onStart: (r: StartRequest) => void; onOnlineLobby: () => void; installPrompt: null | (() => void); onCrows?: () => void }) {
+export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: StartRequest) => void; onOnlineLobby: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
-  const [game, setGameState] = useState<GameChoice>(() => (onCrows ? readGame() : 'spades'));
-  const setGame = (g: GameChoice) => { setGameState(g); try { localStorage.setItem('lobbyGame', g); } catch { /* private mode */ } };
-  const crows = game === 'crows' && !!onCrows;
-  const soon = () => toast('Crows Haven is computer players only for now — online tables are coming');
   const soc = useSocial();
   const [modal, setModal] = useState<ModalKey>(null);
   const [slide, setSlide] = useState(0);
@@ -95,19 +85,6 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt, onCrows }: { onSt
           </div>
         </div>
 
-        {onCrows && (
-          <div className="game-switch" role="tablist" aria-label="Choose a game">
-            <button role="tab" aria-selected={!crows} className={!crows ? 'on' : ''} onClick={() => { sfx.click(); setGame('spades'); }}>SPADES</button>
-            <button role="tab" aria-selected={crows} className={crows ? 'on' : ''} onClick={() => { sfx.click(); setGame('crows'); }}>CROWS HAVEN</button>
-          </div>
-        )}
-        {crows ? (
-          <div className="lobby-rings">
-            <RingButton color="green" label="PLAY NOW" onClick={() => onCrows!()} icon={<PlayArt />} />
-            <RingButton color="blue" label="ONLINE LOBBY" onClick={soon} icon={<GlobeArt />} badge={<span className="ring-soon">SOON</span>} />
-            <RingButton color="purple" label="PRIVATE GAME" onClick={soon} icon={<PrivateArt />} badge={<span className="ring-soon">SOON</span>} />
-          </div>
-        ) : (
         <div className="lobby-rings">
           <RingButton color="green" label="PLAY NOW" onClick={() => setModal('roomtype')}
             icon={<PlayArt />} />
@@ -115,7 +92,6 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt, onCrows }: { onSt
           <RingButton color="purple" label="PRIVATE GAME" onClick={() => setModal('private')} icon={<PrivateArt />}
             badge={<span className="now-open">NOW OPEN</span>} />
         </div>
-        )}
       </main>
 
       {p.coins < 1000 && (

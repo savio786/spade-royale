@@ -5,7 +5,7 @@ import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
-import { CrowsTable } from './crows/CrowsTable';
+import { CrowsApp, CrowsLanding } from './crows/CrowsSite';
 import { LegalPage } from './screens/Legal';
 import { InstallPage } from './screens/Install';
 import { StartRequest, StoreModal } from './screens/modals';
@@ -24,10 +24,11 @@ startGuestSync();
 import { Capacitor } from '@capacitor/core';
 import type { TableSettings } from '../shared/engine';
 
-// Crows Haven (second game) is switched on only in builds with VITE_CROWS=1, so the live Spades site is unchanged.
+// Builds with VITE_CROWS=1 are the Crows Haven site (second game, e.g. the crows-haven Vercel project).
+// Without it (the live Spades site) everything below runs exactly as before.
 const CROWS_ON = import.meta.env.VITE_CROWS === '1';
 
-type Screen = 'lobby' | 'online' | 'table' | 'crows';
+type Screen = 'lobby' | 'online' | 'table';
 
 interface BIPEvent extends Event { prompt: () => Promise<void> }
 
@@ -102,6 +103,17 @@ export default function App() {
     : hash === '#terms' || path === '/terms' ? 'terms'
     : hash === '#data-deletion' || path === '/data-deletion' ? 'delete' : null;
   if (legal) return <LegalPage page={legal} />;
+  if (CROWS_ON) {
+    const toSite = () => { window.location.hash = ''; };
+    return (
+      <>
+        {inApp ? <Stage><CrowsApp onLeaveSite={toSite} /></Stage> : <CrowsLanding onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />}
+        <div className="toasts" aria-live="polite">
+          {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
+        </div>
+      </>
+    );
+  }
   let body;
   if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
   else if (resetToken) body = <Login resetToken={resetToken} />;
@@ -111,10 +123,8 @@ export default function App() {
       onExit={() => { setCtl(null); setScreen('lobby'); }}
       onPlayAgain={() => { setCtl(null); if (lastReq) start(lastReq); else setScreen('lobby'); }} />
   );
-  else if (screen === 'crows') body = <CrowsTable key={tableKey} onExit={() => setScreen('lobby')} />;
   else if (screen === 'online') body = <OnlineLobby onBack={() => setScreen('lobby')} onStart={start} />;
-  else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt}
-    onCrows={CROWS_ON ? () => { setTableKey((k) => k + 1); setScreen('crows'); } : undefined} />;
+  else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt} />;
 
   return (
     <>

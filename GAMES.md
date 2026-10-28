@@ -33,10 +33,15 @@ Crows Haven-only files:
 - `src/crows/CrowCard.tsx` — our own card faces (Sky cloud, Ember flame, Moss leaf, Plum berry, the Crow)
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
 
-Shared files touched (Spades behaves exactly as before):
-- `src/screens/Lobby.tsx` — SPADES / CROWS HAVEN switch above the rings, shown only when `onCrows` is passed
-- `src/App.tsx` — a `crows` screen; the switch appears only in builds with `VITE_CROWS=1`
-  (the live Spades build doesn't set it, so it looks the same)
+- `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen
+- `public/crows/` — crow icon and app manifest for the Crows Haven site
+
+The Crows Haven site is the same app built with `VITE_CROWS=1` (the crows-haven Vercel project).
+Shared files touched (Spades behaves exactly as before; without `VITE_CROWS` nothing changes):
+- `src/App.tsx` — with `VITE_CROWS=1` it shows only the Crows Haven screens
+- `vite.config.ts` — with `VITE_CROWS=1` the page title, icon, manifest and link previews say Crows Haven
+  (checked: the Spades build's index.html is identical to `main`'s)
+- The Spades lobby is unchanged (no game switch).
 
 Version one: practice table, no coins or XP, you + partner vs two computer players.
 
