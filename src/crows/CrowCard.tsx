@@ -34,7 +34,7 @@ export function CrowCard({ card, back, className, style, onClick, dataCard }: {
   if (isCrow(card)) {
     return (
       <Tag className={`ccard crow ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick} aria-label="The Crow, 20 points, highest trump">
-        <span className="cc-corner"><b>C</b></span>
+        <span className="cc-corner"><b>C</b><i className="cc-cpts">20</i></span>
         <span className="cc-crow"><CrowArt /></span>
         <span className="cc-name">CROW</span>
         <span className="cc-pts">20</span>
@@ -45,7 +45,7 @@ export function CrowCard({ card, back, className, style, onClick, dataCard }: {
   return (
     <Tag className={`ccard c-${s} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
       aria-label={`${card.r} ${COLOUR_NAME[s]}${pts ? `, ${pts} points` : ''}`}>
-      <span className="cc-corner"><b>{card.r}</b><Emblem s={s} size={20} /></span>
+      <span className="cc-corner"><b>{card.r}</b><Emblem s={s} size={20} />{pts > 0 && <i className="cc-cpts">{pts}</i>}</span>
       <span className="cc-big">{card.r}</span>
       <span className="cc-emblem"><Emblem s={s} size={40} /></span>
       {pts > 0 && <span className="cc-pts">{pts}</span>}

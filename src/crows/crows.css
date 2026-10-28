@@ -189,3 +189,9 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
 .crows-pop.us { background: #3858e0; } .crows-pop.them { background: #b8283a; }
 @keyframes crowsPop { 0% { opacity: 0; scale: .6; } 25% { opacity: 1; scale: 1.1; } 70% { opacity: 1; scale: 1; } 100% { opacity: 1; scale: 1; } }
 @media (prefers-reduced-motion: reduce) { .crows-pop { animation: none; } }
+
+/* points under the corner number (the part of a card you can see in your hand) */
+.cc-cpts { margin-top: 3px; min-width: 24px; padding: 1px 4px; border-radius: 6px; background: #1d1a12; color: #ffd36a;
+  font: 400 calc(var(--w) * .14) var(--display); font-style: normal; letter-spacing: .5px; text-align: center; line-height: 1.15; }
+.ccard.crow .cc-cpts { background: #ffd36a; color: #1d1a12; }
+.crows-nest .cc-cpts { font-size: 11px; min-width: 0; padding: 0 3px; }
