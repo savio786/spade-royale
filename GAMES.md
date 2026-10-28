@@ -40,7 +40,10 @@ Crows Haven-only files:
   database connected to the crows-haven Vercel project (Storage → Upstash for Redis); until then the page says "almost ready".
   Weeks start Sunday 00:00 UTC; ranked by games won, then points. Results come from the browser (no game server),
   so each player id is tied to a device secret, rate-limited (1 game / 2 min) and capped.
-- `src/crows/CrowsExtras.tsx` — pictures: 82 AI portraits (40 of Crows Haven's own + the 42 Spades ones from `public/brand/bots/`) or your own photo; change your picture
+- `src/crows/CrowsExtras.tsx` — pictures. Players pick from 12 AI portraits, cartoon characters (drawn people + robot,
+  alien, pirate…), animals, things and flowers, or their own photo. Computer players always use the 82 AI portraits
+  (40 of Crows Haven's own + the 42 Spades ones from `public/brand/bots/`)
+- `src/crows/ExtraArt.tsx` — Crows Haven's own drawings: 10 flowers and 12 things
 - `src/crows/portraits.ts` + `public/crows/portraits/c1–c40.webp` — Crows Haven's own 40 AI portraits (from the owner, 2026-10-27) and the names computer players use with them (photo kept on the device; this site has no server), install-the-app help
 - `public/crows/` — crow icons (SVG + PNG 192/512/maskable/apple) and the app manifest for the Crows Haven site
 

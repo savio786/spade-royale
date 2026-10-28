@@ -29,7 +29,7 @@ const prevWeek = (d = new Date()) => weekKey(new Date(new Date(weekKey(d) + 'T00
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 const clean = (s: unknown, max: number) => String(s ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max);
-const AVATAR_RE = /^(a|p|b|c)\d{1,3}$/;
+const AVATAR_RE = /^(a|p|b|c|f|t)\d{1,3}$/;
 const ID_RE = /^[\w-]{6,64}$/;
 const WEEK_TTL = 60 * 864e2; // keep a week's data for 60 days
 

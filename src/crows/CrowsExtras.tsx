@@ -4,6 +4,9 @@ import { useRef, useState } from 'react';
 import { Avatar, Modal, Pill } from '../components/ui';
 import { BOT_PHOTOS } from '../../shared/botphotos';
 import { CROWS_PORTRAITS } from './portraits';
+import { PEOPLE_KEYS } from '../components/people';
+import { ExtraArt, FLOWERS, THINGS, isExtra, extraName } from './ExtraArt';
+import { avatarName } from '../components/avatars';
 import { profile } from '../lib/profile';
 import { installGuide, thisDevice, alreadyInstalled } from '../lib/device';
 import { Rich } from '../screens/Install';
@@ -15,6 +18,21 @@ const BY_ID: Record<string, { name: string; file: string }> = Object.fromEntries
 export const PORTRAITS = ALL.map((p) => p.id);
 /** The name that goes with a portrait (used for computer players). */
 export const portraitName = (k: string) => BY_ID[k]?.name ?? 'Player';
+
+/** What players can pick from: a few AI portraits, cartoon characters, animals, things and flowers.
+ *  Computer players always use the AI portraits (all of them). */
+export const PICK_GROUPS: { title: string; keys: string[] }[] = [
+  { title: 'AI portraits', keys: ['c1', 'c4', 'c8', 'c11', 'c13', 'c15', 'c20', 'c22', 'c27', 'c33', 'c37', 'c40'] },
+  { title: 'Cartoon characters', keys: [...PEOPLE_KEYS, 'a17', 'a18', 'a19', 'a20', 'a21', 'a22', 'a23', 'a24'] },
+  { title: 'Animals', keys: Array.from({ length: 16 }, (_, i) => `a${i + 1}`) },
+  { title: 'Things', keys: Object.keys(THINGS) },
+  { title: 'Flowers', keys: Object.keys(FLOWERS) },
+];
+/** A random non-AI picture for a new player (cartoon, animal, thing or flower). */
+export const randomPlayerPicture = () => {
+  const list = PICK_GROUPS.slice(1).flatMap((g) => g.keys);
+  return list[Math.floor(Math.random() * list.length)];
+};
 export const isPortrait = (k: string) => PORTRAITS.includes(k);
 export const randomPortrait = (exclude: string[] = []) => {
   const free = PORTRAITS.filter((k) => !exclude.includes(k));
@@ -33,6 +51,9 @@ export function CrowsAvatar({ k, size = 64, name }: { k: string; size?: number; 
     const src = readPhoto();
     if (src) return <span className="avatar" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s photo` : 'Your photo'}><img src={src} alt="" draggable={false} /></span>;
     return <CrowsAvatar k={PORTRAITS[0]} size={size} name={name} />;
+  }
+  if (isExtra(k)) {
+    return <span className="avatar" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s picture` : 'Picture'}><ExtraArt k={k} /></span>;
   }
   if (k.startsWith('c') && BY_ID[k]) {
     return <span className="avatar" style={{ width: size, height: size }} role="img" aria-label={name ? `${name}'s picture` : 'Picture'}><img src={BY_ID[k].file} alt="" draggable={false} loading="lazy" /></span>;
@@ -71,8 +92,9 @@ export function PictureModal({ onClose }: { onClose: () => void }) {
     } catch (e) { setErr((e as Error).message); }
     finally { if (fileRef.current) fileRef.current.value = ''; }
   };
-  const tile = (k: string, i: number) => (
-    <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`} onClick={() => pick(k)} aria-label={`Picture ${i + 1}`}>
+  const label = (k: string) => (isExtra(k) ? extraName(k) : BY_ID[k] ? 'AI portrait' : avatarName(k));
+  const tile = (k: string) => (
+    <button type="button" key={k} role="radio" aria-checked={k === value} className={`avatar-pick ${k === value ? 'on' : ''}`} onClick={() => pick(k)} aria-label={label(k)} title={label(k)}>
       <CrowsAvatar k={k} size={60} />
     </button>
   );
@@ -86,7 +108,7 @@ export function PictureModal({ onClose }: { onClose: () => void }) {
         {err && <p className="ap-err" role="alert">{err}</p>}
         <p className="crows-small-note">Your photo stays on this device; other players at your table see it during the game.</p>
         <div className="avatar-grid crows-portraits" role="radiogroup" aria-label="Choose a picture">
-          {PORTRAITS.map(tile)}
+          {PICK_GROUPS.map((g) => [<span key={g.title} className="ap-group">{g.title}</span>, ...g.keys.map(tile)])}
         </div>
       </div>
       <div className="btn-row"><Pill color="green" onClick={onClose}>Done</Pill></div>
