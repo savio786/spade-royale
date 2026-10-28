@@ -9,7 +9,7 @@ import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
 import { sfx } from '../lib/sound';
 
-const HERO_CARDS = [{ s: 'ember', r: 14 }, { s: 'crow', r: 0 }, { s: 'sky', r: 10 }, { s: 'moss', r: 5 }] as const;
+const HERO_CARDS = [{ s: 'ember', r: 1 }, { s: 'crow', r: 0 }, { s: 'sky', r: 14 }, { s: 'moss', r: 10 }] as const;
 
 const FEATURES = [
   { t: 'Bid for the nest', d: 'Promise how many points your side will take. Win the bid and the five hidden nest cards are yours.' },
@@ -107,7 +107,7 @@ export function CrowsApp({ onLeaveSite }: { onLeaveSite: () => void }) {
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
           <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>
         </div>
-        <p className="ch-note">You and your partner (across the table) against two computer players. First side to 300 wins. Online tables with friends are coming.</p>
+        <p className="ch-note">You and your partner (across the table) against two computer players. First side to 500 wins. Online tables with friends are coming.</p>
       </div>
       {rules && <CrowsRules onClose={() => setRules(false)} />}
     </div>

@@ -57,31 +57,33 @@ for "Crows Haven" (also "Crow Haven" and "Haven") and have a lawyer confirm; thi
 
 ### Rules (settled with the owner, 2026-10-27)
 
-Crows Haven follows the **published Rook tournament rules** (the "official tournament"
-version printed with the game), with our own deck art and names. Items marked *(default)*
-are not spelled out in those rules; the owner can change them.
+Crows Haven follows the **published Rook partnership rules with the 1s in the deck**
+(owner decision 2026-10-27: first the tournament rules without 1s, then the 1s added the same day),
+with our own deck art and names. Nest, discard, lead and trump rules are as first settled.
+Items marked *(default)* are our choice where the published versions differ; the owner can change them.
 
-**Deck — 41 cards, our own design**
-- Four coloured suits numbered **5 to 14** (40 cards) plus one **Crow** card (our bird card).
+**Deck — 45 cards, our own design**
+- Four coloured suits, each with **1 and 5 to 14** (44 cards), plus one **Crow** card (our bird card).
 - Suit colours, card art and the Crow artwork are our own; no Rook logo, bird art or wording.
-- Rank inside a suit: 14 high down to 5.
+- Rank inside a suit: **1 highest**, then 14, 13 … down to 5.
 
-**Point cards (120 points in the deck)**
-- each 5 = 5 · each 10 = 10 · each 14 = 10 · the Crow = 20
+**Point cards (180 points in the deck)**
+- each 1 = 15 · each 14 = 10 · each 10 = 10 · each 5 = 5 · the Crow = 20
 
 **Deal**
 - 4 players, fixed partners sitting opposite (same seating as Spades Partners).
-- 9 cards each, **5 face down to the nest**. Deal rotates clockwise each hand.
+- 10 cards each, **5 face down to the nest**. Deal rotates clockwise each hand.
 
 **Bidding**
-- Bids are in points: **70 minimum, 120 maximum, steps of 5**.
+- Bids are in points: **100 minimum, 180 maximum, steps of 5**.
 - The dealer bids first *(default; the rules say the dealer opens)*, then clockwise.
 - A player who passes is out of bidding for that hand. Bidding ends when three have passed.
-- If all four pass, the dealer must take the bid at 70 *(default)*.
+- If all four pass, the dealer must take the bid at 100.
 - A player whose hand has no point cards may ask for a redeal during bidding.
 
 **Nest and trump**
-- The high bidder takes the 5 nest cards (14 in hand), then puts any 5 face down.
+- The high bidder takes the 5 nest cards (15 in hand), then puts any 5 face down.
+  *(default — some versions forbid putting point cards down)*
   Point cards may be put down.
 - The bidder then names trump (one of the four colours).
 - Whoever wins the **last trick** takes the 5 put-down cards and scores their points.
@@ -102,7 +104,7 @@ are not spelled out in those rules; the owner can change them.
 - The other side always scores what it took. Scores can go below zero.
 
 **Game end**
-- First side to **300** wins. If both pass 300 in the same hand, the higher total wins;
+- First side to **500** wins. If both pass 500 in the same hand, the higher total wins;
   if tied, play another hand *(default)*.
 
 **Bots (first version)**

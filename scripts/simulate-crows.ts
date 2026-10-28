@@ -14,8 +14,9 @@ const seats = [0, 1, 2, 3].map((i) => ({ id: `bot:${i}`, name: `B${i}`, avatar: 
 // ---------- fixed rule tests ----------
 {
   const d = newDeck();
-  check(d.length === 41, 'deck has 41 cards');
-  check(pointsOf(d) === DECK_POINTS && DECK_POINTS === 120, 'deck has 120 points');
+  check(d.length === 45, 'deck has 45 cards (1, 5–14 in four colours + the Crow)');
+  check(pointsOf(d) === DECK_POINTS && DECK_POINTS === 180, 'deck has 180 points');
+  check(pointsOf([c('sky', 1)]) === 15, 'a 1 is worth 15');
 
   // A playing state built by hand: trump = moss.
   const base = (hands: Card[][], trick: { seat: number; card: Card }[] = [], turn = 0): CrowsState => ({
@@ -38,7 +39,9 @@ const seats = [0, 1, 2, 3].map((i) => ({ id: `bot:${i}`, name: `B${i}`, avatar: 
   check(legalCards(g, 0).length === 2, 'void in colour led: any card');
   // Winners.
   check(trickWinner([{ seat: 0, card: c('sky', 14) }, { seat: 1, card: c('moss', 5) }, { seat: 2, card: c('sky', 13) }, { seat: 3, card: c('ember', 14) }], 'moss') === 1, 'low trump beats 14 of colour led');
-  check(trickWinner([{ seat: 0, card: c('moss', 14) }, { seat: 1, card: CROW }], 'moss') === 1, 'Crow beats the 14 of trump');
+  check(trickWinner([{ seat: 0, card: c('moss', 1) }, { seat: 1, card: CROW }], 'moss') === 1, 'Crow beats the 1 of trump');
+  check(trickWinner([{ seat: 0, card: c('sky', 14) }, { seat: 1, card: c('sky', 1) }, { seat: 2, card: c('sky', 13) }], 'moss') === 1, 'the 1 beats the 14 of its colour');
+  check(trickWinner([{ seat: 0, card: c('moss', 14) }, { seat: 1, card: c('moss', 1) }], 'moss') === 1, 'the 1 of trump beats the 14 of trump');
   check(trickWinner([{ seat: 0, card: c('sky', 8) }, { seat: 1, card: c('ember', 14) }, { seat: 2, card: c('sky', 9) }], 'moss') === 2, 'off-colour card cannot win');
 
   // Bidding: dealer opens, everybody passes → dealer forced at 70.
@@ -46,17 +49,17 @@ const seats = [0, 1, 2, 3].map((i) => ({ id: `bot:${i}`, name: `B${i}`, avatar: 
   const dealer = b.dealer;
   check(b.turn === dealer, 'dealer bids first');
   for (let i = 0; i < 4; i++) b = applyAction(b, { type: 'pass', seat: b.turn });
-  check(b.phase === 'nest' && b.highBidder === dealer && b.highBid === MIN_BID && b.forced, 'all pass: dealer takes it at 70');
+  check(b.phase === 'nest' && b.highBidder === dealer && b.highBid === MIN_BID && b.forced, 'all pass: dealer takes it at the minimum (100)');
   check(b.hands[dealer].length === HAND_SIZE + NEST_SIZE, 'bidder picks up the nest');
   // Bad bids are refused.
   b = startRound(createGame({}, seats, () => 0.1), () => 0.3);
   let threw = false; try { applyAction(b, { type: 'bid', seat: b.turn, bid: 72 }); } catch (e) { threw = e instanceof RuleError; }
   check(threw, 'bids must be in steps of 5');
-  threw = false; try { applyAction(b, { type: 'bid', seat: b.turn, bid: 125 }); } catch (e) { threw = e instanceof RuleError; }
-  check(threw, 'bids cannot pass 120');
+  threw = false; try { applyAction(b, { type: 'bid', seat: b.turn, bid: MAX_BID + 5 }); } catch (e) { threw = e instanceof RuleError; }
+  check(threw, 'bids cannot pass 180');
   // A bid of 120 ends bidding at once.
   b = applyAction(b, { type: 'bid', seat: b.turn, bid: MAX_BID });
-  check(b.phase === 'nest', 'bid of 120 ends the bidding');
+  check(b.phase === 'nest', 'the top bid (180) ends the bidding');
 
   // Scoring: set bid loses its amount, the other side keeps its points.
   const s: CrowsState = { ...createGame({}, seats), phase: 'trickEnd', highBidder: 0, highBid: 100, trump: 'sky', lastTrickWinner: 1,
@@ -68,7 +71,7 @@ const seats = [0, 1, 2, 3].map((i) => ({ id: `bot:${i}`, name: `B${i}`, avatar: 
 
 // ---------- bot games ----------
 function playGame(skill: CrowsSkill, rnd: () => number) {
-  let g = startRound(createGame({ target: 300 }, seats, rnd), rnd);
+  let g = startRound(createGame({ target: 500 }, seats, rnd), rnd);
   let steps = 0;
   while (g.phase !== 'gameOver') {
     if (++steps > 50000) throw new Error('stalled');
@@ -79,13 +82,13 @@ function playGame(skill: CrowsSkill, rnd: () => number) {
       g = applyAction(g, a, rnd);
       if (before.phase === 'nest') {
         const total = g.hands.reduce((n, h) => n + h.length, 0) + g.nest.length;
-        check(total === 41 && g.hands.every((h) => h.length === HAND_SIZE), 'cards conserved after the nest');
+        check(total === 45 && g.hands.every((h) => h.length === HAND_SIZE), 'cards conserved after the nest');
       }
     } else if (g.phase === 'trickEnd') g = applyAction(g, { type: 'collect' }, rnd);
     else if (g.phase === 'roundEnd') g = applyAction(g, { type: 'nextRound' }, rnd);
   }
-  for (const h of g.history) check(h.points[0] + h.points[1] === DECK_POINTS, 'every hand scores exactly 120 points');
-  check(g.scores.some((s) => s >= 300) && g.scores[0] !== g.scores[1], 'game ends at 300 with a clear winner');
+  for (const h of g.history) check(h.points[0] + h.points[1] === DECK_POINTS, 'every hand scores exactly 180 points');
+  check(g.scores.some((s) => s >= 500) && g.scores[0] !== g.scores[1], 'game ends at 500 with a clear winner');
   return g;
 }
 

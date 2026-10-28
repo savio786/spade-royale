@@ -1,4 +1,4 @@
-// Crows Haven rules engine (published Rook tournament rules, our own deck).
+// Crows Haven rules engine (published Rook partnership rules with the 1s in the deck, our own deck design).
 // Shared by the browser (offline play) and, later, a multiplayer server. No DOM, no Node APIs.
 // Rules are written up in GAMES.md → "2. Second game: Crows Haven". Spades lives in ../engine.ts and is not touched.
 
@@ -10,22 +10,26 @@ export type Colour = 'sky' | 'ember' | 'moss' | 'plum';
 export const COLOURS: Colour[] = ['sky', 'ember', 'moss', 'plum'];
 export const COLOUR_NAME: Record<Colour, string> = { sky: 'Sky', ember: 'Ember', moss: 'Moss', plum: 'Plum' };
 
-/** A card: a colour numbered 5..14, or the Crow (s: 'crow', r: 0). */
+/** A card: a colour numbered 1 or 5..14, or the Crow (s: 'crow', r: 0). The 1 is the highest card of its colour. */
 export interface Card { s: Colour | 'crow'; r: number }
 export const CROW: Card = { s: 'crow', r: 0 };
 export const isCrow = (c: Card) => c.s === 'crow';
 export const sameCard = (a: Card, b: Card) => a.s === b.s && a.r === b.r;
 export const cardId = (c: Card) => (isCrow(c) ? 'CROW' : `${c.r}${c.s[0].toUpperCase()}`);
 
-export const MIN_RANK = 5, MAX_RANK = 14;
-export const HAND_SIZE = 9, NEST_SIZE = 5;
-export const MIN_BID = 70, MAX_BID = 120, BID_STEP = 5;
-export const DECK_POINTS = 120;
-export const DEFAULT_TARGET = 300;
+/** Numbers in each colour, lowest to highest: 5..14, then the 1 on top. */
+export const RANKS = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1];
+/** How high a number ranks inside its colour (the 1 beats the 14). */
+export const rankValue = (r: number) => (r === 1 ? 15 : r);
+export const HAND_SIZE = 10, NEST_SIZE = 5;
+export const MIN_BID = 100, MAX_BID = 180, BID_STEP = 5;
+export const DECK_POINTS = 180;
+export const DEFAULT_TARGET = 500;
 
-/** Points a card is worth: 5s = 5, 10s and 14s = 10, the Crow = 20, everything else 0. */
+/** Points a card is worth: 1s = 15, 10s and 14s = 10, 5s = 5, the Crow = 20, everything else 0. */
 export function cardPoints(c: Card): number {
   if (isCrow(c)) return 20;
+  if (c.r === 1) return 15;
   if (c.r === 5) return 5;
   if (c.r === 10 || c.r === 14) return 10;
   return 0;
@@ -36,7 +40,7 @@ export type Phase = 'waiting' | 'bidding' | 'nest' | 'playing' | 'trickEnd' | 'r
 
 export interface CrowsSettings {
   bet: number;
-  target: number;      // first side to reach this wins (300)
+  target: number;      // first side to reach this wins (500)
   city: string;
   isPrivate?: boolean;
 }
@@ -87,7 +91,7 @@ const next = (seat: number) => (seat + 1) % 4;
 
 export function newDeck(): Card[] {
   const d: Card[] = [];
-  for (const s of COLOURS) for (let r = MIN_RANK; r <= MAX_RANK; r++) d.push({ s, r });
+  for (const s of COLOURS) for (const r of RANKS) d.push({ s, r });
   d.push({ ...CROW });
   return d;
 }
@@ -104,7 +108,7 @@ export function shuffle<T>(a: T[], rnd: () => number = Math.random): T[] {
 /** Hand order: Crow first, then each colour (trump first once named), low to high. */
 export function sortHand(h: Card[], trump: Colour | null = null): Card[] {
   const order = (c: Card) => (isCrow(c) ? -1 : c.s === trump ? 0 : 1 + COLOURS.indexOf(c.s as Colour));
-  return h.slice().sort((a, b) => order(a) - order(b) || a.r - b.r);
+  return h.slice().sort((a, b) => order(a) - order(b) || rankValue(a.r) - rankValue(b.r));
 }
 
 export function createGame(settings: Partial<CrowsSettings> = {}, seats: (Seat | null)[] = [null, null, null, null], rnd: () => number = Math.random): CrowsState {
@@ -193,8 +197,8 @@ export function legalCards(g: CrowsState, seat: number): Card[] {
 /** Strength of a card in a trick: Crow beats every trump, trump beats the colour led, others can't win. */
 function power(c: Card, led: Colour | 'crow', trump: Colour | null): number {
   if (isCrow(c)) return 300;
-  if (c.s === trump) return 200 + c.r;
-  if (c.s === led) return 100 + c.r;
+  if (c.s === trump) return 200 + rankValue(c.r);
+  if (c.s === led) return 100 + rankValue(c.r);
   return 0;
 }
 
@@ -247,7 +251,7 @@ export function applyAction(g: CrowsState, a: CrowsAction, rnd: () => number = M
       const bidLog = [...g.bidLog, { seat: a.seat, bid: null }];
       const passedCount = passed.filter(Boolean).length;
       const s = { ...g, passed, bidLog };
-      if (passedCount === 4) return endBidding(s, g.dealer, MIN_BID, true);                 // nobody bid: dealer takes it at 70
+      if (passedCount === 4) return endBidding(s, g.dealer, MIN_BID, true);                 // nobody bid: dealer takes it at the minimum (100)
       if (passedCount === 3 && g.highBidder !== null) return endBidding(s, g.highBidder, g.highBid!, false);
       return { ...s, turn: nextBidder(passed, a.seat) };
     }

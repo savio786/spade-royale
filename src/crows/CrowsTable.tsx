@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './crows.css';
 import {
   applyAction, createGame, startRound, legalCards, viewFor, sameCard, sideOf, partnerOf, minNextBid, canAskRedeal, sortHand,
-  Card, Colour, COLOURS, COLOUR_NAME, CrowsAction, CrowsState, RuleError, MAX_BID, MIN_BID, BID_STEP, NEST_SIZE, isCrow, suitOf, pointsOf,
+  Card, Colour, COLOURS, COLOUR_NAME, CrowsAction, CrowsState, RuleError, MAX_BID, MIN_BID, BID_STEP, NEST_SIZE, DEFAULT_TARGET, isCrow, suitOf, pointsOf,
 } from '../../shared/crows/engine';
 import { botAction, bestTrump, estimateBid } from '../../shared/crows/bot';
 import { makeBot } from '../../shared/runtime';
@@ -23,7 +23,7 @@ function newTable(): CrowsState {
   const me = { id: p.id, name: p.name || 'You', avatar: p.avatar, level: levelFromXp(p.xp), bot: false };
   const bots: ReturnType<typeof makeBot>[] = [];
   for (let i = 0; i < 3; i++) bots.push(makeBot([me.name, ...bots.map((b) => b.name)]));
-  return startRound(createGame({ target: 300, city: 'Crows Haven' }, [me, bots[0], bots[1], bots[2]]));
+  return startRound(createGame({ target: DEFAULT_TARGET, city: 'Crows Haven' }, [me, bots[0], bots[1], bots[2]]));
 }
 
 /** Runs one local game: applies your actions and lets the computer players act after a short pause. */
@@ -86,7 +86,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
 
   const hand = st.hand;
   const n = hand.length;
-  const gap = Math.min(70, 860 / Math.max(1, n));
+  const gap = Math.min(70, 780 / Math.max(1, n));
   const bidSide = st.highBidder === null ? null : sideOf(st.highBidder);
   const takenNow = [0, 1].map((s) => pointsOf(g.taken[s]));
 
@@ -195,7 +195,7 @@ function BidDialog({ g, onAct }: { g: CrowsState; onAct: (a: CrowsAction) => boo
     <div className="crows-dlg" role="dialog" aria-label="Your bid">
       <h2>YOUR BID</h2>
       <p>
-        {g.highBid === null ? 'No bids yet — opening bid is 70.' : `High bid ${g.highBid} by ${g.highBidder === ME ? 'you' : partnerHigh ? 'your partner' : g.seats[g.highBidder!]?.name}.`}
+        {g.highBid === null ? `No bids yet — opening bid is ${MIN_BID}.` : `High bid ${g.highBid} by ${g.highBidder === ME ? 'you' : partnerHigh ? 'your partner' : g.seats[g.highBidder!]?.name}.`}
         {' '}Your hand looks good for about <b>{sug < MIN_BID ? 'a pass' : sug}</b>.
       </p>
       <div className="crows-bids">
@@ -290,12 +290,13 @@ export function CrowsRulesBody() {
   return (
     <div className="crows-rules">
         <h4>The deck</h4>
-        <ul><li>41 cards: four colours (Sky, Ember, Moss, Plum) numbered 5 to 14, plus the Crow.</li>
-          <li>Point cards: every 5 is worth 5, every 10 and 14 is worth 10, the Crow is worth 20 — 120 in all.</li></ul>
+        <ul><li>45 cards: four colours (Sky, Ember, Moss, Plum), each with 5 to 14 and a 1, plus the Crow.</li>
+          <li>In each colour the 1 is the highest card, then 14, 13 and down to 5.</li>
+          <li>Point cards: every 1 is worth 15, every 10 and 14 is worth 10, every 5 is worth 5, and the Crow is worth 20 — 180 in all.</li></ul>
         <h4>Bidding</h4>
-        <ul><li>You and the player opposite are partners. Each player gets 9 cards; 5 go face down to the nest.</li>
-          <li>The dealer bids first. Bids are 70 to 120 in steps of 5 — the points your side promises to take. Once you pass, you're out of the bidding.</li>
-          <li>If everyone passes, the dealer must take it at 70. A hand with no point cards may ask for a new deal.</li></ul>
+        <ul><li>You and the player opposite are partners. Each player gets 10 cards; 5 go face down to the nest.</li>
+          <li>The dealer bids first. Bids are 100 to 180 in steps of 5 — the points your side promises to take. Once you pass, you're out of the bidding.</li>
+          <li>If everyone passes, the dealer must take it at 100. A hand with no point cards may ask for a new deal.</li></ul>
         <h4>The nest and trump</h4>
         <ul><li>The high bidder picks up the nest, puts any 5 cards back down, and names the trump colour.</li>
           <li>Whoever wins the last trick also wins the put-down cards and their points.</li></ul>
@@ -305,7 +306,7 @@ export function CrowsRulesBody() {
           <li>The Crow is the highest trump. You may play it on any trick, even when you could follow. You must play it if trump is led and it's your only trump.</li></ul>
         <h4>Scoring</h4>
         <ul><li>If the bidding side takes at least its bid, it scores every point it took. If not, it loses the amount it bid.</li>
-          <li>The other side always scores what it took. First side to 300 wins.</li></ul>
+          <li>The other side always scores what it took. First side to 500 wins.</li></ul>
       </div>
   );
 }

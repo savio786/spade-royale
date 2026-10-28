@@ -83,7 +83,7 @@
   background: linear-gradient(180deg, #2a2440, #15112a); border: 2px solid rgba(243,230,196,.5); box-shadow: 0 14px 40px rgba(0,0,0,.6); color: #f3e6c4; }
 .crows-dlg h2 { margin: 0 0 4px; text-align: center; font: 400 32px var(--display); letter-spacing: 2px; color: #fff; }
 .crows-dlg p { margin: 0 0 10px; text-align: center; font-size: 15px; opacity: .9; }
-.crows-bids { display: grid; grid-template-columns: repeat(11, 1fr); gap: 6px; margin-bottom: 10px; }
+.crows-bids { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 10px; }
 .crows-bids button { padding: 8px 0; border-radius: 8px; border: 0; cursor: pointer; font: 400 22px var(--display); background: #f3e6c4; color: #2a1d06; }
 .crows-bids button:disabled { opacity: .25; cursor: default; }
 .crows-bids button.sug { box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(255,200,61,.8); }
