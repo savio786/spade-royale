@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import './crows.css';
 import { CrowCard, CrowArt } from './CrowCard';
 import { CrowsTable, CrowsRules, CrowsRulesBody } from './CrowsTable';
+import { CrowsRanking } from './CrowsRanking';
 import { AVATAR_KEYS } from '../components/ui';
 import { CrowsAvatar, InstallHelp, InstallModal, PictureModal } from './CrowsExtras';
 import { alreadyInstalled } from '../lib/device';
@@ -75,7 +76,7 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
 /** Inside the game: start as a guest, then the home screen, then a table. */
 export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
   const p = useProfile();
-  const [screen, setScreen] = useState<'home' | 'table'>('home');
+  const [screen, setScreen] = useState<'home' | 'table' | 'ranking'>('home');
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -104,6 +105,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
   }
 
   if (screen === 'table') return <CrowsTable key={tableKey} onExit={() => setScreen('home')} />;
+  if (screen === 'ranking') return <CrowsRanking onBack={() => setScreen('home')} />;
 
 
   return (
@@ -116,6 +118,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
         </button>
         <button className="cl-btn big" onClick={() => { sfx.click(); setTableKey((k) => k + 1); setScreen('table'); }}>▶ PLAY</button>
         <div className="ch-row">
+          <button className="cl-btn ghost" onClick={() => { sfx.click(); setScreen('ranking'); }}>🏆 Weekly ranking</button>
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
           {!alreadyInstalled() && <button className="cl-btn ghost" onClick={() => { sfx.click(); setModal('install'); }}>⤓ Install the app</button>}
           <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>

@@ -34,6 +34,12 @@ Crows Haven-only files:
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
 
 - `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen
+- `src/crows/CrowsChat.tsx` — table chat: preset phrases + emoji only (no typing), bubbles on seats, computer players reply
+- `src/crows/CrowsRanking.tsx` — weekly ranking page; each finished game is sent to the ranking
+- `api/crows-rank.ts` — Vercel function for the weekly ranking (Render/Spades never runs it). Needs an Upstash Redis
+  database connected to the crows-haven Vercel project (Storage → Upstash for Redis); until then the page says "almost ready".
+  Weeks start Sunday 00:00 UTC; ranked by games won, then points. Results come from the browser (no game server),
+  so each player id is tied to a device secret, rate-limited (1 game / 2 min) and capped.
 - `src/crows/CrowsExtras.tsx` — change your picture (photo kept on the device; this site has no server), install-the-app help
 - `public/crows/` — crow icons (SVG + PNG 192/512/maskable/apple) and the app manifest for the Crows Haven site
 

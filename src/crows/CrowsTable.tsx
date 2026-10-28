@@ -14,6 +14,8 @@ import { toast } from '../lib/toast';
 import { sfx } from '../lib/sound';
 import { CrowCard, Emblem } from './CrowCard';
 import { CrowsAvatar, PictureModal } from './CrowsExtras';
+import { ChatPanel, useCrowsChat } from './CrowsChat';
+import { reportGame } from './CrowsRanking';
 
 const ME = 0;
 const POS = ['bottom', 'left', 'top', 'right'] as const;
@@ -60,6 +62,16 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
   const st = viewFor(g, ME);
   const myAvatar = useProfile().avatar;
   const [menu, setMenu] = useState(false);
+  const chat = useCrowsChat([1, 2, 3]);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [seenMsgs, setSeenMsgs] = useState(0);
+  useEffect(() => { chat.greet(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (g.phase !== 'roundEnd') return;
+    const r = g.history[g.history.length - 1];
+    if (r) chat.handEnded(sideOf(r.bidder), r.made);
+  }, [g.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  const unread = chatOpen ? 0 : chat.msgs.filter((m) => m.seat !== ME).length - seenMsgs;
   const [rules, setRules] = useState(false);
   const [picture, setPicture] = useState(false);
   const [picked, setPicked] = useState<Card[]>([]);
@@ -71,7 +83,13 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
 
   // new nest: clear picks and suggest trump
   useEffect(() => { if (choosingNest) { setPicked([]); setTrump(bestTrump(g.hands[ME])); } }, [choosingNest]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (st.phase === 'gameOver') (st.winners[0] === sideOf(ME) ? sfx.win : sfx.lose)(); }, [st.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [weekRank, setWeekRank] = useState<number | null>(null);
+  useEffect(() => {
+    if (st.phase !== 'gameOver') return;
+    const won = st.winners[0] === sideOf(ME);
+    (won ? sfx.win : sfx.lose)();
+    void reportGame(won, st.scores[sideOf(ME)]).then((r) => { if (r?.rank) setWeekRank(r.rank); });
+  }, [st.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lastBid = (seat: number) => [...st.bidLog].reverse().find((b) => b.seat === seat);
 
@@ -113,6 +131,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
                 </div>
                 <div className="seat-name">{seat === ME ? 'You' : s.name}{seat === partnerOf(ME) && <small> · partner</small>}</div>
                 {pill !== null && <div className={`crows-pill ${pillCls}`}>{pill}</div>}
+                {chat.bubble(seat) && <div className="bubble">{chat.bubble(seat)}</div>}
               </div>
             );
   };
@@ -121,6 +140,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
     <div className="screen table-screen crows-screen felt-bg">
       <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">Practice · no coins</span></div>
       <div className="tbl-top-right">
+        <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label="Open chat"><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>
         <button className="round-ui" onClick={() => { sfx.click(); setMenu(true); }} aria-label="Menu"><Icon name="menu" size={26} /></button>
       </div>
 
@@ -196,7 +216,7 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
           onTrump={setTrump} onConfirm={() => { if (trump && act({ type: 'nest', seat: ME, discard: picked, trump })) setPicked([]); }} />
       )}
       {st.phase === 'roundEnd' && <RoundSummary g={g} onNext={() => act({ type: 'nextRound' })} />}
-      {st.phase === 'gameOver' && <GameOver g={g} onAgain={restart} onLobby={onExit} />}
+      {st.phase === 'gameOver' && <GameOver g={g} weekRank={weekRank} onAgain={() => { setWeekRank(null); restart(); }} onLobby={onExit} />}
       {menu && (
         <Modal title="Menu" onClose={() => setMenu(false)}>
           <div className="btn-row" style={{ flexDirection: 'column', gap: 10 }}>
@@ -208,6 +228,11 @@ export function CrowsTable({ onExit }: { onExit: () => void }) {
       )}
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {picture && <PictureModal onClose={() => setPicture(false)} />}
+      {chatOpen && (
+        <ChatPanel msgs={chat.msgs} me={ME} names={st.seats.map((x) => x?.name ?? '')}
+          onSend={(t) => { chat.say(ME, t); chat.botMaybeReply(ME); setChatOpen(false); setSeenMsgs(chat.msgs.filter((m) => m.seat !== ME).length); }}
+          onClose={() => { setChatOpen(false); setSeenMsgs(chat.msgs.filter((m) => m.seat !== ME).length); }} />
+      )}
     </div>
   );
 }
@@ -292,12 +317,13 @@ function RoundSummary({ g, onNext }: { g: CrowsState; onNext: () => void }) {
   );
 }
 
-function GameOver({ g, onAgain, onLobby }: { g: CrowsState; onAgain: () => void; onLobby: () => void }) {
+function GameOver({ g, weekRank, onAgain, onLobby }: { g: CrowsState; weekRank: number | null; onAgain: () => void; onLobby: () => void }) {
   const won = g.winners[0] === sideOf(ME);
   const us = sideOf(ME);
   return (
     <Modal title={won ? 'Victory!' : 'Defeat'} onClose={onLobby}>
       <div className={`crows-verdict ${won ? 'made' : 'set'}`}>{won ? 'YOU AND YOUR PARTNER WIN' : 'THE OTHER SIDE WINS'}</div>
+      {weekRank !== null && <p className="center gold-text cr-after">You're #{weekRank} in this week's ranking</p>}
       <table className="crows-sum">
         <thead><tr><th /><th className="us">US</th><th className="them">THEM</th></tr></thead>
         <tbody><tr><td>Final score</td><td><b>{g.scores[us]}</b></td><td><b>{g.scores[1 - us]}</b></td></tr>
