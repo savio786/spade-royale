@@ -1,0 +1,122 @@
+/* Crows Haven table. Everything here is prefixed (crows-, cc-, ccard, cfan) so Spades styles are untouched. */
+.crows-screen {
+  --sky: #2f86d6; --ember: #e2621f; --moss: #3d9447; --plum: #8a3fb3;
+  --crows-felt: #1f5a46; --crows-felt-2: #123a2e; --crows-rim: #5a3b1c;
+}
+.crows-screen .felt-wrap { top: 70px; bottom: 182px; }
+.crows-oval { position: absolute; inset: 0; border-radius: 50% / 46%; z-index: 0;
+  background: radial-gradient(ellipse at 50% 40%, var(--crows-felt), var(--crows-felt-2) 75%);
+  box-shadow: 0 0 0 14px var(--crows-rim), 0 0 0 17px #2b1a0b, 0 24px 40px rgba(0,0,0,.6), inset 0 0 60px rgba(0,0,0,.45); }
+.crows-oval::after { content: ''; position: absolute; inset: 22px; border-radius: inherit; border: 2px dashed rgba(255,235,190,.16); }
+.crows-title { position: absolute; top: 14px; left: 50%; translate: -50% 0; z-index: 5; font: 400 34px var(--display); letter-spacing: 3px; color: #f3e6c4; text-shadow: 0 3px 0 rgba(0,0,0,.5); display: flex; align-items: center; gap: 10px; }
+.crows-practice { font: 600 13px system-ui, sans-serif; letter-spacing: .5px; color: #cfe8d8; background: rgba(0,0,0,.35); padding: 3px 10px; border-radius: 999px; }
+
+/* ---------- cards ---------- */
+.ccard { --w: 112px; position: relative; width: var(--w); height: calc(var(--w) * 1.4); border-radius: 10px; flex: none; user-select: none; display: block;
+  background: linear-gradient(180deg, #fffdf6, #f1ead8); box-shadow: 0 0 0 1px rgba(0,0,0,.28), 0 4px 10px rgba(0,0,0,.4); color: #222; border: 0; padding: 0; font: inherit; }
+.ccard.c-sky { color: var(--sky, #2f86d6); } .ccard.c-ember { color: var(--ember, #e2621f); }
+.ccard.c-moss { color: var(--moss, #3d9447); } .ccard.c-plum { color: var(--plum, #8a3fb3); }
+.ccard::before { content: ''; position: absolute; inset: 5px; border-radius: 7px; border: 2px solid currentColor; opacity: .35; }
+.cc-corner { position: absolute; top: 6px; left: 8px; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.cc-corner b { font: 400 calc(var(--w) * .25) var(--display); }
+.cc-big { position: absolute; left: 50%; top: 48%; translate: -50% -50%; font: 400 calc(var(--w) * .56) var(--display); line-height: 1; }
+.cc-emblem { position: absolute; left: 50%; bottom: 9%; translate: -50% 0; opacity: .9; }
+.cc-emblem svg { width: calc(var(--w) * .34); height: calc(var(--w) * .34); }
+.cc-pts { position: absolute; right: 6px; bottom: 6px; min-width: 26px; padding: 1px 5px; border-radius: 999px; background: #1d1a12; color: #ffd36a; font: 400 calc(var(--w) * .15) var(--display); text-align: center; letter-spacing: .5px; }
+.ccard.crow { background: linear-gradient(180deg, #2b2440, #120f1e); color: #ffd36a; }
+.ccard.crow::before { opacity: .6; }
+.cc-crow { position: absolute; left: 50%; top: 46%; translate: -50% -50%; }
+.cc-crow svg { width: calc(var(--w) * .72); height: calc(var(--w) * .72); }
+.cc-name { position: absolute; left: 0; right: 0; bottom: 10%; text-align: center; font: 400 calc(var(--w) * .17) var(--display); letter-spacing: 3px; }
+.ccard.crow .cc-pts { background: #ffd36a; color: #1d1a12; }
+.ccard.back { background: repeating-linear-gradient(45deg, #1f4d3c 0 7px, #173b2e 7px 14px); border: 4px solid #f3e6c4; display: grid; place-items: center; }
+.ccard.back::before { display: none; }
+.cc-back-mark { opacity: .9; }
+
+/* trick cards in the middle */
+.crows-trick { position: absolute; inset: 0; pointer-events: none; }
+.crows-trick .ccard { --w: 92px; position: absolute; left: 50%; top: 50%; margin: -64px 0 0 -46px; animation: crowsIn .22s ease-out both; }
+.crows-trick .at-bottom { transform: translate(0, 54px); } .crows-trick .at-top { transform: translate(0, -54px); }
+.crows-trick .at-left { transform: translate(-76px, 0) rotate(-8deg); } .crows-trick .at-right { transform: translate(76px, 0) rotate(8deg); }
+@keyframes crowsIn { from { opacity: 0; scale: .8; } }
+
+/* hand fanned along the bottom */
+.cfan { position: absolute; left: 50%; bottom: -26px; width: 0; height: 0; z-index: 10; }
+.cfan .ccard { --w: 132px; position: absolute; left: 0; bottom: 0; transform-origin: 50% 140%;
+  translate: calc(var(--x) - 50%) var(--y); rotate: var(--r); transition: transform .15s, translate .22s ease-out, rotate .22s ease-out, filter .15s, box-shadow .15s;
+  box-shadow: -3px 0 8px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.25); animation: crowsDeal .35s cubic-bezier(.2,.8,.3,1) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.cfan .ccard.legal { cursor: pointer; transform: translateY(-26px); box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(255,200,61,.85); }
+@media (hover: hover) { .cfan .ccard.legal:hover { transform: translateY(-44px); } }
+.cfan .ccard.dim { filter: brightness(.6); }
+.cfan .ccard.pick { cursor: pointer; }
+.cfan .ccard.picked { transform: translateY(-48px); box-shadow: 0 0 0 4px #ff6b5a, 0 0 18px rgba(255,107,90,.85); }
+@keyframes crowsDeal { from { translate: calc(var(--x, 0px) - 50%) -520px; rotate: 0deg; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cfan .ccard, .crows-trick .ccard { animation: none !important; } }
+
+/* seat pill under each player */
+.crows-pill { min-width: 70px; padding: 2px 12px; border-radius: 8px; text-align: center; font: 400 21px var(--display); letter-spacing: 1px;
+  background: linear-gradient(180deg, #f3e6c4, #d6c08a); color: #3a2a0a; box-shadow: 0 3px 6px rgba(0,0,0,.5); }
+.crows-pill.pass { background: #3a3a46; color: #bbb; }
+.crows-pill.high { background: linear-gradient(180deg, #ffe27a, #f5b82e); }
+
+/* score panel (right) and hand info (left) */
+.crows-panel { position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; width: 210px; padding: 12px 16px; border-radius: 22px;
+  background: rgba(0,0,0,.32); border: 2px solid rgba(243,230,196,.45); color: #f3e6c4; text-align: center; }
+.crows-panel.right { right: 11%; } .crows-panel.left { left: 11%; }
+.crows-panel h3 { margin: 0 0 6px; font: 400 22px var(--display); letter-spacing: 2px; }
+.crows-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.crows-scores span { font: 400 16px var(--display); letter-spacing: 2px; padding: 3px 0; border-radius: 8px; color: #fff; }
+.crows-scores .us { background: #3858e0; } .crows-scores .them { background: #b8283a; }
+.crows-scores b { font: 400 34px var(--display); font-weight: 400; }
+.crows-scores small { grid-column: 1 / -1; font-size: 12px; opacity: .8; }
+.crows-info-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font: 400 20px var(--display); letter-spacing: 1px; padding: 3px 0; border-bottom: 1px solid rgba(243,230,196,.2); }
+.crows-info-row:last-child { border-bottom: 0; }
+.crows-trump { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: #fffdf6; }
+.crows-trump.c-sky { color: var(--sky); } .crows-trump.c-ember { color: var(--ember); } .crows-trump.c-moss { color: var(--moss); } .crows-trump.c-plum { color: var(--plum); }
+
+/* centre messages */
+.crows-msg { text-align: center; color: #f3e6c4; font: 400 30px var(--display); letter-spacing: 2px; text-shadow: 0 2px 0 rgba(0,0,0,.5); }
+.crows-msg small { display: block; font: 500 15px system-ui, sans-serif; letter-spacing: 0; opacity: .85; margin-top: 4px; }
+
+/* bidding and nest dialogs */
+.crows-dlg { position: absolute; left: 50%; bottom: 214px; translate: -50% 0; z-index: 20; width: min(660px, 90%); padding: 12px 20px 16px; border-radius: 16px;
+  background: linear-gradient(180deg, #2a2440, #15112a); border: 2px solid rgba(243,230,196,.5); box-shadow: 0 14px 40px rgba(0,0,0,.6); color: #f3e6c4; }
+.crows-dlg h2 { margin: 0 0 4px; text-align: center; font: 400 32px var(--display); letter-spacing: 2px; color: #fff; }
+.crows-dlg p { margin: 0 0 10px; text-align: center; font-size: 15px; opacity: .9; }
+.crows-bids { display: grid; grid-template-columns: repeat(11, 1fr); gap: 6px; margin-bottom: 10px; }
+.crows-bids button { padding: 8px 0; border-radius: 8px; border: 0; cursor: pointer; font: 400 22px var(--display); background: #f3e6c4; color: #2a1d06; }
+.crows-bids button:disabled { opacity: .25; cursor: default; }
+.crows-bids button.sug { box-shadow: 0 0 0 3px var(--gold), 0 0 12px rgba(255,200,61,.8); }
+.crows-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+.crows-colours { display: flex; justify-content: center; gap: 10px; margin: 6px 0 12px; }
+.crows-colours button { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 999px; border: 3px solid transparent; cursor: pointer; font: 400 22px var(--display); letter-spacing: 1px; background: #fffdf6; }
+.crows-colours button.on { border-color: var(--gold); box-shadow: 0 0 12px rgba(255,200,61,.8); }
+.crows-colours button small { font: 600 12px system-ui, sans-serif; color: #555; }
+.crows-colours .c-sky { color: var(--sky); } .crows-colours .c-ember { color: var(--ember); } .crows-colours .c-moss { color: var(--moss); } .crows-colours .c-plum { color: var(--plum); }
+
+/* round summary / game over */
+.crows-sum { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 16px; }
+.crows-sum th, .crows-sum td { padding: 6px 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,.12); }
+.crows-sum th:first-child, .crows-sum td:first-child { text-align: left; }
+.crows-sum .us { color: #8fa6ff; } .crows-sum .them { color: #ff8e9b; }
+.crows-verdict { text-align: center; font: 400 30px var(--display); letter-spacing: 2px; margin: 4px 0; }
+.crows-verdict.made { color: #7ee08f; } .crows-verdict.set { color: #ff8e9b; }
+.crows-nest { display: flex; justify-content: center; gap: 6px; margin: 4px 0 8px; }
+.crows-nest .ccard { --w: 54px; }
+.crows-nest .ccard .cc-big, .crows-nest .ccard .cc-emblem, .crows-nest .ccard .cc-name { display: none; }
+.crows-nest .ccard .cc-crow svg { width: 40px; height: 40px; }
+.crows-rules { max-height: 60vh; overflow: auto; text-align: left; line-height: 1.45; font-size: 15px; }
+.crows-rules h4 { margin: 12px 0 4px; font: 400 20px var(--display); letter-spacing: 1.5px; color: var(--gold); }
+.crows-rules ul { margin: 0; padding-left: 20px; }
+
+/* lobby game switch */
+.game-switch { position: absolute; left: 62.5%; top: 6px; translate: -50% 0; z-index: 6; display: flex; gap: 4px; padding: 4px; border-radius: 999px;
+  background: rgba(0,0,0,.4); border: 2px solid rgba(255,255,255,.25); }
+.game-switch button { padding: 6px 18px; border-radius: 999px; border: 0; cursor: pointer; background: transparent; color: #ddd; font: 400 22px var(--display); letter-spacing: 1.5px; }
+.game-switch button.on { background: linear-gradient(180deg, #ffe27a, #f5b82e); color: #3a1d00; }
+.ring-soon { position: absolute; top: 6px; right: 6px; padding: 2px 8px; border-radius: 999px; background: #444; color: #fff; font: 600 11px system-ui, sans-serif; }
+.lobby-rings .ring-btn.off { filter: grayscale(.85) brightness(.7); }
+
+/* your picture sits bottom-left so it never covers the hand (14 cards while you hold the nest) */
+.crows-screen .seat-bottom, .crows-screen .seat-bottom.in-play { left: -34px; translate: 0 0; bottom: -166px; flex-direction: column-reverse; }
+.crows-screen .seat-bottom .seat-av .avatar { width: 100px !important; height: 100px !important; }

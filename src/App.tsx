@@ -5,6 +5,7 @@ import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
+import { CrowsTable } from './crows/CrowsTable';
 import { LegalPage } from './screens/Legal';
 import { InstallPage } from './screens/Install';
 import { StartRequest, StoreModal } from './screens/modals';
@@ -23,7 +24,10 @@ startGuestSync();
 import { Capacitor } from '@capacitor/core';
 import type { TableSettings } from '../shared/engine';
 
-type Screen = 'lobby' | 'online' | 'table';
+// Crows Haven (second game) is switched on only in builds with VITE_CROWS=1, so the live Spades site is unchanged.
+const CROWS_ON = import.meta.env.VITE_CROWS === '1';
+
+type Screen = 'lobby' | 'online' | 'table' | 'crows';
 
 interface BIPEvent extends Event { prompt: () => Promise<void> }
 
@@ -107,8 +111,10 @@ export default function App() {
       onExit={() => { setCtl(null); setScreen('lobby'); }}
       onPlayAgain={() => { setCtl(null); if (lastReq) start(lastReq); else setScreen('lobby'); }} />
   );
+  else if (screen === 'crows') body = <CrowsTable key={tableKey} onExit={() => setScreen('lobby')} />;
   else if (screen === 'online') body = <OnlineLobby onBack={() => setScreen('lobby')} onStart={start} />;
-  else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt} />;
+  else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt}
+    onCrows={CROWS_ON ? () => { setTableKey((k) => k + 1); setScreen('crows'); } : undefined} />;
 
   return (
     <>

@@ -23,12 +23,22 @@ Shared by every game (change with care — it affects the live game):
 - the websocket server and protocol (`server/index.ts`, `shared/protocol.ts`)
 - legal pages, sign-in screen, site pages, Cloudflare/Render setup
 
-## 2. Second game: Crows Haven (rules engine and bots built — no table screen yet)
+## 2. Second game: Crows Haven (playable vs computer players, in the browser)
 
 Crows Haven-only files:
 - `shared/crows/engine.ts` — deck, bidding, nest, trump, tricks, scoring, `CrowsState`
 - `shared/crows/bot.ts` — computer players: bid, nest + trump, card play
 - `scripts/simulate-crows.ts` — rule tests + 4,000 bot games (`npm run sim:crows`)
+- `src/crows/CrowsTable.tsx` — the Crows Haven table (bidding, nest, play, hand summary, game over, rules)
+- `src/crows/CrowCard.tsx` — our own card faces (Sky cloud, Ember flame, Moss leaf, Plum berry, the Crow)
+- `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
+
+Shared files touched (Spades behaves exactly as before):
+- `src/screens/Lobby.tsx` — SPADES / CROWS HAVEN switch above the rings, shown only when `onCrows` is passed
+- `src/App.tsx` — a `crows` screen; the switch appears only in builds with `VITE_CROWS=1`
+  (the live Spades build doesn't set it, so it looks the same)
+
+Version one: practice table, no coins or XP, you + partner vs two computer players.
 
 A four-player **partnership trick-taking game with bidding, a trump-suit choice and a
 "nest" of extra cards** — in the style of the classic game Rook, but with its own name,
@@ -101,7 +111,8 @@ are not spelled out in those rules; the owner can change them.
 ### Hosting (owner decision, 2026-10-27)
 - Crows Haven does **not** go on Render. It goes on **Vercel** as a static app.
 - Vercel can't run the websocket server, so **version one is played against computer
-  players only**. Online/private tables wait until a separate multiplayer host is chosen.
+  players only**. Vercel project settings: branch `second-game`, environment variables
+  `VITE_CROWS=1` and `VITE_OFFLINE=1`, build command from `vercel.json`. Online/private tables wait until a separate multiplayer host is chosen.
 - Spades stays exactly as it is: on Render, from `main`. Nothing in this work changes it.
 
 How to build it without touching Spades:
