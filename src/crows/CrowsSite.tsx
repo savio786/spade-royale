@@ -7,6 +7,7 @@ import { Modal } from '../components/ui';
 import { CrowsTable, CrowsRules, CrowsRulesBody, TableMode } from './CrowsTable';
 import { onlineAvailable, quickMatch, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
 import { toast } from '../lib/toast';
+import { checkName, saveName, NAME_MAX } from './names';
 import { CrowsRanking } from './CrowsRanking';
 import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, randomPlayerPicture } from './CrowsExtras';
 import { alreadyInstalled } from '../lib/device';
@@ -94,7 +95,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private'>(null);
+  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private' | 'name'>(null);
   const [mode, setMode] = useState<TableMode>(resume ? { kind: 'online', tableId: resume } : { kind: 'local' });
   const [finding, setFinding] = useState(false);
   const fullTries = useRef(0);
@@ -145,9 +146,12 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
         <button className="crows-exit" onClick={() => { sfx.click(); exitGame(onLeaveSite); }} aria-label="Exit the game">⏻ Exit</button>
         <CrowArt size={110} />
         <h1>CROWS HAVEN</h1>
-        <button className="ch-me" onClick={() => { sfx.click(); setModal('picture'); }} aria-label="Change your picture">
-          <CrowsAvatar k={p.avatar} size={64} name={p.name} /> <b>{p.name}</b> <span className="ch-edit">Change picture</span>
-        </button>
+        <div className="ch-me">
+          <button className="ch-me-pic" onClick={() => { sfx.click(); setModal('picture'); }} aria-label="Change your picture"><CrowsAvatar k={p.avatar} size={64} name={p.name} /></button>
+          <b>{p.name}</b>
+          <button className="ch-edit" onClick={() => { sfx.click(); setModal('name'); }}>Change name</button>
+          <button className="ch-edit" onClick={() => { sfx.click(); setModal('picture'); }}>Change picture</button>
+        </div>
         <div className="ch-points" role="radiogroup" aria-label="Game points">
           <span>GAME POINTS</span>
           {GAME_POINTS.map((v) => <button key={v} role="radio" aria-checked={target === v} className={target === v ? 'on' : ''} onClick={() => setTarget(v)}>{v}</button>)}
@@ -175,6 +179,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
       {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
+      {modal === 'name' && <NameModal current={p.name} onClose={() => setModal(null)} />}
       {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); openTable({ kind: 'online', tableId }); }} />}
     </div>
   );
@@ -207,6 +212,32 @@ function PrivateModal({ target, onClose, onOpen }: { target: number; onClose: ()
         </div>
       </div>
       {err && <p className="ap-err center" role="alert">{err}</p>}
+    </Modal>
+  );
+}
+
+/** Change your name: anything you like within the name rules. */
+function NameModal({ current, onClose }: { current: string; onClose: () => void }) {
+  const [name, setName] = useState(/^guest\d*$/i.test(current) ? '' : current);
+  const [err, setErr] = useState<string | null>(null);
+  const save = () => {
+    const r = checkName(name);
+    if (!r.ok) { setErr(r.message); return; }
+    saveName(r.name); sfx.click(); toast(`You're now ${r.name}`); onClose();
+  };
+  return (
+    <Modal title="Your name" onClose={onClose}>
+      <form className="crows-name" onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <p>This is the name other players see at the table and in the weekly ranking.</p>
+        <input autoFocus value={name} maxLength={NAME_MAX} placeholder={current} aria-label="Your name"
+          onChange={(e) => { setName(e.target.value); setErr(null); }} />
+        {err && <p className="ap-err" role="alert">{err}</p>}
+        <div className="btn-row">
+          <button type="submit" className="cl-btn" disabled={!name.trim()}>Save name</button>
+          <button type="button" className="cl-btn ghost" onClick={onClose}>Cancel</button>
+        </div>
+        <p className="crows-small-note">3 to {NAME_MAX} characters: letters, numbers, spaces and _ - .</p>
+      </form>
     </Modal>
   );
 }
