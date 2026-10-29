@@ -131,7 +131,7 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
     for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
       winnerSeats.add(seat);
       const s = g.seats[seat];
-      if (s && !s.bot) credit(s, prize);
+      if (s && !s.bot) credit(s, prize - g.settings.bet);   // the boards count winnings: prize minus the player's own bet
     }
     // real players on the losing side(s) lose their bet from the weekly and all-time totals
     if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat)) debit(s, g.settings.bet); });
@@ -386,7 +386,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         if (!id || !(bet >= 100 && bet <= 5_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
         if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
         lastReport.set(id, now);
-        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, bet); else credit(who, prize); });
+        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, bet); else credit(who, prize - bet); });
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });
