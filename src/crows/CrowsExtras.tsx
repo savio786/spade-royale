@@ -123,6 +123,12 @@ declare global { interface Window { __crowsBip?: BipEvent | null; __crowsInstall
 export function useInstall() {
   const [bip, setBip] = useState<BipEvent | null>(() => window.__crowsBip ?? null);
   const [installed, setInstalled] = useState(() => alreadyInstalled() || !!window.__crowsInstalled);
+  /** installed on this device, but we're looking at it in a browser tab */
+  const [elsewhere, setElsewhere] = useState(false);
+  useEffect(() => {
+    const nav = navigator as unknown as { getInstalledRelatedApps?: () => Promise<unknown[]> };
+    nav.getInstalledRelatedApps?.().then((a) => { if (a.length) setElsewhere(true); }).catch(() => {});
+  }, []);
   useEffect(() => {
     const h = () => { setBip(window.__crowsBip ?? null); if (window.__crowsInstalled) setInstalled(true); };
     window.addEventListener('crowsbip', h);
@@ -135,25 +141,34 @@ export function useInstall() {
     window.__crowsBip = null; setBip(null);
     if (r.outcome === 'accepted') { window.__crowsInstalled = true; setInstalled(true); }
   } : null;
-  return { install, installed };
+  return { install, installed, elsewhere };
 }
+
+/** The shared install steps are written for Spades; show them with this game's name. */
+const ours = (t: string) => t.replace(/Spade Haven/g, 'Crows Haven');
 
 /** Install help: one tap where the browser allows it, otherwise the steps for this device. */
 export function InstallHelp({ installPrompt: fromApp, onDone }: { installPrompt: null | (() => void); onDone?: () => void }) {
-  const { install, installed } = useInstall();
+  const { install, installed, elsewhere } = useInstall();
   const installPrompt = install ?? fromApp;
   const g = installGuide(thisDevice(), !!installPrompt);
-  if (installed) return <p className="center">Crows Haven is installed on this device. 🎉 Open it from your home screen or apps.</p>;
-  if (alreadyInstalled()) return <p className="center">Crows Haven is already installed on this device. 🎉</p>;
+  if (installed || alreadyInstalled()) return <p className="center">Crows Haven is installed on this device. 🎉 Open it from your home screen or apps.</p>;
+  if (elsewhere) return (
+    <div className="crows-install">
+      <p><b>Crows Haven is already installed on this device.</b> 🎉</p>
+      <p>Open it from your desktop, Start menu, Launchpad or home screen — look for the crow icon. Or, in this browser, click the <b>Open in app</b> icon at the right end of the address bar.</p>
+    </div>
+  );
   return (
     <div className="crows-install">
       <p>Put Crows Haven on your phone's home screen or your computer's desktop and open it like any other app — full screen, and it keeps working without internet against the computer players.</p>
       {installPrompt
         ? <button className="cl-btn" onClick={() => { sfx.click(); installPrompt(); onDone?.(); }}>⤓ INSTALL NOW</button>
         : g.supported
-          ? <ol className="crows-install-steps">{g.steps.map((s, i) => <li key={i}><Rich text={s} /></li>)}</ol>
-          : <p>{g.short} {g.steps.map((s, i) => <span key={i}><Rich text={s} /> </span>)}</p>}
-      {g.note && <p className="crows-small-note">{g.note}</p>}
+          ? <ol className="crows-install-steps">{g.steps.map((s, i) => <li key={i}><Rich text={ours(s)} /></li>)}</ol>
+          : <p>{ours(g.short)} {g.steps.map((s, i) => <span key={i}><Rich text={ours(s)} /> </span>)}</p>}
+      {g.note && <p className="crows-small-note">{ours(g.note)}</p>}
+      {!installPrompt && <p className="crows-small-note">Don’t see an install icon? Crows Haven may already be installed — look for the crow icon on your desktop, Start menu or home screen.</p>}
       <p className="crows-small-note">Other devices: iPhone/iPad — open in Safari, tap Share, then Add to Home Screen. Android — Chrome menu ⋮, then Install app. Windows/Mac — Chrome or Edge, install icon in the address bar.</p>
     </div>
   );

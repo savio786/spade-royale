@@ -43,5 +43,11 @@
   ],
   "launch_handler": {
     "client_mode": "focus-existing"
-  }
+  },
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://crows-haven.vercel.app/crows/manifest.webmanifest"
+    }
+  ]
 }

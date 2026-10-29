@@ -27,8 +27,10 @@ const FEATURES = [
 export function CrowsLanding({ onPlay, installPrompt: fromApp }: { onPlay: () => void; installPrompt: null | (() => void) }) {
   const { install, installed } = useInstall();
   const installPrompt = install ?? fromApp;
+  const [showInstall, setShowInstall] = useState(false);
   return (
     <div className="crows-land">
+      {showInstall && <InstallModal installPrompt={installPrompt} onClose={() => setShowInstall(false)} />}
       <header className="cl-top">
         <a className="cl-brand" href="#top"><CrowArt size={38} /> CROWS HAVEN</a>
         <nav>
@@ -44,7 +46,7 @@ export function CrowsLanding({ onPlay, installPrompt: fromApp }: { onPlay: () =>
           <p>The partnership card game of bids, nests and trump. Win the auction, pick up the nest, name trump — and catch the Crow.</p>
           <div className="cl-actions">
             <button className="cl-btn" onClick={onPlay}>▶ PLAY IN YOUR BROWSER</button>
-            {!installed && <a className="cl-btn ghost" href="#get-app" onClick={(e) => { if (installPrompt) { e.preventDefault(); void installPrompt(); } }}>⤓ Install the app</a>}
+            {!installed && <button className="cl-btn ghost" onClick={() => { sfx.click(); if (installPrompt) void installPrompt(); else setShowInstall(true); }}>⤓ Install the app</button>}
           </div>
           <small>Free · no sign-up · you and a partner against two computer players</small>
         </div>
