@@ -138,6 +138,8 @@ Items marked *(default)* are our choice where the published versions differ; the
   (`crows-server/`: a Worker with Durable Objects — `Lobby` matches players, one `Table` per table).
   It runs the same `shared/crows` engine and bots. Deployed by `.github/workflows/crows-server.yml` on pushes to
   `second-game` once the repo has the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+  Live at https://crows-haven-server.savio-dias.workers.dev (Cloudflare worker `crows-haven-server`, owner's account,
+  deployed 2026-10-28; `/health` answers).
   The site finds it through `VITE_CROWS_SERVER` (the server's https address) in Vercel; without it, online
   buttons are hidden and only "vs computer" play shows.
 - Online tables, like Spades: "Play online" seats you at a public table with the same game points; each empty
