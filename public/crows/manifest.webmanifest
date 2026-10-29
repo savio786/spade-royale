@@ -4,19 +4,44 @@
   "name": "Crows Haven",
   "short_name": "Crows Haven",
   "description": "A four-player partnership card game: bid for the nest, name trump and capture the Crow. Free to play against computer players, even offline.",
-  "start_url": "./#play",
-  "scope": "./",
+  "start_url": "/#play",
+  "scope": "/",
   "display": "fullscreen",
-  "display_override": ["fullscreen", "standalone"],
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
   "orientation": "landscape",
   "background_color": "#0f2b22",
   "theme_color": "#0f2b22",
-  "categories": ["games", "entertainment"],
-  "icons": [
-    { "src": "crows/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "crows/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "crows/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "crows/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  "categories": [
+    "games",
+    "entertainment"
   ],
-  "launch_handler": { "client_mode": "focus-existing" }
+  "icons": [
+    {
+      "src": "/crows/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/crows/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/crows/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/crows/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  }
 }
