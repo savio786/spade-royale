@@ -5,7 +5,7 @@
 //  Table (each)  one table: seats, the game (shared/crows/engine), computer players (shared/crows/bot),
 //                countdowns, turn timers, reconnects and the fixed chat
 //
-// Like Spades: on a public table each empty seat gets a 15-second countdown, then a computer player sits down
+// On a public table each empty seat gets a 5-second countdown, then a computer player sits down
 // (a person joining starts a fresh countdown); anyone seated can press "Start now". Private tables wait for the host.
 import { DurableObject } from 'cloudflare:workers';
 import {
@@ -137,7 +137,7 @@ interface TableData {
 }
 interface Att { seat: number }
 
-const BASE = { FILL: 15_000, FILL_GAP: 5_000, START: 4_000, TURN: 20_000, NEST: 40_000, BOT: 900, NEST_BOT: 1_500, COLLECT: 1_300, NEXT: 15_000, GRACE: 8_000, EMPTY_CLOSE: 90_000, OVER_CLOSE: 120_000 };
+const BASE = { FILL: 5_000, FILL_GAP: 5_000, START: 600, TURN: 20_000, NEST: 40_000, BOT: 900, NEST_BOT: 1_500, COLLECT: 1_300, NEXT: 15_000, GRACE: 8_000, EMPTY_CLOSE: 90_000, OVER_CLOSE: 120_000 };
 const AVATAR_RE = /^(a|p|b|c|f|t)\d{1,3}$/;
 const ALL_PORTRAITS = [...CROWS_PORTRAITS, ...BOT_PHOTOS];
 

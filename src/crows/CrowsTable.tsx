@@ -9,7 +9,7 @@ import {
   Card, Colour, COLOURS, COLOUR_NAME, CrowsAction, CrowsState, CrowsPublicState, RuleError, MAX_BID, MIN_BID, BID_STEP, NEST_SIZE, DEFAULT_TARGET, isCrow, suitOf, pointsOf,
 } from '../../shared/crows/engine';
 import type { TableInfo } from '../../shared/crows/protocol';
-import { botAction, bestTrump, estimateBid } from '../../shared/crows/bot';
+import { botAction, botNest, estimateBid } from '../../shared/crows/bot';
 import { profile, levelFromXp, useProfile } from '../lib/profile';
 import { Icon, Modal, Pill } from '../components/ui';
 import { toast } from '../lib/toast';
@@ -177,8 +177,12 @@ function TableUI({ src }: { src: Source }) {
   const legal = useMemo(() => legalCards(g, ME), [g, ME]);
   const choosingNest = st.phase === 'nest' && st.highBidder === ME;
 
-  // new nest: clear picks and suggest trump
-  useEffect(() => { if (choosingNest) { setPicked([]); setTrump(bestTrump(g.hands[ME])); } }, [choosingNest]); // eslint-disable-line react-hooks/exhaustive-deps
+  // new nest: suggest the 5 cards to put down and the trump, so one tap on the green button plays (tap cards to change)
+  useEffect(() => {
+    if (!choosingNest) return;
+    const s = botNest(g, ME);
+    setPicked(s.discard); setTrump(s.trump);
+  }, [choosingNest]); // eslint-disable-line react-hooks/exhaustive-deps
   const [weekRank, setWeekRank] = useState<number | null>(null);
   useEffect(() => {
     if (st.phase !== 'gameOver') return;
@@ -419,7 +423,7 @@ function NestDialog({ picked, trump, hand, bid, forced, onTrump, onConfirm }: {
   return (
     <div className="crows-dlg" role="dialog" aria-label="The nest">
       <h2>{forced ? `EVERYONE PASSED — YOU BID ${bid}` : `YOU WON THE BID AT ${bid}`}</h2>
-      <p>The 5 nest cards are now in your hand. Tap <b>5 cards to put down</b> ({picked.length}/5), then name trump.
+      <p>The 5 nest cards are now in your hand. We picked <b>5 cards to put down</b> (lifted, {picked.length}/5) — tap cards to swap them, choose trump, then press the green button.
         {lostPts > 0 && <> Put-down points ({lostPts}) go to whoever wins the last trick.</>}
         {pickedTrump && <> <b>Careful:</b> you're putting down trump.</>}</p>
       <div className="crows-colours">

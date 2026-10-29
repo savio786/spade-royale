@@ -162,7 +162,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
           <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>
         </div>
         <p className="ch-note">{onlineAvailable()
-          ? <>Play online with other people — empty seats get a computer player after 15 seconds, or press Start now. First side to {target} wins.</>
+          ? <>Play online with other people — empty seats get a computer player every 5 seconds, or press Start now. First side to {target} wins.</>
           : <>You and your partner (across the table) against two computer players. First side to {target} wins.</>}</p>
       </div>
       {rules && <CrowsRules onClose={() => setRules(false)} />}
