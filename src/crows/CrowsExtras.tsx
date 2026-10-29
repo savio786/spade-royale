@@ -1,6 +1,6 @@
 // Crows Haven: your picture (with your own photo kept on this device) and "install the app" help.
 // The Crows Haven site has no game server, so photos are stored in this browser instead of uploaded.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar, Modal, Pill } from '../components/ui';
 import { BOT_PHOTOS } from '../../shared/botphotos';
 import { CROWS_PORTRAITS } from './portraits';
@@ -116,9 +116,34 @@ export function PictureModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+interface BipEvent extends Event { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> }
+declare global { interface Window { __crowsBip?: BipEvent | null; __crowsInstalled?: boolean } }
+
+/** The browser's install offer (caught as soon as the page starts loading, see vite.config.ts), or null. */
+export function useInstall() {
+  const [bip, setBip] = useState<BipEvent | null>(() => window.__crowsBip ?? null);
+  const [installed, setInstalled] = useState(() => alreadyInstalled() || !!window.__crowsInstalled);
+  useEffect(() => {
+    const h = () => { setBip(window.__crowsBip ?? null); if (window.__crowsInstalled) setInstalled(true); };
+    window.addEventListener('crowsbip', h);
+    h();
+    return () => window.removeEventListener('crowsbip', h);
+  }, []);
+  const install = bip ? async () => {
+    await bip.prompt();
+    const r = await bip.userChoice.catch(() => ({ outcome: 'dismissed' }));
+    window.__crowsBip = null; setBip(null);
+    if (r.outcome === 'accepted') { window.__crowsInstalled = true; setInstalled(true); }
+  } : null;
+  return { install, installed };
+}
+
 /** Install help: one tap where the browser allows it, otherwise the steps for this device. */
-export function InstallHelp({ installPrompt, onDone }: { installPrompt: null | (() => void); onDone?: () => void }) {
+export function InstallHelp({ installPrompt: fromApp, onDone }: { installPrompt: null | (() => void); onDone?: () => void }) {
+  const { install, installed } = useInstall();
+  const installPrompt = install ?? fromApp;
   const g = installGuide(thisDevice(), !!installPrompt);
+  if (installed) return <p className="center">Crows Haven is installed on this device. 🎉 Open it from your home screen or apps.</p>;
   if (alreadyInstalled()) return <p className="center">Crows Haven is already installed on this device. 🎉</p>;
   return (
     <div className="crows-install">

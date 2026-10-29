@@ -15,6 +15,8 @@ function crowsHtml(): Plugin {
     name: 'crows-haven-html',
     transformIndexHtml(html) {
       return html
+        // catch the browser's one-time "you can install this" signal before the game has even loaded
+        .replace('<head>', `<head>\n    <script>window.__crowsBip=null;addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__crowsBip=e;dispatchEvent(new Event('crowsbip'));});addEventListener('appinstalled',function(){window.__crowsBip=null;window.__crowsInstalled=true;dispatchEvent(new Event('crowsbip'));});</script>`)
         .replace(/<meta name="description"[^>]*>/, `<meta name="description" content="${CROWS_DESC}" />`)
         .replace(/<meta name="keywords"[^>]*>/, '<meta name="keywords" content="crows haven, partnership card game, trick-taking card game, bidding card game, nest card game" />')
         .replace(/<link rel="canonical"[^>]*>/, `<link rel="canonical" href="${CROWS_URL}" />`)

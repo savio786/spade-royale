@@ -9,8 +9,7 @@ import { onlineAvailable, quickMatch, createPrivate, findCode, rememberTable, fo
 import { toast } from '../lib/toast';
 import { changeName, registerMyName, NAME_MAX } from './names';
 import { CrowsRanking } from './CrowsRanking';
-import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, randomPlayerPicture } from './CrowsExtras';
-import { alreadyInstalled } from '../lib/device';
+import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, randomPlayerPicture, useInstall } from './CrowsExtras';
 import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
 import { sfx } from '../lib/sound';
@@ -25,7 +24,9 @@ const FEATURES = [
 ];
 
 /** Public welcome page (the site's front page). */
-export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; installPrompt: null | (() => void) }) {
+export function CrowsLanding({ onPlay, installPrompt: fromApp }: { onPlay: () => void; installPrompt: null | (() => void) }) {
+  const { install, installed } = useInstall();
+  const installPrompt = install ?? fromApp;
   return (
     <div className="crows-land">
       <header className="cl-top">
@@ -43,7 +44,7 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
           <p>The partnership card game of bids, nests and trump. Win the auction, pick up the nest, name trump — and catch the Crow.</p>
           <div className="cl-actions">
             <button className="cl-btn" onClick={onPlay}>▶ PLAY IN YOUR BROWSER</button>
-            {!alreadyInstalled() && <a className="cl-btn ghost" href="#get-app" onClick={(e) => { if (installPrompt) { e.preventDefault(); installPrompt(); } }}>⤓ Install the app</a>}
+            {!installed && <a className="cl-btn ghost" href="#get-app" onClick={(e) => { if (installPrompt) { e.preventDefault(); void installPrompt(); } }}>⤓ Install the app</a>}
           </div>
           <small>Free · no sign-up · you and a partner against two computer players</small>
         </div>
@@ -87,7 +88,9 @@ function exitGame(toWelcome: () => void) {
 const GAME_POINTS = [300, 400, 500];
 
 /** Inside the game: start as a guest, then the home screen, then a table. */
-export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
+export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
+  const { install, installed } = useInstall();
+  const installPrompt = install ?? fromApp;
   const p = useProfile();
   // back from a reload in the middle of an online game: straight back to that table
   const resume = currentTable();
@@ -176,7 +179,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
         <div className="ch-row">
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setScreen('ranking'); }}>🏆 Weekly ranking</button>
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
-          {!alreadyInstalled() && <button className="cl-btn ghost" onClick={() => { sfx.click(); setModal('install'); }}>⤓ Install the app</button>}
+          {!installed && <button className="cl-btn ghost" onClick={() => { sfx.click(); if (installPrompt) void installPrompt(); else setModal('install'); }}>⤓ Install the app</button>}
         </div>
         <p className="ch-note">{onlineAvailable()
           ? <>Play online with other people — empty seats get a computer player every 5 seconds, or press Start now. First side to {target} wins.</>
