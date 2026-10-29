@@ -332,3 +332,10 @@ body.crows-site, body.crows-site .stage-outer.felt-bg { background: #0b1f19; }
 .crows-empty-seat .seat-av::before, .crows-empty-seat .seat-av::after, .crows-empty-seat .bezel { display: none !important; }
 .crows-empty-seat .seat-av { outline: none; }
 .crows-empty-seat .q-mark { width: auto; height: auto; border: 0; box-shadow: none; background: none; font: 400 48px var(--display); color: rgba(243,230,196,.6); }
+
+/* Exit buttons */
+.ch-card { position: relative; }
+.crows-exit { position: absolute; top: 14px; right: 14px; z-index: 5; display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 999px; cursor: pointer;
+  border: 2px solid rgba(255,140,130,.7); background: rgba(120,20,20,.45); color: #ffd9d4; font: 400 19px var(--display); letter-spacing: 1.5px; }
+.crows-exit:hover { background: rgba(170,30,30,.7); color: #fff; }
+.crows-exit.table { top: 14px; left: 18px; right: auto; z-index: 30; }

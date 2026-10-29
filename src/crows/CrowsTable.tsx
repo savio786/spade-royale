@@ -165,6 +165,9 @@ function TableUI({ src }: { src: Source }) {
   const prevTrick = useRef(st.trick.length);
   useEffect(() => { if (online && st.trick.length > prevTrick.current) sfx.card(); prevTrick.current = st.trick.length; }, [st.trick.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const [menu, setMenu] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
+  const inGame = st.phase !== 'waiting' && st.phase !== 'gameOver';
+  const exit = () => { sfx.click(); if (inGame) setConfirmExit(true); else onExit(); };
   const [chatOpen, setChatOpen] = useState(false);
   const [seenMsgs, setSeenMsgs] = useState(0);
   const unread = chatOpen ? 0 : chat.msgs.filter((m) => m.seat !== ME).length - seenMsgs;
@@ -253,6 +256,7 @@ function TableUI({ src }: { src: Source }) {
 
   return (
     <div className={`screen table-screen crows-screen felt-bg ${st.trump ? `trump-${st.trump}` : ''}`}>
+      <button className="crows-exit table" onClick={exit} aria-label="Exit the table">✕ Exit</button>
       <div className="crows-title"><CrowMark /> CROWS HAVEN <span className="crows-practice">{online ? (info!.isPrivate ? `Private table · ${info!.code}` : 'Online table') : 'Practice · no coins'}</span></div>
       <div className="tbl-top-right">
         <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label="Open chat"><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>
@@ -372,6 +376,15 @@ function TableUI({ src }: { src: Source }) {
             <Pill color="blue" onClick={() => { setMenu(false); setRules(true); }}>How to play Crows Haven</Pill>
             <Pill color="purple" onClick={() => { setMenu(false); setPicture(true); }}>Change my picture</Pill>
             <Pill color="red" onClick={onExit}>{online && st.phase !== 'waiting' && st.phase !== 'gameOver' ? 'Leave table (a computer player takes your seat)' : 'Leave table'}</Pill>
+          </div>
+        </Modal>
+      )}
+      {confirmExit && (
+        <Modal title="Leave this game?" onClose={() => setConfirmExit(false)}>
+          <p className="center">{online ? 'A computer player will take your seat so the others can keep playing.' : 'Your practice game will end.'}</p>
+          <div className="btn-row">
+            <Pill color="red" onClick={onExit}>Yes, leave</Pill>
+            <Pill color="green" onClick={() => setConfirmExit(false)}>Keep playing</Pill>
           </div>
         </Modal>
       )}

@@ -75,6 +75,13 @@ export function CrowsLanding({ onPlay, installPrompt }: { onPlay: () => void; in
   );
 }
 
+/** Exit: in the installed app, close it if the device allows; otherwise back to the welcome page. */
+function exitGame(toWelcome: () => void) {
+  const installed = window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches;
+  if (installed) { window.close(); setTimeout(toWelcome, 300); return; }   // still open (phones don't allow closing): welcome page
+  toWelcome();
+}
+
 /** The game lengths players can choose: first side to this many points wins. */
 const GAME_POINTS = [300, 400, 500];
 
@@ -135,6 +142,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
   return (
     <div className="screen crows-home felt-bg">
       <div className="ch-card">
+        <button className="crows-exit" onClick={() => { sfx.click(); exitGame(onLeaveSite); }} aria-label="Exit the game">⏻ Exit</button>
         <CrowArt size={110} />
         <h1>CROWS HAVEN</h1>
         <button className="ch-me" onClick={() => { sfx.click(); setModal('picture'); }} aria-label="Change your picture">
@@ -159,7 +167,6 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setScreen('ranking'); }}>🏆 Weekly ranking</button>
           <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
           {!alreadyInstalled() && <button className="cl-btn ghost" onClick={() => { sfx.click(); setModal('install'); }}>⤓ Install the app</button>}
-          <button className="cl-btn ghost" onClick={onLeaveSite}>Welcome page</button>
         </div>
         <p className="ch-note">{onlineAvailable()
           ? <>Play online with other people — empty seats get a computer player every 5 seconds, or press Start now. First side to {target} wins.</>
