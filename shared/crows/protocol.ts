@@ -17,6 +17,7 @@ export interface TableInfo {
   isPrivate: boolean;
   target: number;
   fillAt: number | null;    // public tables: when the next computer player sits down
+  filling: boolean;         // "Start now" was pressed: computer players are joining one by one (5 s apart)
   startAt: number | null;   // all seats taken: when the first hand is dealt
   turnAt: number | null;    // when the player whose turn it is runs out of time
   turnTotal: number;

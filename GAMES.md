@@ -143,7 +143,8 @@ Items marked *(default)* are our choice where the published versions differ; the
   The site finds it through `VITE_CROWS_SERVER` (the server's https address) in Vercel; without it, online
   buttons are hidden and only "vs computer" play shows.
 - Online tables, like Spades: "Play online" seats you at a public table with the same game points; each empty
-  seat gets a 15 s countdown, then a computer player (AI portrait) sits down; "Start now" fills all seats.
+  seat gets a 15 s countdown, then a computer player (AI portrait) sits down; "Start now" brings computer
+  players in one by one, 5 s apart (the first right away), and the game deals when all four seats are full.
   Private tables get a 5-letter code and wait for the host to start. 20 s per turn (40 s for the nest), then the
   game plays for you; after 3 missed turns or a lost connection a computer player plays your seat until you're
   back (a reload puts you back in your seat). Chat is the fixed phrase/emoji list, checked on the server.

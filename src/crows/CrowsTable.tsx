@@ -302,17 +302,17 @@ function TableUI({ src }: { src: Source }) {
               <div className="crows-waiting">
                 <b>{startLeft !== null ? `STARTING IN ${startLeft}` : 'WAITING FOR PLAYERS'}</b>
                 <span>{seatedCount} of 4 seats taken · first to {info.target}</span>
-                {info.isPrivate ? (
+                {info.isPrivate && (
                   <>
                     <span>Invite friends with this code:</span>
                     <button className="crows-code" onClick={() => { navigator.clipboard?.writeText(info.code!).then(() => toast('Invite code copied'), () => toast(`Invite code: ${info.code}`)); }}>{info.code} <Icon name="copy" size={18} /></button>
-                    {startLeft === null && <button className="cl-btn small" onClick={() => { sfx.click(); online!.start(); }}>Fill with computer players &amp; start</button>}
                   </>
-                ) : (
-                  <>
-                    {fillLeft !== null && startLeft === null && <span className="crows-fill">Waiting for player {seatedCount + 1} · a computer player joins in <b>{fillLeft}s</b></span>}
-                    {startLeft === null && <button className="cl-btn small" onClick={() => { sfx.click(); online!.start(); }}>Start now</button>}
-                  </>
+                )}
+                {startLeft === null && fillLeft !== null && (info.filling || !info.isPrivate) && (
+                  <span className="crows-fill">{info.filling ? 'Computer players are joining' : `Waiting for player ${seatedCount + 1}`} · next one sits down in <b>{fillLeft}s</b></span>
+                )}
+                {startLeft === null && !info.filling && (
+                  <button className="cl-btn small" onClick={() => { sfx.click(); online!.start(); }}>{info.isPrivate ? 'Fill with computer players & start' : 'Start now'}</button>
                 )}
               </div>
             )}

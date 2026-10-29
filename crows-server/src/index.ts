@@ -132,10 +132,12 @@ interface TableData {
   fillAt: number | null; startAt: number | null; turnAt: number | null; botAt: number | null;
   collectAt: number | null; nextAt: number | null; closeAt: number | null; emptySince: number | null;
   key: string; ready: boolean[]; createdAt: number;
+  /** "Start now" was pressed: computer players are sitting down one by one */
+  filling?: boolean;
 }
 interface Att { seat: number }
 
-const BASE = { FILL: 15_000, START: 4_000, TURN: 20_000, NEST: 40_000, BOT: 900, NEST_BOT: 1_500, COLLECT: 1_300, NEXT: 15_000, GRACE: 8_000, EMPTY_CLOSE: 90_000, OVER_CLOSE: 120_000 };
+const BASE = { FILL: 15_000, FILL_GAP: 5_000, START: 4_000, TURN: 20_000, NEST: 40_000, BOT: 900, NEST_BOT: 1_500, COLLECT: 1_300, NEXT: 15_000, GRACE: 8_000, EMPTY_CLOSE: 90_000, OVER_CLOSE: 120_000 };
 const AVATAR_RE = /^(a|p|b|c|f|t)\d{1,3}$/;
 const ALL_PORTRAITS = [...CROWS_PORTRAITS, ...BOT_PHOTOS];
 
@@ -186,6 +188,7 @@ export class Table extends DurableObject<Env> {
     return {
       tableId: t.id, code: t.code, isPrivate: t.isPrivate, target: t.target,
       fillAt: t.fillAt, startAt: t.startAt, turnAt: t.turnAt, turnTotal, nextAt: t.nextAt,
+      filling: !!t.filling,
       humans: t.players.map((p) => !!p?.human), away: t.players.map((p) => !!p && p.human && this.isAway(p, now)), ready: t.ready.slice(), now,
     };
   }
@@ -271,10 +274,11 @@ export class Table extends DurableObject<Env> {
       const bots = t.players.map((p, i) => (p && !p.human ? i : -1)).filter((i) => i >= 0);
       if (bots.length && Math.random() < 0.45) this.botSays(pick(bots), pick(BOT_REPLY), 900 + Math.random() * 1400);
     } else if (m.t === 'start') {
-      if (t.g.phase !== 'waiting') return;
-      for (let i = 0; i < 4; i++) if (!t.players[i]) this.putBot(i);
+      // computer players sit down one by one, 5 seconds apart (the first right away)
+      if (t.g.phase !== 'waiting' || t.filling) return;
+      t.filling = true;
+      t.fillAt = Date.now();
       await this.tick(true);
-      await this.report();
     } else if (m.t === 'ready') {
       t.ready[seat] = true;
       await this.tick(true);
@@ -362,11 +366,12 @@ export class Table extends DurableObject<Env> {
         return false;
       }
       t.startAt = null;
-      if (!t.isPrivate && t.players.some((p) => p?.human)) {
-        if (t.fillAt === null) { t.fillAt = now + ms.FILL; return true; }
+      if (t.players.some((p) => p?.human) && (t.filling || !t.isPrivate)) {
+        const gap = t.filling ? ms.FILL_GAP : ms.FILL;
+        if (t.fillAt === null) { t.fillAt = now + gap; return true; }
         if (due(t.fillAt)) {
           this.putBot(t.players.findIndex((p) => !p));
-          t.fillAt = t.players.every(Boolean) ? null : now + ms.FILL;
+          t.fillAt = t.players.every(Boolean) ? null : now + gap;
           void this.report();
           return true;
         }
