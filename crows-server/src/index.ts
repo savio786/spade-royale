@@ -15,12 +15,14 @@ import {
 import { botAction } from '../../shared/crows/bot';
 import { isCrowsChat, BOT_REPLY, BOT_GREET, BOT_MADE, BOT_SET } from '../../shared/crows/chat';
 import type { ClientMsg, ServerMsg, TableInfo } from '../../shared/crows/protocol';
+import { validateName, squash, isGuestName } from '../../shared/crows/names';
 import { CROWS_PORTRAITS } from '../../src/crows/portraits';
 import { BOT_PHOTOS } from '../../shared/botphotos';
 
 export interface Env {
   LOBBY: DurableObjectNamespace<Lobby>;
   TABLE: DurableObjectNamespace<Table>;
+  NAMES: DurableObjectNamespace<Names>;
   /** testing only: shorter countdowns, e.g. "0.1" */
   TIME_SCALE?: string;
 }
@@ -40,6 +42,10 @@ export default {
     const lobby = () => env.LOBBY.get(env.LOBBY.idFromName('lobby'));
     try {
       if (url.pathname === '/health') return json({ ok: true, game: 'crows-haven' });
+      if (url.pathname === '/name' && req.method === 'POST') {
+        const b = await req.json().catch(() => ({})) as { pid?: string; secret?: string; name?: string; check?: boolean };
+        return json(await env.NAMES.get(env.NAMES.idFromName('names')).claim(String(b.pid ?? ''), String(b.secret ?? ''), b.name, !!b.check));
+      }
       if (url.pathname === '/quick' && req.method === 'POST') {
         const b = await req.json().catch(() => ({})) as { target?: number };
         return json({ tableId: await lobby().quick(normTarget(b.target)) });
@@ -122,6 +128,44 @@ export class Lobby extends DurableObject<Env> {
     await this.save();
   }
   async remove(id: string) { delete this.tables[id]; await this.save(); }
+}
+
+// ---------------------------------------------------------------- Names
+// One place that knows every player's name, so no two people have the same one.
+//   n:<squashed name> → player id        p:<player id> → { name, secret }
+// A name belongs to the device that claimed it (its secret). Changing name frees the old one.
+interface NameOwner { name: string; secret: string }
+export type ClaimResult = { ok: true; name: string } | { ok: false; message: string; taken?: boolean };
+const PID_RE = /^[\w-]{6,64}$/;
+
+export class Names extends DurableObject<Env> {
+  async claim(pid: string, secret: string, raw: unknown, check: boolean): Promise<ClaimResult> {
+    if (!PID_RE.test(pid) || secret.length < 16 || secret.length > 128) return { ok: false, message: 'Something went wrong — please reload and try again.' };
+    const v = validateName(raw, true);
+    if (!v.ok) return v;
+    const st = this.ctx.storage;
+    const me = await st.get<NameOwner>(`p:${pid}`);
+    if (me && me.secret !== secret) return { ok: false, message: 'This player belongs to another device.' };
+    // the game re-sends its automatic guest name when it opens: never let that replace a name the player chose
+    if (me && isGuestName(v.name) && !isGuestName(me.name)) return { ok: true, name: me.name };
+    const key = `n:${squash(v.name)}`;
+    const owner = await st.get<string>(key);
+    if (owner && owner !== pid) return { ok: false, taken: true, message: `“${v.name}” is taken — please pick another name.` };
+    if (check) return { ok: true, name: v.name };
+    if (me && squash(me.name) !== squash(v.name)) await st.delete(`n:${squash(me.name)}`);   // the old name is free again
+    await st.put({ [key]: pid, [`p:${pid}`]: { name: v.name, secret } satisfies NameOwner });
+    return { ok: true, name: v.name };
+  }
+  /** The name a player may use at a table: their registered name, or their automatic guest name. */
+  async nameFor(pid: string, wanted: string): Promise<string | null> {
+    const me = PID_RE.test(pid) ? await this.ctx.storage.get<NameOwner>(`p:${pid}`) : undefined;
+    if (me) return me.name;
+    if (isGuestName(wanted)) {
+      const owner = await this.ctx.storage.get<string>(`n:${squash(wanted)}`);
+      if (!owner || owner === pid) return wanted;
+    }
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- Table
@@ -242,7 +286,10 @@ export class Table extends DurableObject<Env> {
       if (i < 0) {
         i = t.g.phase === 'waiting' ? t.players.findIndex((p) => !p) : -1;
         if (i < 0) { this.send(ws, { t: 'error', code: 'full', message: 'This table is full.' }); ws.close(1000, 'full'); return; }
-        const name = String(m.name ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24) || `Player ${i + 1}`;
+        // only the name this player has registered (so nobody can show up under someone else's name)
+        let name = `Player ${i + 1}`;
+        try { name = (await this.env.NAMES.get(this.env.NAMES.idFromName('names')).nameFor(String(m.pid ?? ''), String(m.name ?? ''))) ?? name; } catch { /* names busy */ }
+        if (t.players[i]) { this.send(ws, { t: 'error', code: 'full', message: 'This table is full.' }); ws.close(1000, 'full'); return; }   // taken while we looked
         const avatar = AVATAR_RE.test(String(m.avatar)) ? String(m.avatar) : 'a1';
         const p: Player = { pid: String(m.pid ?? '').slice(0, 64), name, avatar, token: crypto.randomUUID(), human: true, away: false, goneAt: null, missed: 0, level: 1 };
         t.players[i] = p;

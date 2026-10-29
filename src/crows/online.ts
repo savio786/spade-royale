@@ -85,3 +85,8 @@ const CUR = 'crowsCurrentTable';
 export const rememberTable = (tableId: string) => { try { sessionStorage.setItem(CUR, tableId); } catch { /* private mode */ } };
 export const forgetTable = () => { try { sessionStorage.removeItem(CUR); } catch { /* private mode */ } };
 export const currentTable = () => { try { return onlineAvailable() ? sessionStorage.getItem(CUR) : null; } catch { return null; } };
+
+/** Ask the game server for a name (or, with check, only whether it's free). */
+export const nameOnServer = (pid: string, secret: string, name: string, check = false) =>
+  fetch(SERVER + '/name', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ pid, secret, name, check }) })
+    .then((r) => r.json() as Promise<{ ok: boolean; name?: string; message?: string; taken?: boolean }>);

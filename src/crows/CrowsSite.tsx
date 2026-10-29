@@ -7,7 +7,7 @@ import { Modal } from '../components/ui';
 import { CrowsTable, CrowsRules, CrowsRulesBody, TableMode } from './CrowsTable';
 import { onlineAvailable, quickMatch, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
 import { toast } from '../lib/toast';
-import { checkName, saveName, NAME_MAX } from './names';
+import { changeName, registerMyName, NAME_MAX } from './names';
 import { CrowsRanking } from './CrowsRanking';
 import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, randomPlayerPicture } from './CrowsExtras';
 import { alreadyInstalled } from '../lib/device';
@@ -96,6 +96,12 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<null | 'picture' | 'install' | 'private' | 'name'>(null);
+  const [nameNote, setNameNote] = useState<string | null>(null);
+  // make sure the game server knows this player's name (names are unique); ask for a new one if it's taken
+  useEffect(() => {
+    if (!p.provider) return;
+    void registerMyName().then((msg) => { if (msg) { setNameNote(msg); setModal('name'); } });
+  }, [p.provider]); // eslint-disable-line react-hooks/exhaustive-deps
   const [mode, setMode] = useState<TableMode>(resume ? { kind: 'online', tableId: resume } : { kind: 'local' });
   const [finding, setFinding] = useState(false);
   const fullTries = useRef(0);
@@ -179,7 +185,7 @@ export function CrowsApp({ onLeaveSite, installPrompt }: { onLeaveSite: () => vo
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
       {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
-      {modal === 'name' && <NameModal current={p.name} onClose={() => setModal(null)} />}
+      {modal === 'name' && <NameModal current={p.name} note={nameNote} onClose={() => { setModal(null); setNameNote(null); }} />}
       {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); openTable({ kind: 'online', tableId }); }} />}
     </div>
   );
@@ -217,23 +223,28 @@ function PrivateModal({ target, onClose, onOpen }: { target: number; onClose: ()
 }
 
 /** Change your name: anything you like within the name rules. */
-function NameModal({ current, onClose }: { current: string; onClose: () => void }) {
-  const [name, setName] = useState(/^guest\d*$/i.test(current) ? '' : current);
+function NameModal({ current, note, onClose }: { current: string; note?: string | null; onClose: () => void }) {
+  const [name, setName] = useState(/^guest\d*$/i.test(current) || note ? '' : current);
   const [err, setErr] = useState<string | null>(null);
-  const save = () => {
-    const r = checkName(name);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (name.trim() === current) { onClose(); return; }
+    setBusy(true);
+    const r = await changeName(name);
+    setBusy(false);
     if (!r.ok) { setErr(r.message); return; }
-    saveName(r.name); sfx.click(); toast(`You're now ${r.name}`); onClose();
+    sfx.click(); toast(`You're now ${r.name}`); onClose();
   };
   return (
     <Modal title="Your name" onClose={onClose}>
-      <form className="crows-name" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        <p>This is the name other players see at the table and in the weekly ranking.</p>
+      <form className="crows-name" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        {note && <p className="ap-err" role="alert">{note}</p>}
+        <p>This is the name other players see at the table and in the weekly ranking. Each name can only belong to one player.</p>
         <input autoFocus value={name} maxLength={NAME_MAX} placeholder={current} aria-label="Your name"
           onChange={(e) => { setName(e.target.value); setErr(null); }} />
         {err && <p className="ap-err" role="alert">{err}</p>}
         <div className="btn-row">
-          <button type="submit" className="cl-btn" disabled={!name.trim()}>Save name</button>
+          <button type="submit" className="cl-btn" disabled={!name.trim() || busy}>{busy ? 'Checking…' : 'Save name'}</button>
           <button type="button" className="cl-btn ghost" onClick={onClose}>Cancel</button>
         </div>
         <p className="crows-small-note">3 to {NAME_MAX} characters: letters, numbers, spaces and _ - .</p>

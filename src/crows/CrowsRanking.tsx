@@ -8,7 +8,8 @@ const API = '/api/crows-rank';
 const SECRET_KEY = 'crowsRankSecret';
 
 /** A random secret that ties this player's ranking entry to this device. */
-function deviceSecret() {
+/** Also proves which device owns a player name (see ./names.ts). */
+export function deviceSecret() {
   try {
     let s = localStorage.getItem(SECRET_KEY);
     if (!s) { s = Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem(SECRET_KEY, s); }

@@ -36,6 +36,9 @@ Crows Haven-only files:
 - `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen
 - `src/crows/online.ts` — online play: Play online / private tables, the live connection, reconnects
 - `shared/crows/protocol.ts`, `shared/crows/chat.ts` — messages and fixed chat list shared by the game and the server
+- `shared/crows/names.ts`, `src/crows/names.ts` — player names: Spade Haven rules, and unique — the game server's
+  `Names` list (one name per player, tied to the device; "Savio Dias" = "savio_dias"; changing frees the old one).
+  Tables show only the registered name. Old clashing names are asked to change when the game opens.
 - `crows-server/` — the Cloudflare game server (own package.json; not part of the Spades build)
 - `src/crows/CrowsChat.tsx` — table chat: preset phrases + emoji only (no typing), bubbles on seats, computer players reply
 - `src/crows/CrowsRanking.tsx` — weekly ranking page; each finished game is sent to the ranking

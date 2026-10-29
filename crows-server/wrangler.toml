@@ -11,6 +11,14 @@ class_name = "Lobby"
 name = "TABLE"
 class_name = "Table"
 
+[[durable_objects.bindings]]
+name = "NAMES"
+class_name = "Names"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Lobby", "Table"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Names"]
