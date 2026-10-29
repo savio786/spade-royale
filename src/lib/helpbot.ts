@@ -106,7 +106,7 @@ export const TOPICS: Topic[] = [
 
   // ---- progress ----
   { id: 'leaderboard', title: 'Leaderboard & rewards', keys: ['leaderboard', 'leaders', 'rank', 'ranking', 'top', 'weekly', 'wall of fame', 'fame', 'champion', 'reward'],
-    answer: 'LEADERS shows this week\'s top winners (coins won from games). The week resets every Sunday. Top 100 earn rewards: 50,000 for 1st, 25,000 for 2nd, 10,000 for 3rd, down to 1,000 for 51–100. Collect yours from "Last week results". Each week\'s champion joins the Wall of Fame.',
+    answer: 'LEADERS shows this week\'s top players by coins won. When you lose a game, your bet comes off your total (lose a 50,000 game and 50,000 comes off), and so does leaving a game early. The week resets every Sunday. Top 100 earn rewards: 50,000 for 1st, 25,000 for 2nd, 10,000 for 3rd, down to 1,000 for 51–100. Collect yours from "Last week results". Each week\'s champion joins the Wall of Fame.',
     related: ['coins-free', 'bots'] },
   { id: 'trophies', title: 'Levels & trophies', keys: ['level', 'xp', 'experience', 'trophy', 'trophies', 'achievement', 'stats', 'win rate', 'level up'],
     answer: 'Every game gives XP (+40, and +80 more for a win) to level up. TROPHY shows your stats and achievements like "Nil Ninja" or "Table Boss", each with a coin reward to collect.',

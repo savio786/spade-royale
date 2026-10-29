@@ -94,7 +94,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
-      if (won && !view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize }); }
+      if (!view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won }); }   // a loss takes the bet off the boards
     }
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
@@ -158,6 +158,12 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
 
   const leave = () => {
+    // leaving a game against computers after it started forfeits the bet (and takes it off the boards)
+    if (view && !view.online && st && charged.current && !settled.current && st.phase !== 'waiting' && st.phase !== 'gameOver') {
+      settled.current = true;
+      const me2 = profile.get();
+      reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize: 0, lost: true });
+    }
     ctl.leave();
     onExit();
   };

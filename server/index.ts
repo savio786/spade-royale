@@ -8,7 +8,7 @@ import { TableRuntime } from '../shared/runtime';
 import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
-import { board, credit, initLeaderboard, touch } from './leaderboard';
+import { board, credit, debit, initLeaderboard, touch } from './leaderboard';
 import { getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
@@ -31,6 +31,8 @@ const REJOIN_MS = 45_000;
 const forfeits = new Set<string>();
 const forfeit = (playerId: string, tableId: string) => { if (forfeits.size > 20_000) forfeits.clear(); forfeits.add(`${playerId}:${tableId}`); };
 const inProgress = (r: Room) => r.rt.g.phase !== 'waiting' && r.rt.g.phase !== 'gameOver';
+/** A player who leaves or drops out of a game in progress loses their bet on the boards too (their seat then goes to a computer player). */
+const forfeitBoards = (r: Room, playerId: string) => { const s = r.rt.g.seats.find((x) => x && !x.bot && x.id === playerId); if (s) debit(s, r.rt.g.settings.bet); };
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
 interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
 
@@ -125,10 +127,14 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   rt.onGameOver = (g) => {
     // credit real winners on the weekly leaderboard (server-authoritative for online games)
     const prize = prizeFor(g.settings);
+    const winnerSeats = new Set<number>();
     for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
+      winnerSeats.add(seat);
       const s = g.seats[seat];
       if (s && !s.bot) credit(s, prize);
     }
+    // real players on the losing side(s) lose their bet from the weekly and all-time totals
+    if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat)) debit(s, g.settings.bet); });
     setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);
   };
   return room;
@@ -146,7 +152,7 @@ function dropped(c: Client) {
   clearTimeout(r.away.get(id));
   r.away.set(id, setTimeout(() => {
     r.away?.delete(id);
-    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) forfeit(id, r.id); r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
+    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) { forfeit(id, r.id); forfeitBoards(r, id); } r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
   }, REJOIN_MS));
 }
 
@@ -178,7 +184,7 @@ function leave(c: Client, notify = true) {
   if (!r) return;
   c.unsub?.(); c.unsub = null;
   r.clients.delete(c);
-  if (c.player) { if (inProgress(r)) forfeit(c.player.id, r.id); r.rt.removeHuman(c.player.id); }
+  if (c.player) { if (inProgress(r)) { forfeit(c.player.id, r.id); forfeitBoards(r, c.player.id); } r.rt.removeHuman(c.player.id); }
   c.room = null;
   if (r.rt.humanCount() === 0) closeRoom(r);
   if (notify) send(c, { t: 'left' });
@@ -373,13 +379,14 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         const b = JSON.parse(raw);
         const id = String(b.id || '').slice(0, 64);
         const bet = Number(b.bet), prize = Number(b.prize);
+        const lost = b.lost === true;
         const mode: Mode = b.mode === 'solo' ? 'solo' : 'partners';
         const max = prizeFor({ mode, bet }) * 1.1 + 1;
         const now = Date.now();
-        if (!id || !(bet >= 100 && bet <= 5_000_000) || !(prize > 0 && prize <= max)) return json(res, 400, { error: 'invalid result' });
+        if (!id || !(bet >= 100 && bet <= 5_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
         if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
         lastReport.set(id, now);
-        guestName(id).then((gn) => credit({ id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }, prize));
+        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, bet); else credit(who, prize); });
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });

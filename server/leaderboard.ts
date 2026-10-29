@@ -72,18 +72,30 @@ export function touch(p: { id: string; name: string; avatar: string }) {
   if (changed) save();
 }
 
-export function credit(p: { id: string; name: string; avatar: string }, amount: number) {
-  if (!p.id || !(amount > 0)) return;
+function adjust(p: { id: string; name: string; avatar: string }, delta: number) {
   rollover();
   const e = store.players[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
   e.name = String(p.name).slice(0, 20);
   e.avatar = okAvatar(p.avatar) ?? e.avatar;
-  e.earnings += Math.round(amount);
+  e.earnings += delta;
   store.players[p.id] = e;
   const t = store.allTime[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
-  t.name = e.name; t.avatar = e.avatar; t.earnings += Math.round(amount);
+  t.name = e.name; t.avatar = e.avatar; t.earnings += delta;
   store.allTime[p.id] = t;
   save();
+}
+
+/** A win: the prize is added to the week's total and to the all-time (Wall of Fame) total. */
+export function credit(p: { id: string; name: string; avatar: string }, amount: number) {
+  if (!p.id || !(amount > 0)) return;
+  adjust(p, Math.round(amount));
+}
+
+/** A loss: the bet is taken off the week's total and the all-time total. The totals can dip below zero
+    (a player stays off the board until their wins make up for their losses). */
+export function debit(p: { id: string; name: string; avatar: string }, amount: number) {
+  if (!p.id || !(amount > 0)) return;
+  adjust(p, -Math.round(amount));
 }
 
 export function board(id?: string) {
@@ -96,11 +108,11 @@ export function board(id?: string) {
     week: store.week,
     endsAt: weekEndsAt(),
     rows: rows.slice(0, 100).map(strip),
-    me: { rank: rankOf(rows), earnings: id ? store.players[id]?.earnings ?? 0 : 0 },
+    me: { rank: rankOf(rows), earnings: id ? Math.max(0, store.players[id]?.earnings ?? 0) : 0 },
     lastWeek: store.lastWeek ? { week: store.lastWeek.week, rank: rankOf(store.lastWeek.rows), rows: store.lastWeek.rows.slice(0, 100).map(strip) } : null,
     fame: store.fame,
     allTime: all.slice(0, 100).map(strip),
-    meAllTime: { rank: rankOf(all), earnings: id ? store.allTime[id]?.earnings ?? 0 : 0 },
+    meAllTime: { rank: rankOf(all), earnings: id ? Math.max(0, store.allTime[id]?.earnings ?? 0) : 0 },
   };
 }
 

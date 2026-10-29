@@ -28,7 +28,7 @@ export async function fetchBoard(id?: string): Promise<Board | null> {
   } catch { return null; }
 }
 
-export async function reportWin(p: { id: string; name: string; avatar: string; mode: Mode; bet: number; prize: number }) {
+export async function reportWin(p: { id: string; name: string; avatar: string; mode: Mode; bet: number; prize: number; lost?: boolean }) {
   const base = apiBase();
   if (!base) return;
   try {
