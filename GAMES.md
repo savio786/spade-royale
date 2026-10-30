@@ -51,6 +51,29 @@ How to build it without touching Spades:
 - add a "game" choice to the lobby and the table protocol, with Spades as the default
 - run the existing checks and test a full Spades game before every merge
 
+## 3. Third game: Cobalt Haven (PLANNED — not started)
+
+A **turn-based tile-drafting and pattern-building game for 2-4 players** (bots fill empty seats) —
+in the spirit of the classic drafting genre, but with its own name, theme, pieces, board and scoring.
+
+Working name: **Cobalt Haven** (chosen by the owner).
+
+Naming and originality: do NOT call it "Azul" or "Azulejo" and do not copy that game's tiles, boards,
+scoring tables, rulebook text or art (the name and designs are commercially owned). Invent original
+pieces, board layout, scoring and at least one twist of our own. Before launch, search the trademark
+database and the app stores for "Cobalt Haven", and have a lawyer confirm; this file is not legal advice.
+
+Rules to settle with the owner BEFORE coding (write the decisions here):
+- theme and look (blue/cobalt feel, pieces, board)
+- how pieces are drafted from the shared pools, and who goes first
+- the personal board, how patterns are completed, and scoring
+- our own twist (special piece, shared market, deadline round...)
+- end of game and winner, 2/3/4 player setup
+- bots: how they draft and place
+
+Build it the same way as Crows Haven: its own branch, its own files, reuse the shared parts,
+Spades must behave exactly as before. Use a separate chat for it.
+
 ## Working rules for any chat
 - Say which game you mean ("Spades" or "Crows Haven") in every request.
 - Never paste Stripe keys, Upstash tokens, the Resend key or webhook secrets into chat or files.
