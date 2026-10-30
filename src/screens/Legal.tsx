@@ -7,18 +7,18 @@ const BY = OPERATOR ? ` (operated by ${OPERATOR})` : '';
 const EMAIL = env.VITE_SUPPORT_EMAIL || 'support@sedigitaltransformation.com';
 const UPDATED = 'October 17, 2026';
 
-export function LegalPage({ page }: { page: 'privacy' | 'terms' | 'delete' }) {
-  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : page === 'terms' ? 'Terms of Service · Spade Haven' : 'Delete your data · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
-  const home = () => { if (/^\/(privacy|terms|data-deletion)\/?$/.test(window.location.pathname)) window.location.href = '/'; else window.location.hash = ''; };
+export function LegalPage({ page }: { page: 'privacy' | 'terms' | 'delete' | 'contact' }) {
+  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : page === 'terms' ? 'Terms of Service · Spade Haven' : page === 'contact' ? 'Contact us · Spade Haven' : 'Delete your data · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
+  const home = () => { if (/^\/(privacy|terms|data-deletion|contact)\/?$/.test(window.location.pathname)) window.location.href = '/'; else window.location.hash = ''; };
   const back = () => { if (history.length > 1) history.back(); else home(); };
   return (
     <div className="legal-page">
       <header className="legal-top">
         <a href="/" className="legal-brand" onClick={(e) => { e.preventDefault(); home(); }}>♠ Spade Haven</a>
-        <nav><a href="/privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="/terms" className={page === 'terms' ? 'on' : ''}>Terms</a><button onClick={back}>Back</button></nav>
+        <nav><a href="/privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="/terms" className={page === 'terms' ? 'on' : ''}>Terms</a><a href="/contact" className={page === 'contact' ? 'on' : ''}>Contact</a><button onClick={back}>Back</button></nav>
       </header>
       <article className="legal-body">
-        {page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : <DeleteData />}
+        {page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : page === 'contact' ? <Contact /> : <DeleteData />}
         <p className="legal-meta">Last updated {UPDATED}.{EMAIL && <> Questions: <a href={`mailto:${EMAIL}`}>{EMAIL}</a></>}</p>
       </article>
     </div>
@@ -47,6 +47,26 @@ function Privacy() {
     <p>Spade Haven is intended for players aged 18 and over and is not directed to children. If you believe a child has given us information, contact us and we will delete it.</p>
     <h2>Changes</h2>
     <p>We may update this policy. The date below shows when it last changed.</p>
+  </>);
+}
+
+function Contact() {
+  const subject = encodeURIComponent('Spade Haven support');
+  return (<>
+    <h1>Contact us</h1>
+    <p>Questions, a missing purchase, a bug, or a problem with another player? We are happy to help.</p>
+    <h2>Email</h2>
+    <p><a href={`mailto:${EMAIL}?subject=${subject}`}>{EMAIL}</a></p>
+    <p>We usually reply within a few days.</p>
+    <h2>To help us help you, include</h2>
+    <ul>
+      <li>Your player name (or guest code) and the email you signed up with, if any.</li>
+      <li>What happened, and roughly when (date and time).</li>
+      <li>For a missing purchase: the time of the purchase and the email on the receipt.</li>
+      <li>A screenshot, if you can. Never send your password.</li>
+    </ul>
+    <h2>Other pages</h2>
+    <p>To delete your account and data, see <a href="/data-deletion">Delete your data</a>. See also our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
   </>);
 }
 

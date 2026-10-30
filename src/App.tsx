@@ -92,10 +92,11 @@ export default function App() {
 
   // the install link: play.sedigitaltransformation.com/install (or #install)
   if (hash === '#install' || /^\/install\/?$/.test(window.location.pathname)) return <InstallPage installPrompt={installPrompt} />;
-  // plain addresses for Facebook / the stores: /privacy, /terms, /data-deletion (the #… links keep working)
+  // plain addresses for Facebook / the stores: /privacy, /terms, /contact, /data-deletion (the #… links keep working)
   const path = window.location.pathname.replace(/\/+$/, '');
   const legal = hash === '#privacy' || path === '/privacy' ? 'privacy'
     : hash === '#terms' || path === '/terms' ? 'terms'
+    : hash === '#contact' || path === '/contact' ? 'contact'
     : hash === '#data-deletion' || path === '/data-deletion' ? 'delete' : null;
   if (legal) return <LegalPage page={legal} />;
   let body;

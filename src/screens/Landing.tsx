@@ -135,7 +135,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
       <footer className="land-foot">
         <span><Icon name="spade" size={18} /> Spade Haven</span>
         <span>Virtual coins only — they have no cash value.</span>
-        <span className="land-legal"><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · 18+</span>
+        <span className="land-legal"><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · <a href="#contact">Contact</a> · 18+</span>
         <span>© {new Date().getFullYear()}</span>
       </footer>
       {rules && <RulesModal onClose={() => setRules(false)} />}

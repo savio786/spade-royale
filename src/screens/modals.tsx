@@ -635,7 +635,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
 
       <footer className="st-foot">
         <span>PLAYER: {p.name.toUpperCase()}</span>
-        <span><a href="#privacy">PRIVACY POLICY</a> AND <a href="#terms">TERMS OF SERVICE</a></span>
+        <span><a href="#privacy">PRIVACY POLICY</a> AND <a href="#terms">TERMS OF SERVICE</a> · <a href="#contact">CONTACT US</a></span>
       </footer>
       {emailOpen && <EmailModal onClose={() => setEmailOpen(false)} startMode="up" />}
       {editOpen && <ProfileEditModal onClose={() => setEditOpen(false)} />}
