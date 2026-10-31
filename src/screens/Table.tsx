@@ -46,7 +46,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   // countdowns use the server's clock: a device whose own clock is a few seconds off would otherwise show a wrong or frozen count
   const skew = useRef(0);
   skew.current = view?.snap?.skew ?? 0;
-  useEffect(() => { const t = setInterval(() => setNow(Date.now() + skew.current), 250); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now() + skew.current), 500); return () => clearInterval(t); }, []);
 
   const st = view?.snap?.state ?? null;
   const me = st?.mySeat ?? 0;
