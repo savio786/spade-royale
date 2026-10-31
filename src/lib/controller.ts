@@ -74,7 +74,7 @@ export class RemoteController implements TableController {
     this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null, conn: 'ok' };
     const offMsg = net.on((m) => {
       if (m.t === 'joined') { this.tableId = m.tableId; this.update({ code: m.code, host: m.host, settings: m.settings, error: null, conn: 'ok' }); }
-      else if (m.t === 'snap') this.update({ snap: m.snap });
+      else if (m.t === 'snap') this.update({ snap: { ...m.snap, skew: m.snap.serverNow ? m.snap.serverNow - Date.now() : 0 } });
       else if (m.t === 'error') this.update({ error: m.message });
       else if (m.t === 'kicked') this.update({ kicked: m.reason });
       else if (m.t === 'tableGone') this.update({ conn: 'gone', forfeited: !!m.forfeit });

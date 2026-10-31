@@ -19,6 +19,8 @@ export interface Snapshot {
   fillAt: number | null;         // when computer players fill the empty seats (waiting tables)
   startAt: number | null;        // full table: when the game starts · round summary: when the next hand is dealt
   ready: boolean[];              // pressed Continue on the round summary
+  serverNow?: number;            // the server's clock when this was sent (so a device with a wrong clock can still count down correctly)
+  skew?: number;                 // filled in by the device on arrival: server clock minus this device's clock (ms)
 }
 
 export interface RuntimeOptions {
@@ -188,7 +190,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.turnMs ?? this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.turnMs ?? this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice(), serverNow: Date.now() };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));

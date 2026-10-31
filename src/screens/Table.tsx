@@ -43,7 +43,10 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const lastTurn = useRef<string>('');
 
   useEffect(() => ctl.subscribe(setView), [ctl]);
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
+  // countdowns use the server's clock: a device whose own clock is a few seconds off would otherwise show a wrong or frozen count
+  const skew = useRef(0);
+  skew.current = view?.snap?.skew ?? 0;
+  useEffect(() => { const t = setInterval(() => setNow(Date.now() + skew.current), 250); return () => clearInterval(t); }, []);
 
   const st = view?.snap?.state ?? null;
   const me = st?.mySeat ?? 0;
@@ -203,7 +206,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
             {st.phase === 'waiting' && view.snap!.startAt && (
               <div className="center-msg" role="timer">
                 <b>GAME WILL START IN</b>
-                <span className="cm-big" key={Math.ceil((view.snap!.startAt - now) / 1000)}>{Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}</span>
+                <span className="cm-big" key={Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}>{Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}</span>
               </div>
             )}
             {st.phase === 'bidding' && st.turn !== me && (
