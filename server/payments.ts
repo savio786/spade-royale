@@ -10,7 +10,7 @@ import { productById } from '../shared/products';
 
 const KEY = (process.env.STRIPE_SECRET_KEY || '').trim();
 const STRIPE_BASE = (process.env.STRIPE_API_BASE || 'https://api.stripe.com').replace(/\/+$/, '');
-const WH_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const WH_SECRET = (process.env.STRIPE_WEBHOOK_SECRET || '').trim();
 const stripeOn = () => /^(sk|rk)_(live|test)_/.test(KEY); // the webhook secret is optional: payments are confirmed when the player returns
 const PP_ID = process.env.PAYPAL_CLIENT_ID || '';
 const PP_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
@@ -73,12 +73,16 @@ export async function createCheckout(productId: string, playerId: string, return
 
 /** Verifies Stripe's signature, then records a paid checkout. Returns an HTTP status. */
 export function handleWebhook(raw: string, sigHeader: string | undefined): number {
-  if (!WH_SECRET || !sigHeader) return 400;
-  const parts = Object.fromEntries(sigHeader.split(',').map((kv) => kv.split('=') as [string, string]));
-  const t = parts.t, v1 = parts.v1;
-  if (!t || !v1 || Math.abs(Date.now() / 1000 - Number(t)) > 300) return 400;
+  if (!WH_SECRET) { console.warn('stripe webhook: STRIPE_WEBHOOK_SECRET is not set in the environment'); return 400; }
+  if (!sigHeader) { console.warn('stripe webhook: request had no Stripe-Signature header'); return 400; }
+  const items = sigHeader.split(',').map((kv) => { const i = kv.indexOf('='); return [kv.slice(0, i).trim(), kv.slice(i + 1).trim()] as [string, string]; });
+  const t = items.find(([k]) => k === 't')?.[1];
+  const sigs = items.filter(([k]) => k === 'v1').map(([, v]) => v);   // Stripe may send several while a secret is being rotated
+  if (!t || !sigs.length) { console.warn('stripe webhook: malformed signature header'); return 400; }
+  if (Math.abs(Date.now() / 1000 - Number(t)) > 300) { console.warn('stripe webhook: timestamp too old or the server clock is off'); return 400; }
   const expected = createHmac('sha256', WH_SECRET).update(`${t}.${raw}`).digest('hex');
-  if (expected.length !== v1.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(v1))) return 400;
+  const ok = sigs.some((v1) => v1.length === expected.length && timingSafeEqual(Buffer.from(expected), Buffer.from(v1)));
+  if (!ok) { console.warn('stripe webhook: signature did not match. The signing secret in STRIPE_WEBHOOK_SECRET is probably not the one Stripe shows for this endpoint (secret starts with whsec_)'); return 400; }
 
   const event = JSON.parse(raw);
   if (event.type !== 'checkout.session.completed') return 200;
