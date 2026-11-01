@@ -42,6 +42,7 @@ function Privacy() {
     <p>To run games and leaderboards, keep your progress, deliver purchases, prevent cheating and abuse, and fix problems. We do not sell your personal information and we do not show third-party advertising.</p>
     <h2>Storage on your device</h2>
     <p>Your profile is saved in your browser's local storage so you stay signed in. Clearing your browser data removes it; guests can restore their account with their guest code.</p>
+    <p><b>Cookie:</b> the game sets one small cookie (<code>sh_dev</code>) containing a random code. It is not used for advertising or tracking across other sites. It is linked to your account only so that, if an account is suspended for breaking the rules, the same browser cannot immediately be used to create a new one. It lasts up to two years and you can delete it in your browser settings.</p>
     <h2>Retention and deletion</h2>
     <p>Account and leaderboard data is kept while your account is active. To delete your data, contact us{EMAIL ? <> at <a href={`mailto:${EMAIL}`}>{EMAIL}</a></> : ''} with your player name or guest code.</p>
     <h2>Children</h2>
