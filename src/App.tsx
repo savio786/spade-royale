@@ -6,6 +6,7 @@ import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
 import { LegalPage } from './screens/Legal';
+import { AdminPage } from './screens/Admin';
 import { InstallPage } from './screens/Install';
 import { StartRequest, StoreModal } from './screens/modals';
 import { afterCheckoutReturn, loadPaymentConfig, store, syncPurchases, useStoreRequest } from './lib/payments';
@@ -99,6 +100,8 @@ export default function App() {
     : hash === '#contact' || path === '/contact' ? 'contact'
     : hash === '#data-deletion' || path === '/data-deletion' ? 'delete' : null;
   if (legal) return <LegalPage page={legal} />;
+  // owner-only players list (locked by the ADMIN_KEY secret; not linked from anywhere)
+  if (path === '/admin' || hash === '#admin') return <AdminPage />;
   let body;
   if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
   else if (resetToken) body = <Login resetToken={resetToken} />;

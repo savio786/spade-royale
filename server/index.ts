@@ -14,6 +14,7 @@ import { createHash } from 'crypto';
 import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
+import { adminApi } from './admin';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
@@ -341,6 +342,7 @@ function json(res: import('http').ServerResponse, code: number, body: unknown) {
 function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
+  if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim()).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);

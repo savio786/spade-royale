@@ -87,3 +87,24 @@ export async function nextNumber(name: string): Promise<number> {
   await putRecord(name, { n: cur + 1 });
   return cur + 1;
 }
+
+/** Every record whose name starts with `prefix` (for example "acct-"). Used by the owner-only admin page. */
+export async function listRecords<T>(prefix: string): Promise<T[]> {
+  if (storageKind === 'upstash') {
+    const keys: string[] = [];
+    let cursor = '0';
+    do {
+      const r = (await redis(['SCAN', cursor, 'MATCH', `spade-royale:${prefix}*`, 'COUNT', 500])) as [string, string[]];
+      cursor = String(r[0]); keys.push(...r[1]);
+    } while (cursor !== '0');
+    const out: T[] = [];
+    for (let i = 0; i < keys.length; i += 100) {
+      const vals = (await redis(['MGET', ...keys.slice(i, i + 100)])) as (string | null)[];
+      for (const v of vals) if (typeof v === 'string') { try { out.push(JSON.parse(v) as T); } catch { /* skip a broken record */ } }
+    }
+    return out;
+  }
+  const { readdirSync } = await import('fs');
+  if (!existsSync(DIR)) return [];
+  return readdirSync(DIR).filter((f) => f.startsWith(prefix) && f.endsWith('.json')).flatMap((f) => { try { return [JSON.parse(readFileSync(join(DIR, f), 'utf8')) as T]; } catch { return []; } });
+}
