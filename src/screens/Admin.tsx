@@ -33,6 +33,7 @@ export function AdminPage() {
   const [reports, setReports] = useState<Rep[]>([]);
   const [bans, setBans] = useState<BanRow[]>([]);
   const [reason, setReason] = useState('');
+  const [guests, setGuests] = useState(false);   // list guests too (they have no email)
   useEffect(() => {
     document.title = 'Owner · Spade Haven';
     const m = document.createElement('meta'); m.name = 'robots'; m.content = 'noindex,nofollow'; document.head.appendChild(m);
@@ -46,17 +47,17 @@ export function AdminPage() {
     return j as never;
   }, [key]);
 
-  const refresh = useCallback(async (t: Tab = tab, query = q) => {
+  const refresh = useCallback(async (t: Tab = tab, query = q, guestsFlag?: boolean) => {
     setBusy(true); setErr('');
     try {
-      if (t === 'players') setData(await call('/api/admin/users'));
+      if (t === 'players') setData(await call(`/api/admin/users${guestsFlag ?? guests ? '?all=1' : ''}`));
       if (t === 'find') setFound(query.trim().length >= 2 ? ((await call(`/api/admin/find?q=${encodeURIComponent(query.trim())}`)) as { rows: Row[] }).rows : []);
       if (t === 'reports') setReports(((await call('/api/admin/reports')) as { rows: Rep[] }).rows);
       if (t === 'suspended') setBans(((await call('/api/admin/bans')) as { rows: BanRow[] }).rows);
       setAuthed(true);
     } catch (e) { setErr((e as Error).message); if (!authed) setAuthed(false); }
     setBusy(false);
-  }, [call, tab, q, authed]);
+  }, [call, tab, q, authed, guests]);
 
   const act = async (path: string, body: unknown, done: string) => {
     setErr(''); setMsg('');
@@ -114,12 +115,13 @@ export function AdminPage() {
               <p>{data.withEmail} players with an email · {data.total} accounts in all ({Object.entries(data.byKind).map(([k, n]) => `${KIND[k] ?? k}: ${n}`).join(' · ')}). Guests have no email.</p>
               <p style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <input style={{ ...input, minWidth: 220 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" />
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={guests} onChange={(e) => { setGuests(e.target.checked); void refresh('players', q, e.target.checked); }} /> Show guests too</label>
                 <button className="pill gold small-pill" onClick={() => void download()}>Download spreadsheet (CSV)</button>
               </p>
               <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
-                <thead><tr style={{ borderBottom: '2px solid #6f7bd6' }}><th style={th}>Name</th><th style={th}>Email</th><th style={th}>Sign-in</th><th style={th}>Joined</th><th style={th}></th></tr></thead>
+                <thead><tr style={{ borderBottom: '2px solid #6f7bd6' }}><th style={th}>Name</th><th style={th}>Email</th><th style={th}>Sign-in</th><th style={th}>Joined</th><th style={th}>Last saved</th><th style={th}></th></tr></thead>
                 <tbody>{shown.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}</td><td style={td}>{r.email}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.joined)}</td><td style={td}>{actions(r)}</td></tr>
+                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.joined)}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.lastSaved)}</td><td style={td}>{actions(r)}</td></tr>
                 ))}</tbody></table></div>
             </>)}
 

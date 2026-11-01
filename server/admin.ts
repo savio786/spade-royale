@@ -60,7 +60,7 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
     }
     const byKind: Record<string, number> = {};
     for (const r of rows) byKind[r.kind] = (byKind[r.kind] ?? 0) + 1;
-    return json(res, 200, { total: rows.length, withEmail: withEmail.length, byKind, rows: withEmail });
+    return json(res, 200, { total: rows.length, withEmail: withEmail.length, byKind, rows: url.searchParams.get('all') === '1' ? rows : withEmail });
   }
   if (p === '/api/admin/find') {   // any player, guests included, by name or email
     const q = String(url.searchParams.get('q') || '').trim().toLowerCase();
