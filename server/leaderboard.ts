@@ -29,6 +29,8 @@ let store: Store = empty();
 export async function initLeaderboard() {
   store = await loadJSON('leaderboard', { ...empty(), seeded: false });
   if (!store.allTime) store.allTime = {};
+  // totals never go below zero: lift any older negative total back to 0 (the player stays on the board, showing 0)
+  for (const e of [...Object.values(store.players), ...Object.values(store.allTime)]) if (e.earnings < 0) e.earnings = 0;
   if (!store.seeded) {
     // first start with the all-time list: start it from last week's results and this week so far (nothing is counted twice)
     for (const r of [...(store.lastWeek?.rows ?? []), ...Object.values(store.players)]) {
@@ -42,12 +44,13 @@ export async function initLeaderboard() {
 }
 const save = () => saveJSON('leaderboard', () => store);
 
-const sorted = (rows: LbEntry[]) => rows.filter((r) => r.earnings > 0).sort((a, b) => b.earnings - a.earnings);
+/** Everyone who has played a game this period is listed, highest first; a player who has lost more than they won sits at 0. */
+const sorted = (rows: LbEntry[]) => rows.filter((r) => r.earnings >= 0).sort((a, b) => b.earnings - a.earnings);
 
 function rollover() {
   const now = weekKey();
   if (store.week === now) return;
-  const rows = sorted(Object.values(store.players));
+  const rows = sorted(Object.values(store.players)).filter((r) => r.earnings > 0);   // weekly rewards and the Wall of Fame champion only go to players who actually won something
   store.lastWeek = { week: store.week, rows: rows.slice(0, 100) };
   if (rows[0]) store.fame = [{ week: store.week, name: rows[0].name, avatar: rows[0].avatar, earnings: rows[0].earnings }, ...store.fame].slice(0, 52);
   store.players = {};
@@ -77,10 +80,10 @@ function adjust(p: { id: string; name: string; avatar: string }, delta: number) 
   const e = store.players[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
   e.name = String(p.name).slice(0, 20);
   e.avatar = okAvatar(p.avatar) ?? e.avatar;
-  e.earnings += delta;
+  e.earnings = Math.max(0, e.earnings + delta);   // a total never goes below zero
   store.players[p.id] = e;
   const t = store.allTime[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
-  t.name = e.name; t.avatar = e.avatar; t.earnings += delta;
+  t.name = e.name; t.avatar = e.avatar; t.earnings = Math.max(0, t.earnings + delta);
   store.allTime[p.id] = t;
   save();
 }
@@ -91,8 +94,8 @@ export function credit(p: { id: string; name: string; avatar: string }, amount: 
   adjust(p, Math.round(amount));
 }
 
-/** A loss: the bet is taken off the week's total and the all-time total. The totals can dip below zero
-    (a player stays off the board until their wins make up for their losses). */
+/** A loss: the bet is taken off the week's total and the all-time total, but never below zero
+    (the player stays on the board showing 0 and climbs again with their next wins). */
 export function debit(p: { id: string; name: string; avatar: string }, amount: number) {
   if (!p.id || !(amount > 0)) return;
   adjust(p, -Math.round(amount));
