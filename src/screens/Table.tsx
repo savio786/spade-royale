@@ -156,7 +156,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const t = setTimeout(() => setSent(null), 2500);
     return () => clearTimeout(t);
   }, [sent, st?.hand, view?.error]);
-  const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Halloween rooms this table uses
+  const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Thanksgiving rooms this table uses
   useEffect(() => { if (p.settings.music !== false) music.start(p.settings.track); else music.stop(); }, [p.settings.music, p.settings.track]);
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
 
