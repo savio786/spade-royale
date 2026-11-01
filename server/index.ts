@@ -100,7 +100,7 @@ function summaries(): TableSummary[] {
 
 function sanitize(s: TableSettings): TableSettings {
   const mode: Mode = s.mode === 'solo' ? 'solo' : 'partners';
-  const bet = Math.max(100, Math.min(10_000_000, Math.round(Number(s.bet) || 100)));
+  const bet = Math.max(100, Math.min(2_000_000, Math.round(Number(s.bet) || 100)));
   const maxPoints = [100, 150, 200, 250, 300, 350, 400, 500].includes(s.maxPoints) ? s.maxPoints : 100;
   const minPoints = [-100, -150, -200, -250, -300].includes(s.minPoints) ? s.minPoints : -100;
   return { mode, bet, maxPoints, minPoints, city: String(s.city || 'New York').slice(0, 24), isPrivate: !!s.isPrivate };
@@ -388,7 +388,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         const mode: Mode = b.mode === 'solo' ? 'solo' : 'partners';
         const max = prizeFor({ mode, bet }) * 1.1 + 1;
         const now = Date.now();
-        if (!id || !(bet >= 100 && bet <= 5_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
+        if (!id || !(bet >= 100 && bet <= 2_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
         if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
         lastReport.set(id, now);
         if (isBanned(id)) return json(res, 200, { ok: true });

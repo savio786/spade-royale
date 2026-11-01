@@ -138,7 +138,7 @@ export const CITY_TIERS: { city: string; min: number }[] = [
   { city: 'Seattle', min: 20_000 }, { city: 'Las Vegas', min: 100_000 }, { city: 'London', min: 500_000 }, { city: 'Monaco', min: 2_000_000 },
 ];
 export const cityForBet = (bet: number) => ([...CITY_TIERS].reverse().find((t) => bet >= t.min) ?? CITY_TIERS[0]).city;
-export const BET_STEPS = [100, 250, 500, 1_000, 2_500, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000];
+export const BET_STEPS = [100, 250, 500, 1_000, 2_500, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000];
 export const MAX_STEPS = [100, 150, 200, 250, 300, 350, 400, 500];
 export const MIN_STEPS = [-100, -150, -200, -250, -300];
 export function suggestedBet(coins: number) {

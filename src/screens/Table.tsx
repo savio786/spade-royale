@@ -6,7 +6,7 @@ import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, P
 import { botBid } from '../../shared/bot';
 import type { CtlView, TableController } from '../lib/controller';
 import { fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
-import { PlayerCard } from '../components/PlayerCard';
+import { PlayerCard, ReportDialog } from '../components/PlayerCard';
 import { music, sfx, vibrate } from '../lib/sound';
 import { MusicPicker } from '../components/MusicPicker';
 import { toast } from '../lib/toast';
@@ -337,6 +337,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           onRules={() => { setRulesOpen(true); setMenuOpen(false); }}
           onBot={() => { setMenuOpen(false); helpBot.open(); }}
           onThemes={() => { setMenuOpen(false); setThemesOpen(true); }}
+          players={view.online ? st.seats.flatMap((s, i) => (s && !s.bot && i !== me ? [{ id: s.id, name: s.name, avatar: s.avatar }] : [])) : []}
           confirmLeave={confirmLeave} bet={st.settings.bet}
           onExit={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }} />
       )}
@@ -835,10 +836,12 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle:
   );
 }
 
-function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, bet }: {
-  onClose: () => void; onRules: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number;
+function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, bet, players }: {
+  onClose: () => void; onRules: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number; players: { id: string; name: string; avatar: string }[];
 }) {
   const p = useProfile();
+  const [picking, setPicking] = useState(false);
+  const [target, setTarget] = useState<string | null>(null);
   const set = (k: 'sound' | 'music' | 'vibrate') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   return (
@@ -855,6 +858,14 @@ function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, be
           <button className="tm-btn blue" onClick={() => { sfx.click(); onRules(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>HOW TO PLAY</button>
           <button className="tm-btn purple" onClick={() => { sfx.click(); onBot(); }}><span className="tm-ico"><Icon name="chat" size={22} /></span>ASK SPADE BOT</button>
           <button className="tm-btn gold" onClick={() => { sfx.click(); onThemes(); }}><span className="tm-ico"><Icon name="star" size={22} /></span>TABLE & CARDS</button>
+          {players.length > 0 && p.guestKey && (
+            <>
+              <button className="tm-btn report" onClick={() => { sfx.click(); setPicking((v) => !v); }}><span className="tm-ico">⚑</span>REPORT A PLAYER</button>
+              {picking && players.map((x) => (
+                <button key={x.id} className="tm-pick" onClick={() => { sfx.click(); setTarget(x.id); }}><Avatar k={x.avatar} size={34} name={x.name} /><span>{x.name}</span></button>
+              ))}
+            </>
+          )}
           <div className="tm-rule" />
           <Switch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
           <div className="tm-rule" />
@@ -864,6 +875,7 @@ function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, be
           <Switch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
         </div>
       </aside>
+      {target && <ReportDialog id={target} onClose={() => { setTarget(null); setPicking(false); }} />}
     </div>
   );
 }

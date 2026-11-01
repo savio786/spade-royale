@@ -22,28 +22,34 @@ function FriendAction({ id }: { id: string }) {
 }
 
 const REASONS = ['Cheating or sharing cards', 'Abusive chat or name', 'Other'];
-/** "Report this player": pick a reason, optional note. The owner reads these in the private owner page. */
-function ReportAction({ id }: { id: string }) {
-  const [open, setOpen] = useState(false);
+/** The small "REPORT" button next to Add friend (only for signed-in players). */
+export function ReportButton({ onOpen, done }: { onOpen: () => void; done?: boolean }) {
+  if (!profile.get().guestKey) return null;
+  if (done) return <span className="pcd-friend done">REPORTED</span>;
+  return <button className="pcd-report" onClick={() => { sfx.click(); onOpen(); }}>⚑ REPORT</button>;
+}
+/** Pop-up to pick a reason (and add a note). The owner reads these in the private owner page. Put it at the top level of a screen overlay so it centres on the screen. */
+export function ReportDialog({ id, onClose, onSent }: { id: string; onClose: () => void; onSent?: () => void }) {
   const [reason, setReason] = useState(REASONS[0]);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
   const me = profile.get();
-  if (!me.guestKey) return null;
-  if (sent) return <span className="pcd-friend done">REPORT SENT · THANK YOU</span>;
-  if (!open) return <button className="pcd-report" onClick={() => { sfx.click(); setOpen(true); }}>⚑ REPORT PLAYER</button>;
   const send = async () => {
+    if (!me.guestKey) return;
     setBusy(true);
-    const err = await reportPlayer({ id: me.id, key: me.guestKey!, target: id, reason, note: note.trim() });
+    const err = await reportPlayer({ id: me.id, key: me.guestKey, target: id, reason, note: note.trim() });
     setBusy(false);
-    if (err) toast(err); else { setSent(true); toast('Thanks. We will look into it.'); }
+    if (err) { toast(err); return; }
+    toast('Thanks. We will look into it.'); onSent?.(); onClose();
   };
   return (
-    <div className="pcd-reportbox">
-      <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason">{REASONS.map((r) => <option key={r}>{r}</option>)}</select>
-      <input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="Add a note (optional)" aria-label="Note" />
-      <span><button className="pcd-friend" disabled={busy} onClick={() => void send()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button> <button className="pcd-report" onClick={() => setOpen(false)}>CANCEL</button></span>
+    <div className="rp-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="rp-box" role="dialog" aria-modal="true" aria-label="Report player">
+        <h3>REPORT PLAYER</h3>
+        <label>Reason<select value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r}>{r}</option>)}</select></label>
+        <label>Note (optional)<input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="What happened?" /></label>
+        <div className="rp-row"><button className="pcd-friend" disabled={busy} onClick={() => void send()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button><button className="pcd-report" onClick={() => { sfx.click(); onClose(); }}>CANCEL</button></div>
+      </div>
     </div>
   );
 }
@@ -51,6 +57,8 @@ function ReportAction({ id }: { id: string }) {
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '0%');
 
 export function PlayerCard({ player, onClose, onEdit }: { player: CardPlayer; onClose: () => void; onEdit?: () => void }) {
+  const [reporting, setReporting] = useState(false);
+  const [reported, setReported] = useState(false);
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   const s = player.stats ?? { coins: 0, played: 0, won: 0, last5: '', nil: 0, nilMade: 0, blind: 0, blindMade: 0, rings: {} };
   const last5 = s.last5.padStart(5, '-').split('');
@@ -72,8 +80,7 @@ export function PlayerCard({ player, onClose, onEdit }: { player: CardPlayer; on
             <h2 className="pcd-name">{player.name}</h2>
             {onEdit && <button className="pcd-edit" onClick={() => { sfx.click(); onEdit(); }}>✎ EDIT NAME &amp; PICTURE</button>}
             {player.bot && <span className="pcd-cpu">COMPUTER PLAYER</span>}
-            {player.id && !player.bot && <FriendAction id={player.id} />}
-            {player.id && !player.bot && <ReportAction id={player.id} />}
+            {player.id && !player.bot && <div className="pcd-actions"><FriendAction id={player.id} /><ReportButton done={reported} onOpen={() => setReporting(true)} /></div>}
           </div>
         </header>
         <section className="pcd-sec">
@@ -102,6 +109,7 @@ export function PlayerCard({ player, onClose, onEdit }: { player: CardPlayer; on
           </div>
         </section>
       </div>
+      {reporting && player.id && <ReportDialog id={player.id} onClose={() => setReporting(false)} onSent={() => setReported(true)} />}
     </div>
   );
 }
