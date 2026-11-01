@@ -1923,3 +1923,29 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
   .hostess.left { left: -8vw; }
   .hostess.right { right: -8vw; }
 }
+
+/* ===== lobby bottom bar: golden neon instead of blue, and bigger ===== */
+.lobby-main { bottom: 168px; }
+.lobby .bottom-nav { height: 140px; grid-template-columns: 1fr 1fr 430px 1fr 1fr; }
+.lobby .bottom-nav::before { background: linear-gradient(180deg, #7a5a14, #d8a62c 50%, #fff0b0); }
+.lobby .bottom-nav > button:not(.mega) { height: 132px; gap: 8px; font-size: 34px; color: #ffc83d; filter: drop-shadow(0 0 6px rgba(255,190,40,.55)); }
+.lobby .bottom-nav > button:not(.mega) span { color: #ffe7a0; text-shadow: 0 0 10px rgba(255,190,40,.55); }
+.lobby .bottom-nav > button:not(.mega):hover { color: #ffe08a; }
+.lobby .bottom-nav > button:not(.mega) svg { width: 72px; height: 72px; color: #ffc83d; filter: drop-shadow(0 0 4px #ffb81f) drop-shadow(0 0 12px rgba(255,184,31,.75)); }
+.lobby .bottom-nav > button:not(.mega) + button:not(.mega)::before, .lobby .bottom-nav > .mega + button::before { top: 26px; bottom: 26px; background: linear-gradient(180deg, transparent, rgba(255,200,61,.4), transparent); }
+.lobby .bottom-nav .badge { top: 10px; right: calc(50% - 52px); }
+.lobby .mega { margin-top: -34px; gap: 12px; padding: 0 28px; border-color: #e0b44a; background: linear-gradient(180deg, #3a2c12, #120d05 60%); box-shadow: inset 0 3px 0 rgba(255,225,140,.3), 0 -6px 16px rgba(0,0,0,.5); }
+.lobby .mega-title { font-size: 32px; color: #ffe7a0; }
+.lobby .mega-title b { color: #fff6d6; }
+.lobby .mega-bar { height: 38px; background: #0c0803; box-shadow: inset 0 2px 6px rgba(0,0,0,.85), 0 0 0 3px #8a6a1f; }
+.lobby .mega-fill { background: linear-gradient(180deg, #fff1a0, #ffc83d 50%, #d98a00); box-shadow: 0 0 14px rgba(255,200,61,.85); }
+.lobby .mega-bar i { background: rgba(12,8,3,.85); }
+.lobby .mega-peek .mw-back { filter: drop-shadow(0 0 8px rgba(255,200,61,.75)); }
+.lobby .mega.ready { padding: 0 12px; }
+.lobby .mega-peek { width: 262px; height: 126px; margin-top: 10px; }
+.lobby .mega-peek .mw-art { width: 262px; }
+.lobby .mega { height: 174px; align-self: end; }
+.lobby .mega:not(.ready) { padding-top: 18px; }
+.lobby .mega.ready { justify-content: flex-start; padding-top: 4px; }
+.lobby .mega-tap { bottom: 8px; font-size: 28px; }
+.lobby .mega-tap { background: linear-gradient(180deg, #ffe58a, #e0a21c); color: #3a2400; text-shadow: none; border-color: #fff0b0; box-shadow: 0 0 14px rgba(255,200,61,.7); }
