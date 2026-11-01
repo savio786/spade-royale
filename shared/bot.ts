@@ -47,6 +47,7 @@ function beats(card: Card, g: GameState): boolean {
 }
 const lowest = (cs: Card[]) => cs.reduce((a, b) => (b.r < a.r || (b.r === a.r && b.s !== 'S') ? b : a));
 const highest = (cs: Card[]) => cs.reduce((a, b) => (b.r > a.r ? b : a));
+const lowestRank = (cs: Card[]) => cs.reduce((a, b) => (b.r < a.r ? b : a));
 const lowestNonSpadeFirst = (cs: Card[]) => {
   const ns = cs.filter((c) => c.s !== 'S');
   return ns.length ? ns.reduce((a, b) => (b.r < a.r ? b : a)) : cs.reduce((a, b) => (b.r < a.r ? b : a));
@@ -74,11 +75,26 @@ export function botPlay(g: GameState, seat: number): Card {
   if (partnerNil) {
     const partnerPlayed = g.trick.some((t) => t.seat === partner);
     const best = currentBest(g);
-    if (leading) return highest(legal.filter((c) => c.s !== 'S').length ? legal.filter((c) => c.s !== 'S') : legal);
-    if (best === partner || !partnerPlayed) {
-      const winners = legal.filter((c) => beats(c, g));
-      if (winners.length) return highest(winners);
+    const winners = legal.filter((c) => beats(c, g));
+    if (leading) {
+      // lead a card nobody can beat in its suit (the highest one still unplayed): partner must follow with a lower card, so they cannot win the trick
+      const unseen = unseenCards(g, seat);
+      const nonSpades = legal.filter((c) => c.s !== 'S');
+      const boss = nonSpades.filter((c) => !unseen.some((u) => u.s === c.s && u.r > c.r));
+      if (boss.length) return highest(boss);
+      return highest(nonSpades.length ? nonSpades : legal);
     }
+    if (partnerPlayed && best === partner) {
+      // partner is about to take the trick: beat their card with the cheapest card that does it (a plain suit card before a trump)
+      if (winners.length) { const plain = winners.filter((c) => c.s !== 'S'); return lowestRank(plain.length ? plain : winners); }
+      return lowestNonSpadeFirst(legal);   // cannot beat them: nothing to save, keep the good cards
+    }
+    if (!partnerPlayed) {
+      // partner still has to play: set the trick as high as possible so their (low) card cannot win it
+      if (winners.length) return highest(winners);
+      return lowestNonSpadeFirst(legal);
+    }
+    // partner already played and somebody else is winning: partner is safe, play on normally
   }
 
   // 3) Normal contract play
@@ -160,7 +176,14 @@ export function skilledBid(g: GameState, seat: number, skill: BotSkill): number 
   if (Math.random() < 0.3) return Math.max(1, Math.min(13, best + (Math.random() < 0.5 ? -1 : 1)));
   return best;
 }
+/** Is this seat, or its partner, playing for a Nil that is still alive? Computer players never play loosely then. */
+function nilAlive(g: GameState, seat: number): boolean {
+  const mine = g.bids[seat] === 0 && g.tricks[seat] === 0;
+  const p = (seat + 2) % 4;
+  return mine || (g.settings.mode === 'partners' && g.bids[p] === 0 && g.tricks[p] === 0);
+}
 export function skilledPlay(g: GameState, seat: number, skill: BotSkill): Card {
+  if (nilAlive(g, seat)) return skill === 'expert' ? expertPlay(g, seat) : botPlay(g, seat);
   if (skill === 'expert') return expertPlay(g, seat);
   if (skill === 'high' || Math.random() >= 0.22) return botPlay(g, seat);
   const legal = legalCards(g, seat);
