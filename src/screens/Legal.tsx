@@ -78,7 +78,14 @@ function DeleteData() {
   return (<>
     <h1>Delete your data</h1>
     <p>You can ask us to delete your Spade Haven account and the information we hold about you at any time.</p>
-    <h2>How to ask</h2>
+    <h2>Delete it yourself, right away</h2>
+    <ol>
+      <li>Open the game and tap the gear (Settings).</li>
+      <li>Open “Table &amp; cards, guest code and more”.</li>
+      <li>Choose “Delete my account”, type DELETE and confirm. Your account, progress, friends, picture and leaderboard entries are removed immediately.</li>
+    </ol>
+    <p>This works for guests and for accounts created with email, Google or Facebook.</p>
+    <h2>Or ask us to do it</h2>
     <ol>
       <li>Email <a href={`mailto:${EMAIL}?subject=${subject}`}>{EMAIL}</a> from the address you signed up with (or tell us your player name or guest code).</li>
       <li>Put “Delete my Spade Haven data” in the subject.</li>
