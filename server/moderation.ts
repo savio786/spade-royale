@@ -86,3 +86,10 @@ export function noteDevice(id: string, dev: string) {
   save();
 }
 export const isDeviceBanned = (dev: string) => !!dev && !!store.bannedDevices[dev];
+
+/** Account deletion: drop the chat mute and the device link. The suspension itself (name, email, reason) is kept so it cannot be dodged by deleting. */
+export function forget(id: string) {
+  delete store.muted[id];
+  if (!store.bans[id]) delete store.devices[id];
+  save();
+}

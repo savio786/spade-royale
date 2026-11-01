@@ -74,6 +74,15 @@ export function AdminPage() {
     const a = document.createElement('a'); a.href = url; a.download = 'spade-haven-players.csv'; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
+  const backup = async () => {
+    setErr(''); setMsg('');
+    const r = await fetch('/api/admin/backup', { headers: { 'x-admin-key': key.trim() }, cache: 'no-store' });
+    if (!r.ok) { setErr('Could not download the backup.'); return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a'); a.href = url; a.download = `spade-haven-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setMsg('Backup downloaded. It holds private account data, so keep the file somewhere safe.');
+  };
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return data ? data.rows.filter((r) => !s || r.email.toLowerCase().includes(s) || r.name.toLowerCase().includes(s)) : [];
@@ -113,6 +122,7 @@ export function AdminPage() {
                 <button key={t} className={`pill small-pill ${tab === t ? 'gold' : ''}`} onClick={() => go(t)}>{l}</button>
               ))}
               <button className="pill small-pill" onClick={() => void refresh()}>Refresh</button>
+              <button className="pill small-pill" onClick={() => void backup()}>Download backup</button>
             </p>
             {err && <p style={{ color: '#ff8a8a' }}>{err}</p>}
             {msg && <p style={{ color: '#7dffb0' }}>{msg}</p>}

@@ -108,3 +108,41 @@ export async function listRecords<T>(prefix: string): Promise<T[]> {
   if (!existsSync(DIR)) return [];
   return readdirSync(DIR).filter((f) => f.startsWith(prefix) && f.endsWith('.json')).flatMap((f) => { try { return [JSON.parse(readFileSync(join(DIR, f), 'utf8')) as T]; } catch { return []; } });
 }
+
+/** Removes one record (nothing happens if it is not there). */
+export async function deleteRecord(name: string) {
+  if (storageKind === 'upstash') { await redis(['DEL', `spade-royale:${name}`]); return; }
+  const f = join(DIR, `${name}.json`);
+  const { unlinkSync } = await import('fs');
+  try { if (existsSync(f)) unlinkSync(f); } catch { /* already gone */ }
+}
+
+/** Every record in storage as { name: value }, for the owner's backup download. Profile photos are left out unless asked for. */
+export async function exportAll(withPhotos = false): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  const keep = (name: string) => withPhotos || !name.startsWith('photo-');
+  if (storageKind === 'upstash') {
+    const keys: string[] = [];
+    let cursor = '0';
+    do {
+      const r = (await redis(['SCAN', cursor, 'MATCH', 'spade-royale:*', 'COUNT', 500])) as [string, string[]];
+      cursor = String(r[0]); keys.push(...r[1]);
+    } while (cursor !== '0');
+    const names = keys.map((k) => k.slice('spade-royale:'.length)).filter(keep);
+    for (let i = 0; i < names.length; i += 100) {
+      const part = names.slice(i, i + 100);
+      const vals = (await redis(['MGET', ...part.map((n) => `spade-royale:${n}`)])) as (string | null)[];
+      part.forEach((n, j) => { const v = vals[j]; if (typeof v === 'string') { try { out[n] = JSON.parse(v); } catch { out[n] = v; } } });
+    }
+    return out;
+  }
+  const { readdirSync } = await import('fs');
+  if (!existsSync(DIR)) return out;
+  for (const f of readdirSync(DIR)) {
+    if (!f.endsWith('.json')) continue;
+    const n = f.slice(0, -5);
+    if (!keep(n)) continue;
+    try { out[n] = JSON.parse(readFileSync(join(DIR, f), 'utf8')); } catch { /* skip a broken file */ }
+  }
+  return out;
+}

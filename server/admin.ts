@@ -3,7 +3,7 @@
 // and every address here answers "not found".
 import { createHash, timingSafeEqual } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
-import { listRecords } from './storage';
+import { exportAll, listRecords } from './storage';
 import type { Account } from './accounts';
 import { ban, dismissReport, isBanned, isMuted, listBans, listMuted, listReports, mute, unban, unmute } from './moderation';
 import { removePlayer } from './leaderboard';
@@ -33,7 +33,7 @@ const acctId = (id: unknown) => String(id ?? '').slice(0, 64);
 export async function adminApi(req: IncomingMessage, res: ServerResponse, url: URL, ip: string, onBan: (id: string) => void) {
   if (!adminEnabled) return json(res, 404, { error: 'not found' });
   const p = url.pathname;
-  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted'].includes(p))
+  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup'].includes(p))
     || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/reports/dismiss'].includes(p));
   if (!known) return json(res, 404, { error: 'not found' });
   const f = fails.get(ip);
@@ -45,6 +45,12 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
     return json(res, 403, { error: 'Wrong key.' });
   }
   fails.delete(ip);
+
+  if (p === '/api/admin/backup') {   // everything the game stores, as one file (it contains password hashes and account keys: keep it private)
+    const all = await exportAll(url.searchParams.get('photos') === '1');
+    const day = new Date().toISOString().slice(0, 10);
+    return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ app: 'spade-haven', exportedAt: new Date().toISOString(), records: all }), { 'content-disposition': `attachment; filename="spade-haven-backup-${day}.json"` });
+  }
 
   const accounts = await listRecords<Account>('acct-');
   const row = (a: Account) => ({ id: a.id, name: a.name, kind: a.kind ?? 'guest', email: a.email ?? '', joined: a.createdAt || 0, lastSaved: a.updatedAt || 0, banned: isBanned(a.id), muted: isMuted(a.id) });

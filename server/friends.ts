@@ -2,7 +2,7 @@
 // Each player has a small record of ids (friends / requests received / requests sent) plus a
 // directory entry (name, picture, level, coins) so offline friends can still be shown.
 // Whether someone is online is not stored: index.ts knows who is connected.
-import { getRecord, putRecord } from './storage';
+import { deleteRecord, getRecord, putRecord } from './storage';
 import type { SocialPerson, SocialView } from '../shared/protocol';
 import { nameKey, reserveIfFree } from './names';
 
@@ -164,5 +164,22 @@ export function cancel(me: string, other: string): Promise<Result> {
     mine.outgoing = without(mine.outgoing, other); theirs.incoming = without(theirs.incoming, me);
     await Promise.all([saveSocial(me), saveSocial(other)]);
     return { ok: true, message: 'Request cancelled.', touched: [me, other], notes: [] };
+  });
+}
+
+/** Account deletion: take this player out of everyone's friend lists and requests, and remove their own lists and directory entry. */
+export function erase(id: string): Promise<string[]> {
+  return locked(async () => {
+    id = safe(id);
+    const mine = await social(id);
+    const others = [...new Set([...mine.friends, ...mine.incoming, ...mine.outgoing])];
+    for (const o of others) {
+      const s = await social(o);
+      s.friends = without(s.friends, id); s.incoming = without(s.incoming, id); s.outgoing = without(s.outgoing, id); s.declined = without(s.declined, id);
+      await saveSocial(o);
+    }
+    socials.delete(id); dirs.delete(id);
+    await Promise.all([deleteRecord(`social-${id}`), deleteRecord(`dir-${id}`)]);
+    return others;
   });
 }

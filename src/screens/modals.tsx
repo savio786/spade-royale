@@ -14,7 +14,7 @@ import type { OnlineCounts } from '../../shared/protocol';
 import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
-import { changeName, checkName } from '../lib/guest';
+import { changeName, checkName, deleteMyAccount } from '../lib/guest';
 import { social, useSocial } from '../lib/social';
 import { inviteLink, inviteText, loadReferral, useReferral, useReferralFailed } from '../lib/referral';
 import { ShareIcon } from './Install';
@@ -554,6 +554,9 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
   const [emailOpen, setEmailOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delText, setDelText] = useState('');
+  const [delBusy, setDelBusy] = useState(false);
   const [cfg, setCfg] = useState<AuthConfig>({ google: null, facebook: null });
   const googleRef = useRef<HTMLDivElement>(null);
   useEffect(() => net.onStatus(setStatus), []);
@@ -631,6 +634,27 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         </div>
         {installPrompt ? <Pill color="blue" onClick={installPrompt}><Icon name="download" size={16} /> Install app</Pill> : <a className="linkish" href="/install">How to install the app on your phone</a>}
         <p className="muted small">Multiplayer server: <b className={status === 'online' ? 'online' : ''}>{status}</b></p>
+        {!!p.guestKey && (
+          <div className="st-delete">
+            {!delOpen ? (
+              <button className="linkish" onClick={() => { sfx.click(); setDelOpen(true); }}>Delete my account…</button>
+            ) : (
+              <>
+                <p><b>Delete {p.name} for good?</b> This removes your account, coins, level, friends, picture and leaderboard spots. It cannot be undone. Payment records are kept for accounting.</p>
+                <input value={delText} onChange={(e) => setDelText(e.target.value)} placeholder="Type DELETE to confirm" aria-label="Type DELETE to confirm" autoCapitalize="characters" />
+                <div className="st-delete-row">
+                  <button className="st-delete-go" disabled={delBusy || delText.trim().toUpperCase() !== 'DELETE'} onClick={async () => {
+                    setDelBusy(true);
+                    const r = await deleteMyAccount();
+                    setDelBusy(false);
+                    if (r.ok) { toast('Your account was deleted'); onClose(); } else toast(r.message || 'Could not delete the account', 'error');
+                  }}>{delBusy ? 'DELETING…' : 'DELETE FOR GOOD'}</button>
+                  <button className="linkish" onClick={() => { setDelOpen(false); setDelText(''); }}>Keep my account</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </details>
 
       <footer className="st-foot">

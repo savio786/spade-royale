@@ -10,12 +10,13 @@ import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
 import { board, credit, debit, initLeaderboard, touch } from './leaderboard';
-import { getRecord, putRecord, storageKind } from './storage';
+import { deleteRecord, getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
+import { deleteAccount } from './deleteAccount';
 import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
 import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
@@ -532,6 +533,17 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
       }
       nameTries.set(id, [...log, now]);
       return json(res, 200, await checkName(id, key, b.name));
+    }
+    // a player deleting their own account: { id, key, confirm: 'DELETE' }
+    if (req.method === 'POST' && url.pathname === '/api/guest/delete') {
+      const b = JSON.parse((await readBody(req, 2000)) || '{}');
+      if (String(b.confirm) !== 'DELETE') return json(res, 400, { ok: false, message: 'Type DELETE to confirm.' });
+      const id = String(b.id || '').slice(0, 64);
+      const r = await deleteAccount(id, String(b.key || '').slice(0, 80));
+      if (!r.ok) return json(res, r.status, { ok: false, message: r.message });
+      for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); try { c.ws.close(); } catch { /* closed */ } }
+      if (r.photo) { photoCache.delete(r.photo); await deleteRecord(`photo-${r.photo}`); }
+      return json(res, 200, { ok: true });
     }
     if (req.method === 'POST' && url.pathname === '/api/guest/restore') {
       const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0];

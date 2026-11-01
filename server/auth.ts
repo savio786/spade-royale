@@ -19,7 +19,7 @@ export class AuthError extends Error { constructor(msg: string, public status = 
 
 const normEmail = (e: unknown) => String(e ?? '').trim().toLowerCase();
 const emailOk = (e: string) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(e);
-const emailRef = (e: string) => `login-email-${createHash('sha256').update(e).digest('hex').slice(0, 40)}`;
+export const emailRef = (e: string) => `login-email-${createHash('sha256').update(e).digest('hex').slice(0, 40)}`;
 
 async function hash(pw: string) { const salt = randomBytes(16).toString('hex'); return `${salt}:${(await scrypt(pw, salt, 64)).toString('hex')}`; }
 async function verify(pw: string, stored: string) {

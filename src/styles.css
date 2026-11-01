@@ -1996,3 +1996,10 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .tm-btn.report { background: linear-gradient(180deg, #ff8a8a, #d12f3f 50%, #7a0f1d); }
 .tm-pick { flex: none; display: flex; align-items: center; gap: 12px; padding: 6px 14px; border-radius: 14px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); color: #fff; font: 400 26px var(--display); text-align: left; cursor: pointer; }
 .tm-pick:hover { background: rgba(255,255,255,.2); }
+
+.st-delete { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.14); font-size: 15px; }
+.st-delete p { margin: 0 0 8px; line-height: 1.35; }
+.st-delete input { width: 100%; max-width: 320px; padding: 9px 11px; font-size: 16px; border-radius: 8px; border: 1px solid #8f9ae8; background: #0b0d33; color: #fff; }
+.st-delete-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.st-delete-go { padding: 9px 16px; border-radius: 999px; border: 0; font: 400 20px var(--display); letter-spacing: 1px; color: #fff; background: linear-gradient(#e14a4a, #a31d1d); cursor: pointer; }
+.st-delete-go:disabled { opacity: .4; cursor: not-allowed; }
