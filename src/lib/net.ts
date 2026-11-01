@@ -15,11 +15,12 @@ class Net {
   private subs = new Set<(m: ServerMsg) => void>();
   private statusSubs = new Set<(s: NetStatus) => void>();
   private retry = 0;
+  private stopped = false;   // set when this account is suspended: no more reconnecting
   private queue: ClientMsg[] = [];
 
   connect() {
     const url = serverUrl();
-    if (!url || this.ws) return;
+    if (!url || this.ws || this.stopped) return;
     this.setStatus('connecting');
     let ws: WebSocket;
     try { ws = new WebSocket(url); } catch { this.setStatus('offline'); return; }
@@ -32,13 +33,13 @@ class Net {
       this.queue.splice(0).filter((m) => m.t !== 'act').forEach((m) => this.send(m)); // stale moves are dropped
     };
     ws.onmessage = (e) => {
-      try { const m = JSON.parse(e.data) as ServerMsg; this.subs.forEach((f) => f(m)); } catch { /* ignore */ }
+      try { const m = JSON.parse(e.data) as ServerMsg; if (m.t === 'banned') this.stopped = true; this.subs.forEach((f) => f(m)); } catch { /* ignore */ }
     };
     ws.onclose = () => {
       this.ws = null;
       this.setStatus('offline');
       const delay = Math.min(15000, 1000 * 2 ** this.retry++); // quick retries: 1s, 2s, 4s…
-      setTimeout(() => this.connect(), delay);
+      if (!this.stopped) setTimeout(() => this.connect(), delay);
     };
     ws.onerror = () => ws.close();
   }

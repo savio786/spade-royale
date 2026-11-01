@@ -1,11 +1,14 @@
 // Player profile card: coins, level, city rings and career statistics. Opens when you tap a player's picture.
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon } from './ui';
 import { CityRing, lookFor } from './CityRing';
 import { CITIES, type PublicStats } from '../../shared/engine';
 import { fmt } from '../lib/profile';
 import { sfx } from '../lib/sound';
 import { social, useSocial } from '../lib/social';
+import { reportPlayer } from '../lib/api';
+import { profile } from '../lib/profile';
+import { toast } from '../lib/toast';
 
 export interface CardPlayer { name: string; avatar: string; level: number; bot?: boolean; stats?: PublicStats; levelPct?: number; id?: string }
 
@@ -16,6 +19,33 @@ function FriendAction({ id }: { id: string }) {
   if (s.outgoing.some((f) => f.id === id)) return <span className="pcd-friend done">REQUEST SENT</span>;
   if (s.incoming.some((f) => f.id === id)) return <button className="pcd-friend" onClick={() => { sfx.click(); social.accept(id); }}>ACCEPT FRIEND REQUEST</button>;
   return <button className="pcd-friend" onClick={() => { sfx.click(); social.addById(id); }}>+ ADD FRIEND</button>;
+}
+
+const REASONS = ['Cheating or sharing cards', 'Abusive chat or name', 'Other'];
+/** "Report this player": pick a reason, optional note. The owner reads these in the private owner page. */
+function ReportAction({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState(REASONS[0]);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const me = profile.get();
+  if (!me.guestKey) return null;
+  if (sent) return <span className="pcd-friend done">REPORT SENT · THANK YOU</span>;
+  if (!open) return <button className="pcd-report" onClick={() => { sfx.click(); setOpen(true); }}>⚑ REPORT PLAYER</button>;
+  const send = async () => {
+    setBusy(true);
+    const err = await reportPlayer({ id: me.id, key: me.guestKey!, target: id, reason, note: note.trim() });
+    setBusy(false);
+    if (err) toast(err); else { setSent(true); toast('Thanks. We will look into it.'); }
+  };
+  return (
+    <div className="pcd-reportbox">
+      <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason">{REASONS.map((r) => <option key={r}>{r}</option>)}</select>
+      <input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="Add a note (optional)" aria-label="Note" />
+      <span><button className="pcd-friend" disabled={busy} onClick={() => void send()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button> <button className="pcd-report" onClick={() => setOpen(false)}>CANCEL</button></span>
+    </div>
+  );
 }
 
 const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 1000) / 10}%` : '0%');
@@ -43,6 +73,7 @@ export function PlayerCard({ player, onClose, onEdit }: { player: CardPlayer; on
             {onEdit && <button className="pcd-edit" onClick={() => { sfx.click(); onEdit(); }}>✎ EDIT NAME &amp; PICTURE</button>}
             {player.bot && <span className="pcd-cpu">COMPUTER PLAYER</span>}
             {player.id && !player.bot && <FriendAction id={player.id} />}
+            {player.id && !player.bot && <ReportAction id={player.id} />}
           </div>
         </header>
         <section className="pcd-sec">

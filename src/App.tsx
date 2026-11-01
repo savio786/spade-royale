@@ -60,7 +60,8 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', h);
   }, []);
   useEffect(() => { if (inApp && p.provider) net.connect(); }, [inApp, p.provider]);
-  useEffect(() => net.on((m) => { if (m.t === 'notice') toast(m.message); }), []);
+  const [banned, setBanned] = useState<string | null>(null);
+  useEffect(() => net.on((m) => { if (m.t === 'notice') toast(m.message); else if (m.t === 'banned') setBanned(m.message); }), []);
   useEffect(() => { if (inApp) void pullGuestProgress(); }, [inApp]);
   useEffect(() => { if (p.provider && net.status === 'online') net.hello(); }, [p.name, p.avatar, p.provider, p.chatUntil, p.vip]);
   useEffect(() => {
@@ -103,7 +104,8 @@ export default function App() {
   // owner-only players list (locked by the ADMIN_KEY secret; not linked from anywhere)
   if (path === '/admin' || hash === '#admin') return <AdminPage />;
   let body;
-  if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
+  if (banned && inApp) body = <Suspended message={banned} />;
+  else if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
   else if (resetToken) body = <Login resetToken={resetToken} />;
   else if (!p.provider) body = <Login />;
   else if (screen === 'table' && ctl) body = (
@@ -121,6 +123,19 @@ export default function App() {
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
       </div>
     </>
+  );
+}
+
+/** Shown when the owner has suspended this account. */
+function Suspended({ message }: { message: string }) {
+  return (
+    <div className="screen" style={{ display: 'grid', placeItems: 'center', padding: 40, textAlign: 'center', color: '#fff' }}>
+      <div style={{ maxWidth: 560 }}>
+        <h1 style={{ fontFamily: 'var(--display)', fontSize: 54, margin: 0 }}>ACCOUNT SUSPENDED</h1>
+        <p style={{ fontSize: 24, lineHeight: 1.4 }}>{message}</p>
+        <p><a href="/contact" style={{ color: '#9cc4ff', fontSize: 22 }}>Contact support</a></p>
+      </div>
+    </div>
   );
 }
 

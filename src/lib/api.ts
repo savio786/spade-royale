@@ -28,6 +28,17 @@ export async function fetchBoard(id?: string): Promise<Board | null> {
   } catch { return null; }
 }
 
+/** Tell the owner about a player (cheating, abuse...). Returns an error message, or null when it was sent. */
+export async function reportPlayer(p: { id: string; key: string; target: string; reason: string; note: string }): Promise<string | null> {
+  const base = apiBase();
+  if (!base) return 'Reports need an internet connection.';
+  try {
+    const r = await fetch(`${base}/api/report-player`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(p) });
+    if (r.ok) return null;
+    return ((await r.json().catch(() => ({}))) as { error?: string }).error || 'Could not send the report.';
+  } catch { return 'Could not reach the server.'; }
+}
+
 export async function reportWin(p: { id: string; name: string; avatar: string; mode: Mode; bet: number; prize: number; lost?: boolean }) {
   const base = apiBase();
   if (!base) return;

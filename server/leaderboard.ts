@@ -121,3 +121,12 @@ export function board(id?: string) {
 
 /** Wipes every leaderboard and Wall of Fame entry. */
 export function resetAll() { store = empty(); save(); }
+
+/** Takes a player off both boards completely (this week, all-time, last week, and any Wall of Fame weeks under their name). */
+export function removePlayer(id: string, name?: string) {
+  const gone = store.players[id]?.name ?? store.allTime[id]?.name ?? name;
+  delete store.players[id]; delete store.allTime[id];
+  if (store.lastWeek) store.lastWeek.rows = store.lastWeek.rows.filter((r) => r.id !== id);
+  if (gone) store.fame = store.fame.filter((f) => f.name !== gone);
+  save();
+}

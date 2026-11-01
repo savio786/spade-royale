@@ -34,6 +34,7 @@ function Privacy() {
       <li><b>Game profile:</b> your player name, avatar (and your profile photo, if you upload one — it is shown to other players at your table and on leaderboards), coins, level, game results and settings. Guest accounts receive an automatic name and a recovery code.</li>
       <li><b>Account details:</b> if you create an account, your email address (or the name and email your Google or Facebook account shares with us). Passwords are stored only as a secure one-way hash — we never see or store your actual password.</li>
       <li><b>Chat messages</b> you send at tables, which are relayed to the other players at that table and are not stored after the table closes.</li>
+      <li><b>Reports and suspensions:</b> if you report a player (from their profile card), we keep your report, your player name and the reason so the owner can review it. If an account is suspended for breaking the rules, we keep its name, email and the reason so it cannot simply return.</li>
       <li><b>Purchases:</b> when you buy coins or a Chat Pass, payment is handled by Stripe (or by Google Play / the App Store in the mobile apps). We receive a record of what you bought, not your full card details.</li>
       <li><b>Technical data:</b> basic server logs (such as IP address and time of request) used to keep the service running and to prevent abuse.</li>
     </ul>

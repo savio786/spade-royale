@@ -14,6 +14,7 @@ const FACEBOOK_APP_SECRET = (process.env.FACEBOOK_APP_SECRET || '').trim();
 
 export const authConfig = () => ({ google: GOOGLE_CLIENT_ID || null, facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? FACEBOOK_APP_ID : null, resetMail: mailConfigured(), facebookPublic: (process.env.FACEBOOK_PUBLIC || '').trim() === '1' });
 
+import { SUSPENDED_MESSAGE, isBanned, isEmailBanned } from './moderation';
 export class AuthError extends Error { constructor(msg: string, public status = 400) { super(msg); } }
 
 const normEmail = (e: unknown) => String(e ?? '').trim().toLowerCase();
@@ -47,6 +48,7 @@ export async function signUp(b: Record<string, unknown>) {
   const email = normEmail(b.email), pw = String(b.password ?? '');
   if (!emailOk(email)) throw new AuthError('Enter a valid email address.');
   if (pw.length < 6) throw new AuthError('Use a password of at least 6 characters.');
+  if (isEmailBanned(email)) throw new AuthError(SUSPENDED_MESSAGE, 403);
   if (await getRecord(emailRef(email))) throw new AuthError('An account with this email already exists — sign in instead.', 409);
   // a guest upgrading keeps all their progress (and may keep their name, or choose a new one)
   const guest = await ownedGuest(b.adopt);
@@ -71,6 +73,7 @@ export async function signIn(b: Record<string, unknown>) {
   const ref = emailOk(email) ? await getRecord<{ id: string }>(emailRef(email)) : null;
   const a = ref ? await getRecord<Account>(acctKey(ref.id)) : null;
   if (!a || !a.pass || !(await verify(pw, a.pass))) throw new AuthError('Wrong email or password.', 401);
+  if (isBanned(a.id) || isEmailBanned(a.email)) throw new AuthError(SUSPENDED_MESSAGE, 403);
   return pub(a);
 }
 
@@ -126,7 +129,8 @@ export async function resetPassword(b: Record<string, unknown>) {
 async function socialAccount(kind: 'google' | 'facebook', subject: string, display: string, email: string | null, adopt: unknown) {
   const ref = `login-${kind}-${createHash('sha256').update(subject).digest('hex').slice(0, 40)}`;
   const known = await getRecord<{ id: string }>(ref);
-  if (known) { const a = await getRecord<Account>(acctKey(known.id)); if (a) return pub(a); }
+  if (isEmailBanned(email)) throw new AuthError(SUSPENDED_MESSAGE, 403);
+  if (known) { const a = await getRecord<Account>(acctKey(known.id)); if (a) { if (isBanned(a.id)) throw new AuthError(SUSPENDED_MESSAGE, 403); return pub(a); } }
   const guest = await ownedGuest(adopt);
   // the name from their Google / Facebook profile, with digits added if somebody already has it
   const name = await uniqueName(cleanName(display).length >= 3 ? cleanName(display) : 'Player', guest?.id ?? '');

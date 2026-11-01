@@ -15,6 +15,7 @@ import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreB
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
+import { SUSPENDED_MESSAGE, addReport, initModeration, isBanned } from './moderation';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
@@ -196,6 +197,7 @@ function handle(c: Client, m: ClientMsg) {
     case 'hello': {
       const prevId = c.player?.id;
       const p: PlayerHello = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat, stats: cleanStats(m.player.stats) };
+      if (isBanned(p.id)) { c.player = null; send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* already closed */ } }, 300); return; }
       c.player = p;
       c.verified = false;
       guestName(p.id).then((n) => { if (n && c.player === p) p.name = n; if (c.player === p) touch(p); });
@@ -342,7 +344,8 @@ function json(res: import('http').ServerResponse, code: number, body: unknown) {
 function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
-  if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim()).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
+  if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), (id) => { for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* closed */ } }, 300); } }).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
+  if (req.method === 'POST' && url.pathname === '/api/report-player') return void reportPlayerApi(req, res);
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);
@@ -388,6 +391,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         if (!id || !(bet >= 100 && bet <= 5_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
         if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
         lastReport.set(id, now);
+        if (isBanned(id)) return json(res, 200, { ok: true });
         guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, bet); else credit(who, prize); });
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
@@ -447,6 +451,19 @@ function readBody(req: import('http').IncomingMessage, max = 40_000): Promise<st
     req.on('error', reject);
   });
 }
+async function reportPlayerApi(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
+  try {
+    const b = JSON.parse((await readBody(req, 3000)) || '{}');
+    const id = String(b.id || '').slice(0, 64), key = String(b.key || '').slice(0, 80), target = String(b.target || '').slice(0, 64);
+    const me = id && key ? await verifyKey(id, key) : null;
+    if (!me) return json(res, 403, { error: 'Sign in again to send a report.' });
+    if (!target || target === id) return json(res, 400, { error: 'Pick another player.' });
+    const t = await getRecord<{ name?: string }>(`acct-${target.replace(/[^a-zA-Z0-9_-]/g, '')}`);
+    if (!t) return json(res, 404, { error: 'That player was not found.' });
+    const err = addReport({ byId: id, byName: me, targetId: target, targetName: String(t.name || 'Player'), reason: String(b.reason || 'Other'), note: String(b.note || '') });
+    return err ? json(res, 429, { error: err }) : json(res, 200, { ok: true });
+  } catch (e) { console.error('report player', e); return json(res, 500, { error: 'Could not send the report right now.' }); }
+}
 async function guestApi(req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) {
   try {
     if (req.method === 'POST' && url.pathname === '/api/guest') {
@@ -456,11 +473,13 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
       return a ? json(res, 200, a) : json(res, 409, { error: 'This player is already registered' });
     }
     if (req.method === 'GET' && url.pathname === '/api/guest') {
+      if (isBanned(String(url.searchParams.get('id') || ''))) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const a = await loadAccount(String(url.searchParams.get('id') || ''), String(url.searchParams.get('key') || ''));
       return a ? json(res, 200, a) : json(res, 404, { error: 'Guest account not found' });
     }
     if (req.method === 'PUT' && url.pathname === '/api/guest') {
       const b = JSON.parse(await readBody(req));
+      if (isBanned(String(b.id || ''))) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const r = await saveProgress(String(b.id), String(b.key), b.profile || {}, Number(b.updatedAt) || 0);
       return json(res, r.status, r.ok ? { ok: true } : { error: r.status === 409 ? 'newer progress on server' : 'not allowed', account: 'account' in r ? r.account : undefined });
     }
@@ -491,6 +510,7 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
       restoreTries.set(ip, t && now - t.t < 60_000 ? { n: t.n + 1, t: t.t } : { n: 1, t: now });
       const b = JSON.parse(await readBody(req));
       const a = await restoreByCode(String(b.code || ''));
+      if (a && isBanned(a.id)) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       return a ? json(res, 200, a) : json(res, 404, { error: 'No guest account with that code' });
     }
     return json(res, 404, { error: 'not found' });
@@ -543,7 +563,7 @@ process.on('SIGTERM', () => {
   setTimeout(() => process.exit(0), 1500);
 });
 
-Promise.all([initLeaderboard(), initPayments(), initReferrals()]).then(() => {
+Promise.all([initLeaderboard(), initPayments(), initReferrals(), initModeration()]).then(() => {
   http.listen(PORT, () => console.log(`Spade Haven server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
 });
 

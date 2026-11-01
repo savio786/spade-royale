@@ -245,3 +245,5 @@ Without these, the link says reset isn't set up yet. For testing on your own com
 
 ## Owner-only players list
 `/admin` lists the players who signed up with an email (name, sign-in type, email, join date) and downloads them as a spreadsheet (CSV). It is locked by the `ADMIN_KEY` environment variable (16+ characters, set in Render, never in the code); without it the page and its `/api/admin/users` address answer "not found". Five wrong keys from one address lock that address out for 15 minutes. Passwords, secret keys and guest restore codes are never included. Use the list only to run the game and support players, and keep it private.
+The same page lets the owner **suspend** a cheater (the account and its email can no longer sign in, connect to tables or sync progress; anyone playing is disconnected at once and sees "Account suspended"), **wipe winnings** (takes a player off the Global ranking and the Wall of Fame), let a player back in, and read **reports** that players send from the player card ("⚑ REPORT PLAYER"). Coins are kept on each player's device, so they are not wiped.
+

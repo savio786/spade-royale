@@ -1948,3 +1948,9 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .lobby .mega-peek .mw-back { filter: drop-shadow(0 0 4px rgba(170,225,255,.7)); }
 .lobby .mega-tap { bottom: 8px; font-size: 28px; background: linear-gradient(180deg, #ffffff, #a9defa); color: #0b2a4a; text-shadow: none; border-color: #ffffff; box-shadow: 0 0 6px rgba(170,225,255,.7); }
 @media (prefers-reduced-motion: reduce) { .lobby .mega-fill::after { animation: none; } }
+
+/* report a player (on the player card) */
+.pcd-report { margin-top: 8px; padding: 0 14px; height: 32px; border-radius: 999px; background: transparent; border: 1px solid rgba(255,140,140,.55); color: #ffb3b3; font: 400 18px/30px var(--display); letter-spacing: 1px; cursor: pointer; }
+.pcd-report:hover { background: rgba(255,90,90,.16); }
+.pcd-reportbox { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.pcd-reportbox select, .pcd-reportbox input { width: 260px; max-width: 90%; padding: 6px 8px; font-size: 16px; border-radius: 8px; border: 1px solid #6f7bd6; background: #0b0d33; color: #fff; }
