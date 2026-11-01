@@ -107,7 +107,7 @@ function Terms() {
       <li>Profile photos must be appropriate for all players and must not show someone else without their permission. We remove photos that break this rule.</li>
       <li>Players who repeatedly miss turns are removed from the table automatically.</li>
     </ul>
-    <p>We may suspend accounts, remove coins or reset leaderboard positions that break these rules.</p>
+    <p>Foul language in typed chat is hidden automatically. We may turn off a player's chat, suspend accounts, remove coins or reset leaderboard positions that break these rules.</p>
     <h2>Accounts</h2>
     <p>Keep your guest code safe — it is the only way to restore a guest account on a new device.</p>
     <h2>The service</h2>

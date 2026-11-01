@@ -3,10 +3,11 @@ import { loadJSON, saveJSON } from './storage';
 
 export interface Ban { name: string; reason: string; at: number; email?: string }
 export interface Report { n: number; at: number; byId: string; byName: string; targetId: string; targetName: string; reason: string; note: string }
-interface Store { bans: Record<string, Ban>; bannedEmails: Record<string, true>; reports: Report[]; nextReport: number }
+export interface Mute { name: string; reason: string; at: number; auto?: boolean }
+interface Store { bans: Record<string, Ban>; bannedEmails: Record<string, true>; reports: Report[]; nextReport: number; muted: Record<string, Mute> }
 
-let store: Store = { bans: {}, bannedEmails: {}, reports: [], nextReport: 1 };
-export async function initModeration() { store = { ...store, ...(await loadJSON<Store>('moderation', store)) }; }
+let store: Store = { bans: {}, bannedEmails: {}, reports: [], nextReport: 1, muted: {} };
+export async function initModeration() { store = { ...store, ...(await loadJSON<Store>('moderation', store)) }; if (!store.muted) store.muted = {}; }
 const save = () => saveJSON('moderation', () => store);
 
 export const SUSPENDED_MESSAGE = 'This account has been suspended for breaking the game rules. If you think this is a mistake, contact support.';
@@ -47,3 +48,29 @@ export function addReport(r: { byId: string; byName: string; targetId: string; t
 }
 export const listReports = () => store.reports;
 export function dismissReport(n: number) { store.reports = store.reports.filter((r) => r.n !== n); save(); }
+
+// ---- chat muting ----
+export const MUTED_MESSAGE = 'Your chat has been turned off for breaking the game rules. You can still play.';
+export const isMuted = (id: string | undefined | null) => !!id && !!store.muted[id];
+export function mute(id: string, name: string, reason: string, auto = false) {
+  store.muted[id] = { name, reason: String(reason || '').slice(0, 200), at: Date.now(), ...(auto ? { auto: true } : {}) };
+  save();
+}
+export function unmute(id: string) { delete store.muted[id]; save(); strikes.delete(id); }
+export const listMuted = () => Object.entries(store.muted).map(([id, m]) => ({ id, ...m })).sort((a, b) => b.at - a.at);
+
+/** Foul language is starred out; three offences within 10 minutes turn the player's chat off and send the owner a report. */
+const strikes = new Map<string, number[]>();
+export function strike(id: string, name: string, said: string): boolean {
+  const now = Date.now();
+  const list = [...(strikes.get(id) ?? []).filter((t) => now - t < 600_000), now];
+  strikes.set(id, list);
+  if (list.length < 3) return false;
+  mute(id, name, 'Automatic: repeated foul language', true);
+  if (!store.reports.some((x) => x.byId === 'system' && x.targetId === id && now - x.at < 3600_000)) {
+    store.reports.unshift({ n: store.nextReport++, at: now, byId: 'system', byName: 'Automatic filter', targetId: id, targetName: name, reason: 'Foul language', note: `Chat turned off after repeated foul language. Last message: ${said}`.slice(0, 300) });
+    store.reports = store.reports.slice(0, 500);
+  }
+  save();
+  return true;
+}

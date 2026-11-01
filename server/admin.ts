@@ -5,7 +5,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { listRecords } from './storage';
 import type { Account } from './accounts';
-import { ban, dismissReport, isBanned, listBans, listReports, unban } from './moderation';
+import { ban, dismissReport, isBanned, isMuted, listBans, listMuted, listReports, mute, unban, unmute } from './moderation';
 import { removePlayer } from './leaderboard';
 
 const KEY = (process.env.ADMIN_KEY || '').trim();
@@ -33,8 +33,8 @@ const acctId = (id: unknown) => String(id ?? '').slice(0, 64);
 export async function adminApi(req: IncomingMessage, res: ServerResponse, url: URL, ip: string, onBan: (id: string) => void) {
   if (!adminEnabled) return json(res, 404, { error: 'not found' });
   const p = url.pathname;
-  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports'].includes(p))
-    || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/reports/dismiss'].includes(p));
+  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted'].includes(p))
+    || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/reports/dismiss'].includes(p));
   if (!known) return json(res, 404, { error: 'not found' });
   const f = fails.get(ip);
   if (f && f.until > Date.now()) return json(res, 429, { error: 'Too many wrong keys. Try again in 15 minutes.' });
@@ -47,7 +47,7 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
   fails.delete(ip);
 
   const accounts = await listRecords<Account>('acct-');
-  const row = (a: Account) => ({ id: a.id, name: a.name, kind: a.kind ?? 'guest', email: a.email ?? '', joined: a.createdAt || 0, lastSaved: a.updatedAt || 0, banned: isBanned(a.id) });
+  const row = (a: Account) => ({ id: a.id, name: a.name, kind: a.kind ?? 'guest', email: a.email ?? '', joined: a.createdAt || 0, lastSaved: a.updatedAt || 0, banned: isBanned(a.id), muted: isMuted(a.id) });
 
   if (p === '/api/admin/users') {
     const rows = accounts.map(row).sort((x, y) => y.joined - x.joined);
@@ -67,8 +67,9 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
     if (q.length < 2) return json(res, 200, { rows: [] });
     return json(res, 200, { rows: accounts.filter((a) => a.name.toLowerCase().includes(q) || (a.email ?? '').toLowerCase().includes(q)).slice(0, 30).map(row) });
   }
+  if (p === '/api/admin/muted') return json(res, 200, { rows: listMuted() });
   if (p === '/api/admin/bans') return json(res, 200, { rows: listBans() });
-  if (p === '/api/admin/reports') return json(res, 200, { rows: listReports().map((r) => ({ ...r, targetBanned: isBanned(r.targetId) })) });
+  if (p === '/api/admin/reports') return json(res, 200, { rows: listReports().map((r) => ({ ...r, targetBanned: isBanned(r.targetId), targetMuted: isMuted(r.targetId) })) });
 
   const b = await body(req);
   if (p === '/api/admin/reports/dismiss') { dismissReport(Number(b.n)); return json(res, 200, { ok: true }); }
@@ -77,6 +78,8 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
   if (!a) return json(res, 404, { error: 'That account was not found.' });
   if (p === '/api/admin/ban') { ban(a.id, a.name, String(b.reason || ''), a.email); onBan(a.id); return json(res, 200, { ok: true }); }
   if (p === '/api/admin/unban') { unban(a.id); return json(res, 200, { ok: true }); }
+  if (p === '/api/admin/mute') { mute(a.id, a.name, String(b.reason || '')); return json(res, 200, { ok: true }); }
+  if (p === '/api/admin/unmute') { unmute(a.id); return json(res, 200, { ok: true }); }
   if (p === '/api/admin/wipe') { removePlayer(a.id, a.name); return json(res, 200, { ok: true }); }
   return json(res, 404, { error: 'not found' });
 }

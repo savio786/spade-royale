@@ -15,7 +15,8 @@ import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreB
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
-import { SUSPENDED_MESSAGE, addReport, initModeration, isBanned } from './moderation';
+import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isMuted, strike } from './moderation';
+import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
@@ -256,6 +257,7 @@ function handle(c: Client, m: ClientMsg) {
     }
     case 'chat': {
       if (!c.room || !c.player) return;
+      if (isMuted(c.player.id)) return send(c, { t: 'error', message: MUTED_MESSAGE });
       const isGift = String(m.text).startsWith('🎁:');
       // quick phrases and emoji are free; typed messages need a paid Chat Pass or VIP, checked against the server's purchase records
       const allowed = isGift || isFreeChat(String(m.text)) || hasChatPass(c.player.id) || (!paymentsEnabled() && process.env.ALLOW_TEST_PURCHASES === '1' && !!c.player.chat);
@@ -268,7 +270,16 @@ function handle(c: Client, m: ClientMsg) {
         c.chats.push(now);
       }
     }
-      return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
+      let said = String(m.text);
+      if (!said.startsWith('🎁:') && !isFreeChat(said)) {
+        const f = cleanChat(said);
+        if (f.flagged) {
+          said = f.text;
+          if (strike(c.player.id, c.player.name, String(m.text))) return send(c, { t: 'error', message: MUTED_MESSAGE });
+          send(c, { t: 'error', message: 'Please keep the chat friendly — foul language is hidden, and repeating it turns your chat off' });
+        }
+      }
+      return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), said);
     case 'gift': {
       if (!c.room || !c.player) return;
       const now = Date.now();

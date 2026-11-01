@@ -2,11 +2,12 @@
 // Needs the ADMIN_KEY secret (kept in memory only; it is never saved on this device).
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-interface Row { id: string; name: string; kind: string; email: string; joined: number; lastSaved: number; banned: boolean }
+interface Row { id: string; name: string; kind: string; email: string; joined: number; lastSaved: number; banned: boolean; muted?: boolean }
 interface Data { total: number; withEmail: number; byKind: Record<string, number>; rows: Row[] }
-interface Rep { n: number; at: number; byName: string; targetId: string; targetName: string; reason: string; note: string; targetBanned: boolean }
+interface Rep { n: number; at: number; byName: string; targetId: string; targetName: string; reason: string; note: string; targetBanned: boolean; targetMuted?: boolean }
 interface BanRow { id: string; name: string; reason: string; at: number; email?: string }
-type Tab = 'players' | 'find' | 'reports' | 'suspended';
+interface MuteRow { id: string; name: string; reason: string; at: number; auto?: boolean }
+type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended';
 const date = (t: number) => (t ? new Date(t).toLocaleString() : '');
 const KIND: Record<string, string> = { email: 'Email', google: 'Google', facebook: 'Facebook', guest: 'Guest' };
 const input: React.CSSProperties = { padding: '8px 10px', fontSize: 16, borderRadius: 8, border: '1px solid #6f7bd6', background: '#0b0d33', color: '#fff' };
@@ -32,6 +33,7 @@ export function AdminPage() {
   const [found, setFound] = useState<Row[]>([]);
   const [reports, setReports] = useState<Rep[]>([]);
   const [bans, setBans] = useState<BanRow[]>([]);
+  const [mutes, setMutes] = useState<MuteRow[]>([]);
   const [reason, setReason] = useState('');
   const [guests, setGuests] = useState(false);   // list guests too (they have no email)
   useEffect(() => {
@@ -53,6 +55,7 @@ export function AdminPage() {
       if (t === 'players') setData(await call(`/api/admin/users${guestsFlag ?? guests ? '?all=1' : ''}`));
       if (t === 'find') setFound(query.trim().length >= 2 ? ((await call(`/api/admin/find?q=${encodeURIComponent(query.trim())}`)) as { rows: Row[] }).rows : []);
       if (t === 'reports') setReports(((await call('/api/admin/reports')) as { rows: Rep[] }).rows);
+      if (t === 'muted') setMutes(((await call('/api/admin/muted')) as { rows: MuteRow[] }).rows);
       if (t === 'suspended') setBans(((await call('/api/admin/bans')) as { rows: BanRow[] }).rows);
       setAuthed(true);
     } catch (e) { setErr((e as Error).message); if (!authed) setAuthed(false); }
@@ -76,11 +79,14 @@ export function AdminPage() {
     return data ? data.rows.filter((r) => !s || r.email.toLowerCase().includes(s) || r.name.toLowerCase().includes(s)) : [];
   }, [data, q]);
 
-  const actions = (r: { id: string; name: string; banned: boolean }) => (
+  const actions = (r: { id: string; name: string; banned: boolean; muted?: boolean }) => (
     <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
       {r.banned
         ? <button className="pill small-pill" onClick={() => void act('/api/admin/unban', { id: r.id }, `${r.name} can play again.`)}>Let back in</button>
         : <Confirm label="Suspend" danger onGo={() => void act('/api/admin/ban', { id: r.id, reason }, `${r.name} is suspended.`)} />}
+      {r.muted
+        ? <button className="pill small-pill" onClick={() => void act('/api/admin/unmute', { id: r.id }, `${r.name} has their chat back.`)}>Give chat back</button>
+        : <Confirm label="Turn off chat" onGo={() => void act('/api/admin/mute', { id: r.id, reason }, `${r.name}'s chat is turned off.`)} />}
       <Confirm label="Wipe winnings" onGo={() => void act('/api/admin/wipe', { id: r.id }, `${r.name} was taken off the leaderboards.`)} />
     </span>
   );
@@ -103,7 +109,7 @@ export function AdminPage() {
         ) : (
           <>
             <p style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['suspended', 'Suspended']] as [Tab, string][]).map(([t, l]) => (
+              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended']] as [Tab, string][]).map(([t, l]) => (
                 <button key={t} className={`pill small-pill ${tab === t ? 'gold' : ''}`} onClick={() => go(t)}>{l}</button>
               ))}
               <button className="pill small-pill" onClick={() => void refresh()}>Refresh</button>
@@ -121,7 +127,7 @@ export function AdminPage() {
               <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
                 <thead><tr style={{ borderBottom: '2px solid #6f7bd6' }}><th style={th}>Name</th><th style={th}>Email</th><th style={th}>Sign-in</th><th style={th}>Joined</th><th style={th}>Last saved</th><th style={th}></th></tr></thead>
                 <tbody>{shown.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.joined)}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.lastSaved)}</td><td style={td}>{actions(r)}</td></tr>
+                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}{r.muted ? ' 🔇' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.joined)}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.lastSaved)}</td><td style={td}>{actions(r)}</td></tr>
                 ))}</tbody></table></div>
             </>)}
 
@@ -134,7 +140,7 @@ export function AdminPage() {
               </form>
               <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15, marginTop: 10 }}>
                 <tbody>{found.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={td}>{actions(r)}</td></tr>
+                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}{r.muted ? ' 🔇' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={td}>{actions(r)}</td></tr>
                 ))}</tbody></table></div>
             </>)}
 
@@ -148,9 +154,19 @@ export function AdminPage() {
                     <td style={td}><b>{r.targetName}</b>{r.targetBanned ? ' 🚫' : ''}<br /><small style={{ opacity: .7 }}>reported by {r.byName} · {date(r.at)}</small></td>
                     <td style={td}>{r.reason}{r.note ? <><br /><i>“{r.note}”</i></> : null}</td>
                     <td style={td}><span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {actions({ id: r.targetId, name: r.targetName, banned: r.targetBanned })}
+                      {actions({ id: r.targetId, name: r.targetName, banned: r.targetBanned, muted: r.targetMuted })}
                       <button className="pill small-pill" onClick={() => void act('/api/admin/reports/dismiss', { n: r.n }, 'Report dismissed.')}>Dismiss</button>
                     </span></td></tr>
+                ))}</tbody></table></div>
+            </>)}
+
+            {tab === 'muted' && (<>
+              <p>Players whose chat is turned off. They can still play. The game also does this automatically after repeated foul language.</p>
+              {mutes.length === 0 && <p style={{ opacity: .7 }}>Nobody's chat is turned off.</p>}
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
+                <tbody>{mutes.map((m) => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}><b>{m.name}</b>{m.auto ? <><br /><small style={{ opacity: .7 }}>automatic</small></> : null}</td><td style={td}>{m.reason || '—'}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(m.at)}</td>
+                    <td style={td}><button className="pill small-pill" onClick={() => void act('/api/admin/unmute', { id: m.id }, `${m.name} has their chat back.`)}>Give chat back</button></td></tr>
                 ))}</tbody></table></div>
             </>)}
 
