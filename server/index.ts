@@ -1,5 +1,6 @@
 // Spade Haven multiplayer server: public tables, private tables with invite codes,
 // table chat, bots filling empty seats, and turn timers. Run: npm run server
+import { randomBytes } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { readFileSync, existsSync, statSync } from 'fs';
@@ -15,7 +16,7 @@ import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreB
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
-import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isMuted, strike } from './moderation';
+import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
 import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
@@ -348,6 +349,14 @@ async function photoApi(req: import('http').IncomingMessage, res: import('http')
 const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.xml': 'application/xml', '.woff': 'font/woff', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 // ---- leaderboard API ----
 const lastReport = new Map<string, number>();
+/** A random cookie that tells browsers apart, so a suspended player can't simply start a new guest account. */
+function deviceOf(req: import('http').IncomingMessage, res: import('http').ServerResponse): string {
+  const have = /(?:^|;\s*)sh_dev=([a-f0-9]{32})/.exec(String(req.headers.cookie || ''))?.[1];
+  if (have) return have;
+  const dev = randomBytes(16).toString('hex');
+  res.setHeader('Set-Cookie', `sh_dev=${dev}; Max-Age=63072000; Path=/; HttpOnly; SameSite=Lax; Secure`);
+  return dev;
+}
 function json(res: import('http').ServerResponse, code: number, body: unknown) {
   res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, PUT, OPTIONS', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -442,7 +451,14 @@ async function authApi(req: import('http').IncomingMessage, res: import('http').
     };
     const fn = routes[url.pathname];
     if (!fn) return json(res, 404, { error: 'not found' });
-    return json(res, 200, await fn(b));
+    const dev = deviceOf(req, res);
+    const making = url.pathname === '/api/auth/signup';
+    if (making && isDeviceBanned(dev)) return json(res, 403, { error: SUSPENDED_MESSAGE });
+    const out = await fn(b) as { id?: string; createdAt?: number } | null;
+    const social = url.pathname === '/api/auth/google' || url.pathname === '/api/auth/facebook';
+    if (social && out?.id && isDeviceBanned(dev) && (out.createdAt ?? 0) > Date.now() - 120_000) return json(res, 403, { error: SUSPENDED_MESSAGE });   // a brand-new account from a suspended browser
+    if (out?.id) noteDevice(out.id, dev);
+    return json(res, 200, out);
   } catch (e) {
     if (e instanceof AuthError) return json(res, e.status, { error: e.message });
     console.error('auth', e);
@@ -479,13 +495,17 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
   try {
     if (req.method === 'POST' && url.pathname === '/api/guest') {
       const b = JSON.parse((await readBody(req)) || '{}');
+      const dev = deviceOf(req, res);
+      if (isDeviceBanned(dev)) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const adopt = b.adoptId ? { id: String(b.adoptId).slice(0, 64), name: String(b.name || '') } : undefined;
       const a = await createGuest(adopt);
+      if (a) noteDevice(a.id, dev);
       return a ? json(res, 200, a) : json(res, 409, { error: 'This player is already registered' });
     }
     if (req.method === 'GET' && url.pathname === '/api/guest') {
       if (isBanned(String(url.searchParams.get('id') || ''))) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const a = await loadAccount(String(url.searchParams.get('id') || ''), String(url.searchParams.get('key') || ''));
+      if (a) noteDevice(a.id, deviceOf(req, res));
       return a ? json(res, 200, a) : json(res, 404, { error: 'Guest account not found' });
     }
     if (req.method === 'PUT' && url.pathname === '/api/guest') {

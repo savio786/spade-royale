@@ -4,10 +4,10 @@ import { loadJSON, saveJSON } from './storage';
 export interface Ban { name: string; reason: string; at: number; email?: string }
 export interface Report { n: number; at: number; byId: string; byName: string; targetId: string; targetName: string; reason: string; note: string }
 export interface Mute { name: string; reason: string; at: number; auto?: boolean }
-interface Store { bans: Record<string, Ban>; bannedEmails: Record<string, true>; reports: Report[]; nextReport: number; muted: Record<string, Mute> }
+interface Store { bans: Record<string, Ban>; bannedEmails: Record<string, true>; reports: Report[]; nextReport: number; muted: Record<string, Mute>; devices: Record<string, string>; bannedDevices: Record<string, true> }
 
-let store: Store = { bans: {}, bannedEmails: {}, reports: [], nextReport: 1, muted: {} };
-export async function initModeration() { store = { ...store, ...(await loadJSON<Store>('moderation', store)) }; if (!store.muted) store.muted = {}; }
+let store: Store = { bans: {}, bannedEmails: {}, reports: [], nextReport: 1, muted: {}, devices: {}, bannedDevices: {} };
+export async function initModeration() { store = { ...store, ...(await loadJSON<Store>('moderation', store)) }; if (!store.muted) store.muted = {}; if (!store.devices) store.devices = {}; if (!store.bannedDevices) store.bannedDevices = {}; }
 const save = () => saveJSON('moderation', () => store);
 
 export const SUSPENDED_MESSAGE = 'This account has been suspended for breaking the game rules. If you think this is a mistake, contact support.';
@@ -20,11 +20,13 @@ export function ban(id: string, name: string, reason: string, email?: string | n
   const e = normEmail(email);
   store.bans[id] = { name, reason: String(reason || '').slice(0, 200), at: Date.now(), ...(e ? { email: e } : {}) };
   if (e) store.bannedEmails[e] = true;   // the same email can't be used for a new account
+  if (store.devices[id]) store.bannedDevices[store.devices[id]] = true;   // nor a new account from the same browser
   save();
 }
 export function unban(id: string) {
   const b = store.bans[id];
   if (b?.email) delete store.bannedEmails[b.email];
+  if (store.devices[id]) delete store.bannedDevices[store.devices[id]];
   delete store.bans[id];
   save();
 }
@@ -74,3 +76,13 @@ export function strike(id: string, name: string, said: string): boolean {
   save();
   return true;
 }
+
+// ---- devices: a suspended player can't just make a new account from the same browser ----
+/** Remembers which browser (a random cookie the server hands out) an account was used from. */
+export function noteDevice(id: string, dev: string) {
+  if (!id || !dev || store.devices[id] === dev) return;
+  store.devices[id] = dev;
+  if (store.bans[id]) store.bannedDevices[dev] = true;
+  save();
+}
+export const isDeviceBanned = (dev: string) => !!dev && !!store.bannedDevices[dev];

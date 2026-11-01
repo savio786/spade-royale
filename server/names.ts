@@ -4,6 +4,7 @@
 import { getRecord, putRecord } from './storage';
 import { BOT_NAMES } from '../shared/bot';
 import { PEOPLE_NAMES } from '../shared/runtime';
+import { cleanChat } from './profanity';
 
 export const NAME_MIN = 3, NAME_MAX = 20;
 const ALLOWED = /[^\p{L}\p{N} _.-]/u;
@@ -27,6 +28,7 @@ export function validate(raw: unknown): NameCheck {
   if (s.length > NAME_MAX) return bad(`Use at most ${NAME_MAX} characters.`);
   if (ALLOWED.test(s)) return bad('Use letters, numbers, spaces and _ - . only.');
   if (squash(s).length < NAME_MIN) return bad(`Names need at least ${NAME_MIN} letters or numbers.`);
+  if (cleanChat(s).flagged) return bad('Please choose a name that is friendly for everyone.');
   return { ok: true, name: s };
 }
 
@@ -74,7 +76,7 @@ export function reserveIfFree(id: string, name: string): Promise<boolean> {
 
 /** A name close to `base` that is free: the name itself, or with a few digits added. */
 export async function uniqueName(base: string, id = ''): Promise<string> {
-  const first = cleanName(base);
+  const first = cleanChat(cleanName(base)).flagged ? 'Player' : cleanName(base);   // an offensive name from a Google or Facebook profile becomes Player + digits
   for (let i = 0; i < 25; i++) {
     const tail = i === 0 ? '' : String(Math.floor(1000 + Math.random() * 9000));
     const cand = first.slice(0, NAME_MAX - tail.length) + tail;
