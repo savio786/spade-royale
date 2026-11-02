@@ -8,6 +8,7 @@ import { BoardRow, fetchBoard } from '../lib/api';
 const STORE_LINKS = {
   play: (import.meta.env.VITE_PLAY_STORE_URL as string) || '#download',
   apple: (import.meta.env.VITE_APP_STORE_URL as string) || '#download',
+  microsoft: (import.meta.env.VITE_MS_STORE_URL as string) || 'https://apps.microsoft.com/detail/9P7SG2MGTNQN',
 };
 
 const FEATURES = [
@@ -20,7 +21,7 @@ const FEATURES = [
 ];
 
 const PLATFORMS = [
-  { icon: 'windows', name: 'Windows', how: 'Open in Edge or Chrome → Install app' },
+  { icon: 'windows', name: 'Windows', how: 'Microsoft Store, or Edge/Chrome → Install app' },
   { icon: 'apple', name: 'MacBook', how: 'Chrome/Edge → Install, or Safari → Add to Dock' },
   { icon: 'ipad', name: 'iPad & iPhone', how: 'App Store, or Safari → Share → Add to Home Screen' },
   { icon: 'android', name: 'Android', how: 'Google Play, or Chrome → Install app' },
@@ -55,6 +56,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
           <div className="store-row">
             <a className="store-badge" href={STORE_LINKS.play}><Icon name="android" size={26} /><span><small>GET IT ON</small>Google Play</span></a>
             <a className="store-badge" href={STORE_LINKS.apple}><Icon name="apple" size={26} /><span><small>Download on the</small>App Store</span></a>
+            <a className="store-badge" href={STORE_LINKS.microsoft} target="_blank" rel="noopener noreferrer"><Icon name="windows" size={26} /><span><small>Get it from</small>Microsoft Store</span></a>
           </div>
           <p className="hero-fine">Free to play with virtual coins · 50,000 coins to start · <a href="/install" style={{ color: 'inherit' }}>Install on your phone</a></p>
         </div>
