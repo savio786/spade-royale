@@ -14,11 +14,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      VERSION_CODE: ${{ github.run_number * 10 + github.run_attempt }}
       VERSION_NAME: 1.0.${{ github.run_number }}
       HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v5
+      - name: Unique version code (run number x10 + attempt, so re-runs never repeat)
+        run: echo "VERSION_CODE=$((GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v5
         with:
           node-version: 22
