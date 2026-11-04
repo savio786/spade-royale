@@ -52,8 +52,7 @@ export class LocalController implements TableController {
   subscribe(f: (v: CtlView) => void) { this.subs.add(f); f(this.view); return () => { this.subs.delete(f); }; }
   act(a: Action) {
     const err = this.rt.act(this.seat, a);
-    // the message is shown once: the next update no longer carries it (otherwise every table update would show it again)
-    if (err) { this.view = { ...this.view, error: err }; this.subs.forEach((f) => f(this.view)); this.view = { ...this.view, error: null }; }
+    if (err) { this.view = { ...this.view, error: err }; this.subs.forEach((f) => f(this.view)); }
   }
   chat(text: string) { this.rt.say(this.seat, text); }
   gift(to: number | 'all', giftId: string) { this.rt.gift(this.seat, to, giftId); }
@@ -95,8 +94,7 @@ export class RemoteController implements TableController {
     else net.send({ t: 'joinPrivate', code: join.code });
   }
   private tableId: string | null = null;
-  /** An error message is shown once: it is cleared straight after it is passed on, so later table updates don't repeat it. */
-  private update(p: Partial<CtlView>) { this.view = { ...this.view, ...p }; this.subs.forEach((f) => f(this.view)); if (this.view.error) this.view = { ...this.view, error: null }; }
+  private update(p: Partial<CtlView>) { this.view = { ...this.view, ...p }; this.subs.forEach((f) => f(this.view)); }
   subscribe(f: (v: CtlView) => void) { this.subs.add(f); f(this.view); return () => { this.subs.delete(f); }; }
   act(a: Action) { net.send({ t: 'act', action: a }); }
   chat(text: string) { net.send({ t: 'chat', text }); }
