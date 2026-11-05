@@ -53,6 +53,49 @@ const lowestNonSpadeFirst = (cs: Card[]) => {
   return ns.length ? ns.reduce((a, b) => (b.r < a.r ? b : a)) : cs.reduce((a, b) => (b.r < a.r ? b : a));
 };
 
+
+// ---------------- Covering a partner's Nil ----------------
+/** n(U-k choose n) / (U choose n): the chance that n cards dealt from U contain none of k particular cards. */
+function noneOf(U: number, k: number, n: number): number {
+  if (n <= 0) return 1;
+  if (U - k < n) return 0;
+  let p = 1;
+  for (let i = 0; i < n; i++) p *= (U - k - i) / (U - i);
+  return p;
+}
+
+/**
+ * How likely is it that my Nil partner is forced to win this trick if the card `c` is the best one on the table afterwards?
+ * Partner must follow suit, so they win only when they hold cards of the led suit and every one of them is higher than the best card.
+ * Counted from the cards nobody has shown yet; a Nil hand is low, so the chance is scaled down a little.
+ */
+function partnerForcedToWin(g: GameState, seat: number, partner: number, c: Card): number {
+  const after = [...g.trick, { seat, card: c }];
+  const led = after[0].card.s;
+  const winSeat = trickWinner(after);
+  const win = after.find((t) => t.seat === winSeat)!;
+  if (win.card.s !== led) return 0;                    // trumped: partner can only follow suit with a lower card, or is void and may discard anything
+  const unseen = unseenCards(g, seat);
+  const U = unseen.length, n = g.hands[partner].length;
+  if (!n || !U) return 0;
+  const suit = unseen.filter((u) => u.s === led);
+  const lower = suit.filter((u) => u.r < win.card.r);
+  const risk = noneOf(U, lower.length, n) - noneOf(U, suit.length, n);   // no lower card of the suit, but at least one card of it
+  return Math.max(0, risk) * 0.75;
+}
+
+/** Cheapest card that keeps the Nil partner safe: weigh the danger to partner against the value of the card (aces, kings and spades are worth saving). */
+function coverChoice(g: GameState, seat: number, partner: number, legal: Card[]): Card {
+  const WEIGHT = 6;
+  let best = legal[0], bestV = Infinity;
+  for (const c of legal) {
+    const cost = (c.r - 2) / 12 + (c.s === 'S' ? 0.35 : 0);
+    const v = WEIGHT * partnerForcedToWin(g, seat, partner, c) + cost;
+    if (v < bestV - 1e-9 || (Math.abs(v - bestV) <= 1e-9 && c.r < best.r)) { bestV = v; best = c; }
+  }
+  return best;
+}
+
 export function botPlay(g: GameState, seat: number): Card {
   const legal = legalCards(g, seat);
   if (legal.length === 1) return legal[0];
@@ -76,24 +119,13 @@ export function botPlay(g: GameState, seat: number): Card {
     const partnerPlayed = g.trick.some((t) => t.seat === partner);
     const best = currentBest(g);
     const winners = legal.filter((c) => beats(c, g));
-    if (leading) {
-      // lead a card nobody can beat in its suit (the highest one still unplayed): partner must follow with a lower card, so they cannot win the trick
-      const unseen = unseenCards(g, seat);
-      const nonSpades = legal.filter((c) => c.s !== 'S');
-      const boss = nonSpades.filter((c) => !unseen.some((u) => u.s === c.s && u.r > c.r));
-      if (boss.length) return highest(boss);
-      return highest(nonSpades.length ? nonSpades : legal);
-    }
+    if (leading) return coverChoice(g, seat, partner, legal);   // protect partner with the cheapest safe lead, not always the highest card
     if (partnerPlayed && best === partner) {
       // partner is about to take the trick: beat their card with the cheapest card that does it (a plain suit card before a trump)
       if (winners.length) { const plain = winners.filter((c) => c.s !== 'S'); return lowestRank(plain.length ? plain : winners); }
       return lowestNonSpadeFirst(legal);   // cannot beat them: nothing to save, keep the good cards
     }
-    if (!partnerPlayed) {
-      // partner still has to play: set the trick as high as possible so their (low) card cannot win it
-      if (winners.length) return highest(winners);
-      return lowestNonSpadeFirst(legal);
-    }
+    if (!partnerPlayed) return coverChoice(g, seat, partner, legal);   // partner plays after me: raise the trick only as high as needed
     // partner already played and somebody else is winning: partner is safe, play on normally
   }
 
