@@ -11,7 +11,7 @@ export interface Topic {
   related?: string[];
 }
 
-const SUPPORT = (import.meta.env?.VITE_SUPPORT_EMAIL as string | undefined) || 'support@sedigitaltransformation.com';
+const SUPPORT = (import.meta.env?.VITE_SUPPORT_EMAIL as string | undefined) || 'spades@sedigitaltransformation.com';
 
 export const TOPICS: Topic[] = [
   { id: 'hello', title: 'Hi', keys: ['hi', 'hello', 'hey', 'yo', 'sup', 'good morning', 'good evening'],

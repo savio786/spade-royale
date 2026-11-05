@@ -49,8 +49,8 @@ function welcomeMail(email: string | null | undefined, name: string) {
   if (!email || !mailConfigured()) return;
   const site = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://play.sedigitaltransformation.com').replace(/\/+$/, '');
   const safe = name.replace(/[<>&]/g, '');
-  const text = `Welcome to Spade Haven, ${name}!\n\nYour account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.\n\nPlay now: ${site}\n\nNeed help? Reply to this email or write to support@sedigitaltransformation.com.\n\n♠ Spade Haven`;
-  const html = `<p>Welcome to Spade Haven, ${safe}!</p><p>Your account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.</p><p><a href="${site}" style="display:inline-block;padding:12px 22px;background:#1a9d4a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Play now</a></p><p style="color:#666;font-size:13px">Need help? Write to support@sedigitaltransformation.com.</p><p>♠ Spade Haven</p>`;
+  const text = `Welcome to Spade Haven, ${name}!\n\nYour account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.\n\nPlay now: ${site}\n\nNeed help? Reply to this email or write to spades@sedigitaltransformation.com.\n\n♠ Spade Haven`;
+  const html = `<p>Welcome to Spade Haven, ${safe}!</p><p>Your account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.</p><p><a href="${site}" style="display:inline-block;padding:12px 22px;background:#1a9d4a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Play now</a></p><p style="color:#666;font-size:13px">Need help? Write to spades@sedigitaltransformation.com.</p><p>♠ Spade Haven</p>`;
   sendMail(email, 'Welcome to Spade Haven ♠', text, html).catch(() => {});
 }
 
