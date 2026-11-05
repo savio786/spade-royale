@@ -44,6 +44,16 @@ async function ownedGuest(adopt: unknown): Promise<Account | null> {
   return a && a.key === String(o.key) && (a.kind ?? 'guest') === 'guest' ? a : null;
 }
 
+/** One friendly email when an account is first created. Never blocks or fails the sign-up. */
+function welcomeMail(email: string | null | undefined, name: string) {
+  if (!email || !mailConfigured()) return;
+  const site = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://play.sedigitaltransformation.com').replace(/\/+$/, '');
+  const safe = name.replace(/[<>&]/g, '');
+  const text = `Welcome to Spade Haven, ${name}!\n\nYour account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.\n\nPlay now: ${site}\n\nNeed help? Reply to this email or write to support@sedigitaltransformation.com.\n\n♠ Spade Haven`;
+  const html = `<p>Welcome to Spade Haven, ${safe}!</p><p>Your account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.</p><p><a href="${site}" style="display:inline-block;padding:12px 22px;background:#1a9d4a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Play now</a></p><p style="color:#666;font-size:13px">Need help? Write to support@sedigitaltransformation.com.</p><p>♠ Spade Haven</p>`;
+  sendMail(email, 'Welcome to Spade Haven ♠', text, html).catch(() => {});
+}
+
 export async function signUp(b: Record<string, unknown>) {
   const email = normEmail(b.email), pw = String(b.password ?? '');
   if (!emailOk(email)) throw new AuthError('Enter a valid email address.');
@@ -65,6 +75,7 @@ export async function signUp(b: Record<string, unknown>) {
   const took = await takeName(a.id, name, guest?.name);
   if (!took.ok) { name = await uniqueName(name, a.id); await takeName(a.id, name, guest?.name); a.name = name; if (a.profile) a.profile = { ...a.profile, name }; await putRecord(acctKey(a.id), a); }
   await putRecord(emailRef(email), { id: a.id });
+  welcomeMail(email, a.name);
   return pub(a);
 }
 
@@ -139,6 +150,7 @@ async function socialAccount(kind: 'google' | 'facebook', subject: string, displ
   else a = await newAccount(kind, name, { email: email ?? undefined });
   await takeName(a.id, name, guest?.name);
   await putRecord(ref, { id: a.id });
+  welcomeMail(email, a.name);
   return pub(a);
 }
 
