@@ -44,6 +44,7 @@ function useHashRoute() {
 
 export default function App() {
   const p = useProfile();
+  useEffect(() => { document.body.classList.toggle('calm', !!p.settings.calm); }, [p.settings.calm]);   // calm tables: no pulsing / drifting table colours
   const hash = useHashRoute();
   const resetToken = hash.match(/^#\/play\/reset\/([\w-]{20,60})$/)?.[1];
   const inApp = hash.startsWith('#/play') || hash === '#play' || isAppShell();

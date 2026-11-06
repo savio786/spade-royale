@@ -844,7 +844,7 @@ function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, be
   const p = useProfile();
   const [picking, setPicking] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
-  const set = (k: 'sound' | 'music' | 'vibrate') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
+  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   return (
     <div className="tm-overlay" role="dialog" aria-modal="true" aria-label="Table menu">
@@ -875,6 +875,8 @@ function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, be
           <MusicPicker compact />
           <div className="tm-rule" />
           <Switch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+          <div className="tm-rule" />
+          <Switch label="CALM TABLE" on={!!p.settings.calm} onToggle={() => set('calm')} />
         </div>
       </aside>
       {target && <ReportDialog id={target} onClose={() => { setTarget(null); setPicking(false); }} />}

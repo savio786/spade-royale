@@ -1328,9 +1328,14 @@ body.rotated .toasts { left: calc(100% - 44px); top: 50%; transform: translate(-
 .table-shape .flash { opacity: 0; transform-box: fill-box; transform-origin: center; animation: edgeFlash 6s ease-out infinite; }
 .table-shape .f-right { animation-delay: 1.5s; } .table-shape .f-bottom { animation-delay: 3s; } .table-shape .f-left { animation-delay: 4.5s; }
 @keyframes edgeFlash { 0%, 100% { opacity: 0; } 5% { opacity: 1; } 10% { opacity: .35; } 15% { opacity: .9; } 34% { opacity: 0; } }
-.table-shape .ts-neon { animation: neonPulse 1.5s ease-in-out infinite; }
-@keyframes neonPulse { 0%, 100% { opacity: .65; } 12% { opacity: 1; } }
+.table-shape .ts-neon { animation: neonPulse 6s ease-in-out infinite; }
+@keyframes neonPulse { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }   /* gentle: no more fast flashing */
 @media (prefers-reduced-motion: reduce) { .table-shape .au, .table-shape .flash, .table-shape .ts-neon { animation: none; } .table-shape .flash { opacity: 0; } }
+/* Settings → CALM TABLE: a steady table, nothing drifting, flashing or pulsing */
+body.calm .table-shape .au, body.calm .table-shape .flash, body.calm .table-shape .ts-neon { animation: none; }
+body.calm .table-shape .flash { opacity: 0; }
+body.calm .table-shape .ts-neon { opacity: .9; }
+body.calm .table-shape .aurora { opacity: .55; }
 
 /* the player who won the trick glows for a moment */
 .seat-av.won-trick { animation: wonTrick 1.2s ease-out; }

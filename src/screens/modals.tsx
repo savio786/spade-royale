@@ -565,7 +565,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
   useEffect(() => {
     if (!signedIn && cfg.google && googleRef.current) void mountGoogleButton(googleRef.current, cfg.google, (e) => { if (e) toast(e, 'error'); else { sfx.coins(); toast('Signed in with Google'); } }).catch(() => {});
   }, [cfg.google, signedIn]);
-  const set = (k: 'sound' | 'music' | 'vibrate') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
+  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
   const fb = async () => {
     sfx.click();
     if (!cfg.facebook) { toast('Facebook sign-in is coming soon — use email for now'); return; }
@@ -613,6 +613,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         <BigSwitch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
         <BigSwitch label="MUSIC" on={p.settings.music !== false} onToggle={() => set('music')} />
         <BigSwitch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+        <BigSwitch label="CALM TABLE" on={!!p.settings.calm} onToggle={() => set('calm')} />
       </div>
       <div className="st-music">
         <h3>BACKGROUND MUSIC <small>tap a track to hear it</small></h3>
