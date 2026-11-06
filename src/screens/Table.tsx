@@ -691,7 +691,17 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
   );
 }
 
+const GAME_OVER_SECONDS = 10;   // the result screen takes everyone back to the lobby after this long
 function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => void; onAgain: () => void }) {
+  const [left, setLeft] = useState(GAME_OVER_SECONDS);
+  const [held, setHeld] = useState(false);   // opening the coin store stops the countdown
+  const lobbyRef = useRef(onLobby); lobbyRef.current = onLobby;
+  useEffect(() => {
+    if (held) return;
+    const t = window.setInterval(() => setLeft((n) => n - 1), 1000);
+    return () => window.clearInterval(t);
+  }, [held]);
+  useEffect(() => { if (left === 0 && !held) lobbyRef.current(); }, [left, held]);
   const mode = st.settings.mode;
   const me = st.mySeat;
   const mySide = sideOf(mode, me);
@@ -718,9 +728,10 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
         <div className="btn-row">
           <Pill color="blue" onClick={onLobby}>Lobby</Pill>
           {profile.get().coins < st.settings.bet
-            ? <Pill color="gold" onClick={() => store.open({ tab: 'coins', need: st.settings.bet })}>Buy coins to play again</Pill>
+            ? <Pill color="gold" onClick={() => { setHeld(true); store.open({ tab: 'coins', need: st.settings.bet }); }}>Buy coins to play again</Pill>
             : <Pill color="green" onClick={onAgain}>Play again</Pill>}
         </div>
+        {!held && left > 0 && <p className="muted small go-count">Back to the lobby in {left}s</p>}
       </div>
     </div>
   );
