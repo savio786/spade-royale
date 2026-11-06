@@ -157,6 +157,20 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const t = setTimeout(() => setSent(null), 2500);
     return () => clearTimeout(t);
   }, [sent, st?.hand, view?.error]);
+  // the last card of a round has no choice in it: play it for the player after a short beat (so they still see it go)
+  useEffect(() => {
+    if (!st || st.phase !== 'playing' || st.turn !== st.mySeat || st.hand.length !== 1 || sent) return;
+    const c = st.hand[0];
+    if (!c) return;
+    const lone = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [st.mySeat]: st.hand }) } as never, st.mySeat);
+    if (!lone.some((l) => sameCard(l, c))) return;
+    const t = setTimeout(() => {
+      setSent(c.s + c.r); vibrate(10);
+      const h = document.querySelector(`.fan [data-card="${c.s}${c.r}"]`); if (h) Object.assign(playedFrom, screenCenter(h), { at: Date.now() });
+      ctl.act({ type: 'play', seat: st.mySeat, card: c });
+    }, 900);
+    return () => clearTimeout(t);
+  }, [st?.phase, st?.turn, st?.round, st?.hand, sent]); // eslint-disable-line react-hooks/exhaustive-deps
   const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Thanksgiving rooms this table uses
   useEffect(() => { if (p.settings.music !== false) music.start(p.settings.track); else music.stop(); }, [p.settings.music, p.settings.track]);
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
