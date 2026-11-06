@@ -2,7 +2,7 @@ import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
-import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
+import { Card, legalCards, prizeFor, secondPrizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
 import type { CtlView, TableController } from '../lib/controller';
 import { fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
@@ -70,7 +70,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       settled.current = true;
       const mySide = sideOf(st.settings.mode, me);
       const won = st.winners.includes(mySide);
-      const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : 0;
+      const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place is paid 1.5x the bet
+      const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : second ? Math.round(secondPrizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : 0;
       const nils = st.history.filter((h) => h.nilResults[me] === true).length;
       const pens = st.history.filter((h) => h.bagPenalty[mySide]).length;
       const myNils = st.history.filter((h) => h.bids[me] === 0);
@@ -97,7 +98,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
-      if (!view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won }); }   // a loss takes the bet off the boards
+      if (!view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won && !second }); }   // a loss takes the bet off the boards
     }
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
@@ -696,13 +697,14 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
   const mySide = sideOf(mode, me);
   const won = st.winners.includes(mySide);
   const vip = profile.get().vip;
-  const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : 0;
   const place = st.placements.indexOf(mySide) + 1;
+  const second = !won && mode === 'solo' && place === 2;
+  const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? Math.round(secondPrizeFor(st.settings) * (vip ? 1.1 : 1)) : 0;
   return (
     <div className="modal-backdrop">
       <div className={`modal gameover ${won ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">
         <div className="go-title">{won ? 'VICTORY!' : mode === 'solo' ? `${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE` : 'DEFEAT'}</div>
-        {won && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
+        {prize > 0 && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
         <ol className="go-places">
           {st.placements.map((side, i) => (
             <li key={side} className={side === mySide ? 'me' : ''}>

@@ -82,6 +82,11 @@ export function prizeFor(settings: Pick<TableSettings, 'mode' | 'bet'>): number 
   return Math.round(settings.bet * (settings.mode === 'partners' ? 1.8 : 3.6));
 }
 
+/** Solo only: second place gets 1.5x their bet back as a prize (the other two lose their bet). */
+export function secondPrizeFor(settings: Pick<TableSettings, 'mode' | 'bet'>): number {
+  return settings.mode === 'solo' ? Math.round(settings.bet * 1.5) : 0;
+}
+
 export function newDeck(): Card[] {
   const d: Card[] = [];
   for (const s of SUITS) for (let r = 2; r <= 14; r++) d.push({ s, r });

@@ -8,7 +8,7 @@ import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
 import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
-import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
+import { CITIES, prizeFor, secondPrizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
 import { board, credit, debit, initLeaderboard, touch } from './leaderboard';
 import { deleteRecord, getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
@@ -139,7 +139,11 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
       if (s && !s.bot) credit(s, prize);   // the boards show the full prize a winner collects (a 50,000 partners game = 90,000)
     }
     // real players on the losing side(s) lose their bet from the weekly and all-time totals
-    if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat)) debit(s, g.settings.bet); });
+    // solo: 2nd place is paid 1.5x their bet instead of losing it
+    const second = g.settings.mode === 'solo' && g.placements?.length > 1 && !winnerSeats.has(g.placements[1]) ? g.placements[1] : -1;
+    const s2 = second >= 0 ? g.seats[second] : null;
+    if (s2 && !s2.bot) credit(s2, secondPrizeFor(g.settings));
+    if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat) && seat !== second) debit(s, g.settings.bet); });
     setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);
   };
   return room;
