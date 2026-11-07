@@ -2038,3 +2038,15 @@ body.calm .table-screen.hr .felt-wrap::after, body.calm .table-screen.hr-2::befo
 .lt.hr { box-shadow: 0 0 0 3px var(--felt-line), 0 0 26px var(--felt-glow); border-radius: 24px; }
 .lt-hr-badge { position: absolute; top: 8px; left: 50%; translate: -50% 0; z-index: 8; padding: 3px 14px; border-radius: 999px; font: 400 22px var(--display); letter-spacing: 3px; color: #1a1203; background: linear-gradient(180deg, #fff6c2, #ffc83d 60%, #b06a00); box-shadow: 0 2px 8px rgba(0,0,0,.5); pointer-events: none; }
 .lt.hr-2 .lt-hr-badge { color: #08142f; background: linear-gradient(180deg, #ffffff, #bfe9ff 60%, #6fa3d6); }
+
+/* Friends tab: invite card (replaces Rank Rewards) */
+.inv-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 22px 18px 20px; border-radius: 24px; text-align: center; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 0%, #1fb5a6, #0b6b78 55%, #07324f); border: 3px solid #7ff0dc; box-shadow: 0 0 0 4px #07324f, 0 0 22px rgba(60,230,200,.55), inset 0 0 24px rgba(0,0,0,.35); }
+.inv-title { font: 400 44px/1.05 var(--display); letter-spacing: 2px; color: #fff4c4; text-shadow: 0 3px 0 #8a5a00, 0 0 16px rgba(255,210,100,.6); }
+.inv-seats { display: flex; gap: 12px; }
+.inv-seats span { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 28px; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.55); color: #fff; }
+.inv-seats span:nth-child(2n) { color: #ff9aa8; }
+.inv-sub { margin: 0; max-width: 260px; font: 500 16px/1.35 var(--body, system-ui); color: #d8fff6; }
+.inv-btn { min-width: 200px; height: 58px; border-radius: 999px; border: 3px solid #fff2b0; cursor: pointer; font: 400 34px var(--display); letter-spacing: 3px; color: #3b2300;
+  background: linear-gradient(180deg, #ffe27a, #ffb21f 60%, #d98400); box-shadow: 0 5px 0 #8a5200, 0 8px 14px rgba(0,0,0,.4); }
+.inv-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #8a5200; }

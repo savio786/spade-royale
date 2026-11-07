@@ -42,6 +42,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const soc = useSocial();
   const [tab, setTab] = useState<'global' | 'friends' | 'fame'>('global');
   const [last, setLast] = useState(false);   // false = this week, true = last week's final results
+  const [inviting, setInviting] = useState(false);
   const [data, setData] = useState<Board | null | 'loading'>('loading');
   useEffect(() => { let live = true; fetchBoard(p.id).then((b) => live && setData(b)); return () => { live = false; }; }, [p.id]);
   const b = data === 'loading' ? null : data;
@@ -142,12 +143,22 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <aside className="lb-side">
+          {tab === 'friends' && !last ? (
+            <div className="inv-card">
+              <div className="inv-title">Bring a<br />friend to<br />the table</div>
+              <div className="inv-seats" aria-hidden="true"><span>♠</span><span>♥</span><span>♣</span><span>♦</span></div>
+              <p className="inv-sub">You and your friend both get bonus coins when they join and play.</p>
+              <button className="inv-btn" onClick={() => { sfx.click(); setInviting(true); }}>INVITE</button>
+            </div>
+          ) : (
           <div className="rewards">
             <div className="rewards-title">Rank Rewards</div>
             {[['1st', 50000], ['2nd', 25000], ['3rd', 10000], ['4–10', 5000], ['11–50', 2500], ['51–100', 1000]].map(([k, v], i) => (
               <div key={k} className={`reward-row r${i}`}><span>{k}</span><span>{i < 3 && <Coin size={20} />}{fmt(v as number)}</span></div>
             ))}
           </div>
+          )}
+          {inviting && <InviteModal onClose={() => setInviting(false)} />}
           {!last && <div className="ends">ENDS IN: <b>{ends}</b></div>}
           <Pill color="green" onClick={() => { sfx.click(); setLast(!last); if (tab === 'fame') setTab('global'); }}>{last ? 'Current week results' : 'Last week results'}</Pill>
         </aside>
