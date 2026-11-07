@@ -17,6 +17,7 @@ import { net, NetStatus } from '../lib/net';
 import { changeName, checkName, deleteMyAccount } from '../lib/guest';
 import { social, useSocial } from '../lib/social';
 import { inviteLink, inviteText, loadReferral, useReferral, useReferralFailed } from '../lib/referral';
+import { LIVE_SERVER } from '../lib/config';
 import { ShareIcon } from './Install';
 import type { SocialPerson } from '../../shared/protocol';
 import { Mode, prizeFor, secondPrizeFor } from '../../shared/engine';
@@ -365,7 +366,7 @@ export function InviteModal({ onClose }: { onClose: () => void }) {
   const failed = useReferralFailed();
   const [copied, setCopied] = useState(false);
   useEffect(() => { void loadReferral(); }, []);
-  const link = r ? inviteLink(r.code) : window.location.origin;
+  const link = r ? inviteLink(r.code) : LIVE_SERVER;
   const text = r ? inviteText(r.code) : `Come play Spades with me on Spade Haven: ${link}`;
   const enc = encodeURIComponent;
   const copy = async () => {

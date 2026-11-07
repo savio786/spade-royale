@@ -1,7 +1,7 @@
 // Invite friends: your invite link, the share message, and collecting the coins you and your friends earn.
 // A friend who opens your link (…/?ref=CODE) and plays their first game earns coins for both of you.
 import { useSyncExternalStore } from 'react';
-import { serverOrigin } from './config';
+import { LIVE_SERVER, serverOrigin } from './config';
 import { fmt, profile } from './profile';
 import { toast } from './toast';
 import { sfx } from './sound';
@@ -80,6 +80,7 @@ export async function syncReferral() {
   }
 }
 
-export const inviteLink = (code: string) => `${window.location.origin}/?ref=${code}`;
+/** Always the public address, so a link shared from the Render address or the Android/Windows app still works for friends. */
+export const inviteLink = (code: string) => `${LIVE_SERVER}/?ref=${code}`;
 export const inviteText = (code: string) =>
   `Come play Spades with me on Spade Haven — free online Spades with live tables, tournaments and chat. Use my link and we both get bonus coins: ${inviteLink(code)}`;
