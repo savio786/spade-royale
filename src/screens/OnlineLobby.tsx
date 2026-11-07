@@ -7,7 +7,7 @@ import { net, NetStatus } from '../lib/net';
 import type { TableSummary } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
-import { themeById, themeVars } from '../lib/themes';
+import { highRoller, highRollerTheme, themeById, themeVars } from '../lib/themes';
 import { CreateTableModal, RoomTypeModal, StartRequest } from './modals';
 import type { OnlineCounts } from '../../shared/protocol';
 import { CityRing, lookFor } from '../components/CityRing';
@@ -115,6 +115,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
 function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoin: () => void }) {
   const city = t.settings.city || cityForBet(t.settings.bet);
   const look = lookFor(city);
+  const hr = highRoller(t.settings.bet);
   const waiting = t.phase === 'waiting';
   const mine = joinSeat(t);
   // show the table from the seat you'd take: that seat is the PLAY button at the bottom
@@ -123,7 +124,8 @@ function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoi
   const partners = t.settings.mode === 'partners';
   const humans = t.seats.filter((s) => s && !s.bot).length;
   return (
-    <div className={`lt ${poor ? 'poor' : ''} ${waiting ? '' : 'busy'}`} style={themeVars(themeById(look.theme))}>
+    <div className={`lt ${poor ? 'poor' : ''} ${waiting ? '' : 'busy'}${hr ? ` hr hr-${hr}` : ''}`} style={themeVars(hr ? highRollerTheme(hr) : themeById(look.theme))}>
+      {hr > 0 && <span className="lt-hr-badge">{hr === 2 ? '◆ DIAMOND' : '♛ HIGH ROLLER'}</span>}
       <TableShape scale={0.62} emblem={false} />
       <div className="lt-felt">
         <div className="lt-city"><span>{city}</span><CityRing gem={look.gem} /></div>

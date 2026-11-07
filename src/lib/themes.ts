@@ -81,3 +81,16 @@ export function themeVars(t: Theme): CSSProperties {
     '--suit-s': t.suits.S, '--suit-h': t.suits.H, '--suit-d': t.suits.D, '--suit-c': t.suits.C,
   } as CSSProperties;
 }
+
+/** Fixed looks for the biggest tables: 1,000,000 = gold, 2,000,000 and up = royal diamond. They override the player's own table choice. */
+const HR_GOLD: Theme = { id: 'hr-gold', name: 'High Roller', level: 99, rail: ['#fff6c2', '#ffc83d', '#8a5200'],
+  felt: ['#2a2417', '#14110a', '#050403'], feltLine: '#ffd54f', glow: 'rgba(255,200,61,.8)', rim: 'linear-gradient(135deg, #fff3b0, #ffc83d 40%, #fff1a8 55%, #b06a00)', rimEdge: '#5a3500',
+  panel: 'rgba(0,0,0,.55)', panelLine: 'rgba(255,213,79,.85)', panelText: '#fff1c1',
+  cardFace: 'linear-gradient(180deg, #fffdf2, #f6ecc8)', cardBack: 'repeating-linear-gradient(45deg, #ffc83d 0 3px, #111 3px 9px)', cardBackEdge: '#ffc83d', suits: { S: '#111', H: '#b8001f', D: '#b8001f', C: '#111' } };
+const HR_DIAMOND: Theme = { id: 'hr-diamond', name: 'Diamond High Roller', level: 99, rail: ['#ffffff', '#bfe9ff', '#5a8fc8'],
+  felt: ['#10204a', '#080f2a', '#02040f'], feltLine: '#e8f7ff', glow: 'rgba(160,225,255,.85)', rim: 'linear-gradient(135deg, #ffffff, #bfe9ff 38%, #f4fbff 55%, #6fa3d6)', rimEdge: '#26405f',
+  panel: 'rgba(4,10,40,.6)', panelLine: 'rgba(200,238,255,.9)', panelText: '#eaf8ff',
+  cardFace: 'linear-gradient(180deg, #ffffff, #eaf4ff)', cardBack: 'repeating-linear-gradient(45deg, #bfe9ff 0 3px, #0a1236 3px 9px)', cardBackEdge: '#e8f7ff', suits: { S: '#0c1030', H: '#c4143c', D: '#c4143c', C: '#0c1030' } };
+/** 0 = normal table, 1 = gold (1M), 2 = diamond (2M+). */
+export const highRoller = (bet: number): 0 | 1 | 2 => bet >= 2_000_000 ? 2 : bet >= 1_000_000 ? 1 : 0;
+export const highRollerTheme = (tier: 1 | 2) => tier === 2 ? HR_DIAMOND : HR_GOLD;

@@ -13,7 +13,7 @@ import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
 import { ThemeModal, VipModal } from './modals';
-import { activeTheme, newlyUnlocked, themeVars } from '../lib/themes';
+import { activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
 const POS = ['bottom', 'left', 'top', 'right'] as const;
@@ -203,6 +203,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       <Pill color="ghost" onClick={leave}>Back</Pill></div>;
   }
 
+  const hr = highRoller(st.settings.bet);   // 1M gold / 2M diamond tables look the same for everyone
   const mode = st.settings.mode;
   const deadline = view.snap!.turnDeadline;
   const secsLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
@@ -214,7 +215,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me)) lastBySeat.set(m.seat, m);
 
   return (
-    <div className={`screen table-screen felt-bg fall-${fall}`} style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
+    <div className={`screen table-screen felt-bg fall-${fall}${hr ? ` hr hr-${hr}` : ''}`} style={themeVars(hr ? highRollerTheme(hr) : activeTheme(p.theme, levelFromXp(p.xp)))}>
       <div className="tbl-top-left">
         <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>BUY COINS</button>
         <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">VIP</span><small>CLUB</small></button>
@@ -229,6 +230,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         <div className="felt">
           <InfoPanel st={st} />
           <ScorePanel st={st} />
+          {hr > 0 && <div className="hr-plate" aria-hidden="true"><span>{hr === 2 ? '◆ DIAMOND TABLE ◆' : '♛ HIGH ROLLER ♛'}</span></div>}
           <div className="felt-center">
             {st.phase === 'waiting' && view.snap!.startAt && (
               <div className="center-msg" role="timer">
