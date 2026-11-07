@@ -80,7 +80,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       const city = st.settings.city;
       profile.set((x) => ({
         card: {
-          last5: ((x.card?.last5 ?? '') + (won ? 'W' : 'L')).slice(-5),
+          last5: second ? (x.card?.last5 ?? '') : ((x.card?.last5 ?? '') + (won ? 'W' : 'L')).slice(-5),   // 2nd place in solo is not a loss
           nil: (x.card?.nil ?? 0) + myNils.length, nilMade: (x.card?.nilMade ?? 0) + myNils.filter((h) => h.nilResults[me]).length,
           blind: (x.card?.blind ?? 0) + blinds.length, blindMade: (x.card?.blindMade ?? 0) + blinds.filter((h) => h.nilResults[me]).length,
           rings: won ? { ...(x.card?.rings ?? {}), [city]: ((x.card?.rings ?? {})[city] ?? 0) + 1 } : (x.card?.rings ?? {}),
@@ -89,13 +89,13 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         xp: x.xp + 40 + (won ? 80 : 0),
         weekEarnings: x.weekEarnings + (second ? 0 : prize),   // a refunded bet is not earnings
         stats: {
-          ...x.stats, played: x.stats.played + 1, won: x.stats.won + (won ? 1 : 0),
+          ...x.stats, played: x.stats.played + (second ? 0 : 1), won: x.stats.won + (won ? 1 : 0),
           soloWins: x.stats.soloWins + (won && st.settings.mode === 'solo' ? 1 : 0),
           partnersWins: x.stats.partnersWins + (won && st.settings.mode === 'partners' ? 1 : 0),
           nilsMade: x.stats.nilsMade + nils, biggestWin: second ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
         },
       }));
-      won ? (sfx.win(), sfx.coins()) : sfx.lose();
+      won ? (sfx.win(), sfx.coins()) : second ? sfx.coins() : sfx.lose();
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
