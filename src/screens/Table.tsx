@@ -36,6 +36,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const [unread, setUnread] = useState(0);
   const [now, setNow] = useState(Date.now());
   const charged = useRef(false);
+  const boardsDone = useRef(false);
   const settled = useRef(false);
   const lastChatId = useRef(0);
   // when each chat line first reached THIS device (a phone's clock can be minutes off the server's, so the server's time stamp can't decide how long a line stays up)
@@ -176,9 +177,14 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
 
   const leave = () => {
-    // leaving a game against computers after it started forfeits the bet (and takes it off the boards)
-    if (view && !view.online && st && charged.current && !settled.current && st.phase !== 'waiting' && st.phase !== 'gameOver') {
+    // leaving a game after it started is a loss on your record, and forfeits the bet
+    if (view && st && charged.current && !settled.current && st.phase !== 'waiting' && st.phase !== 'gameOver') {
       settled.current = true;
+      profile.set((x) => ({ card: { ...x.card, last5: ((x.card?.last5 ?? '') + 'L').slice(-5) } as typeof x.card, stats: { ...x.stats, played: x.stats.played + 1 } }));
+    }
+    // ...and against computers the bet also comes off the boards (online games do that on the server)
+    if (view && !view.online && st && charged.current && st.phase !== 'waiting' && st.phase !== 'gameOver' && !boardsDone.current) {
+      boardsDone.current = true;
       const me2 = profile.get();
       reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize: 0, lost: true, leftNil: st.bids?.[me] === 0 });   // walking out on a nil / blind nil bid costs 1.5x the bet
     }
