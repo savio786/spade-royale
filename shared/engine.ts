@@ -82,9 +82,9 @@ export function prizeFor(settings: Pick<TableSettings, 'mode' | 'bet'>): number 
   return Math.round(settings.bet * (settings.mode === 'partners' ? 1.8 : 3.6));
 }
 
-/** Solo only: second place gets 1.5x their bet back as a prize (the other two lose their bet). */
+/** Solo only: second place gets their bet back (a loss on their record, but no coins lost; third and fourth lose the bet). */
 export function secondPrizeFor(settings: Pick<TableSettings, 'mode' | 'bet'>): number {
-  return settings.mode === 'solo' ? Math.round(settings.bet * 1.5) : 0;
+  return settings.mode === 'solo' ? settings.bet : 0;
 }
 
 export function newDeck(): Card[] {

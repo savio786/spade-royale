@@ -748,7 +748,7 @@ export function CreateTableModal({ mode, onClose, onCreate, title = 'Create', pr
           <input type="range" min={0} max={affordable.length - 1} value={Math.min(bi, affordable.length - 1)} onChange={(e) => setBi(+e.target.value)} aria-label="Bet" />
           <button className="round-btn" aria-label="Raise bet" onClick={() => setBi(Math.min(affordable.length - 1, bi + 1))}><Icon name="plus" /></button>
         </div>
-        <div className="prize-line">Prize per winner: <Coin size={18} /> {fmt(prizeFor({ mode, bet }))}{mode === 'solo' && <> · 2nd place: <Coin size={18} /> {fmt(secondPrizeFor({ mode, bet }))}</>}</div>
+        <div className="prize-line">Prize per winner: <Coin size={18} /> {fmt(prizeFor({ mode, bet }))}{mode === 'solo' && <> · 2nd place: bet back (<Coin size={18} /> {fmt(secondPrizeFor({ mode, bet }))})</>}</div>
       </div>
       <div className="points-box">
         <div className="points-title">GAME ENDING POINTS</div>

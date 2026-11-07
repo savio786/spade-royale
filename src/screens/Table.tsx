@@ -70,8 +70,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       settled.current = true;
       const mySide = sideOf(st.settings.mode, me);
       const won = st.winners.includes(mySide);
-      const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place is paid 1.5x the bet
-      const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : second ? Math.round(secondPrizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : 0;
+      const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place gets the bet back
+      const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
       const nils = st.history.filter((h) => h.nilResults[me] === true).length;
       const pens = st.history.filter((h) => h.bagPenalty[mySide]).length;
       const myNils = st.history.filter((h) => h.bids[me] === 0);
@@ -86,19 +86,19 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         },
         coins: x.coins + prize,
         xp: x.xp + 40 + (won ? 80 : 0),
-        weekEarnings: x.weekEarnings + prize,
+        weekEarnings: x.weekEarnings + (second ? 0 : prize),   // a refunded bet is not earnings
         stats: {
           ...x.stats, played: x.stats.played + 1, won: x.stats.won + (won ? 1 : 0),
           soloWins: x.stats.soloWins + (won && st.settings.mode === 'solo' ? 1 : 0),
           partnersWins: x.stats.partnersWins + (won && st.settings.mode === 'partners' ? 1 : 0),
-          nilsMade: x.stats.nilsMade + nils, biggestWin: Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
+          nilsMade: x.stats.nilsMade + nils, biggestWin: second ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
         },
       }));
       won ? (sfx.win(), sfx.coins()) : sfx.lose();
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
-      if (!view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won && !second }); }   // a loss takes the bet off the boards
+      if (!view.online && !second) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won }); }   // a loss takes the bet off the boards
     }
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
@@ -723,7 +723,7 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
   const vip = profile.get().vip;
   const place = st.placements.indexOf(mySide) + 1;
   const second = !won && mode === 'solo' && place === 2;
-  const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? Math.round(secondPrizeFor(st.settings) * (vip ? 1.1 : 1)) : 0;
+  const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
   return (
     <div className="modal-backdrop">
       <div className={`modal gameover ${won ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">

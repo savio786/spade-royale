@@ -108,7 +108,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
           <div className="mode-card static">
             <span className="mode-title">SOLO</span>
             <span className="mode-sub">Play against all other players</span>
-            <p>Four players, no partners. Every book counts for you alone, and the winner takes 3.6× the bet and second place gets 1.5×.</p>
+            <p>Four players, no partners. Every book counts for you alone, and the winner takes 3.6× the bet and second place gets their bet back.</p>
           </div>
         </div>
       </section>
