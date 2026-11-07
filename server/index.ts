@@ -17,6 +17,7 @@ import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
 import { deleteAccount } from './deleteAccount';
+import { mailConfigured, sendMail } from './mail';
 import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
 import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
@@ -497,6 +498,13 @@ async function reportPlayerApi(req: import('http').IncomingMessage, res: import(
     const t = await getRecord<{ name?: string }>(`acct-${target.replace(/[^a-zA-Z0-9_-]/g, '')}`);
     if (!t) return json(res, 404, { error: 'That player was not found.' });
     const err = addReport({ byId: id, byName: me, targetId: target, targetName: String(t.name || 'Player'), reason: String(b.reason || 'Other'), note: String(b.note || '') });
+    if (!err && mailConfigured()) {
+      const esc = (x: string) => String(x).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+      const reason = String(b.reason || 'Other').slice(0, 60), note = String(b.note || '').slice(0, 300), tname = String(t.name || 'Player');
+      const text = `${me} reported ${tname}\nReason: ${reason}\nNote: ${note || '(none)'}\nReported player id: ${target}\n\nReview it in the admin tools (Reports).`;
+      void sendMail(process.env.REPORT_EMAIL || 'spades@sedigitaltransformation.com', `Spade Haven report: ${tname} (${reason})`, text,
+        `<p><b>${esc(me)}</b> reported <b>${esc(tname)}</b></p><p>Reason: ${esc(reason)}<br>Note: ${esc(note) || '(none)'}<br>Reported player id: ${esc(target)}</p><p>Review it in the admin tools (Reports).</p>`).catch(() => {});
+    }
     return err ? json(res, 429, { error: err }) : json(res, 200, { ok: true });
   } catch (e) { console.error('report player', e); return json(res, 500, { error: 'Could not send the report right now.' }); }
 }
