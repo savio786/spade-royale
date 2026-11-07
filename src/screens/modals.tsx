@@ -97,7 +97,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
             )
           ) : (
             !b || (b.fame.length === 0 && !(b.allTime?.length)) ? empty('The best players of all time appear here. Win games to get on the Haven’s Fame.') : (
-              <>
+              <div className="lb-fame">
               {!!b.allTime?.length && (
                 <>
                   <div className="lb-head"><span>Rank</span><span>Player</span><span>Total won</span></div>
@@ -125,7 +125,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
                   </li>
                 ))}
               </ol>
-              </>
+              </div>
             )
           )}
           {tab === 'fame' && b?.meAllTime && <div className="lb-me">Your all-time rank: <b>{b.meAllTime.rank ? `#${b.meAllTime.rank}` : 'not ranked yet'}</b> · {fmt(b.meAllTime.earnings)} won in total</div>}

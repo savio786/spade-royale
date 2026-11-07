@@ -2015,3 +2015,8 @@ body.calm .table-shape .aurora { opacity: .55; }
 .table-screen .trick { z-index: 30; }
 .table-screen .bubble { z-index: 2; }
 .tcard.at-top { transform: translate(0, calc(var(--card-w) * -.46)); }
+
+/* Haven's Fame: one scroll for the whole tab, so the Weekly champions list below the all-time list is never squeezed into a sliver */
+.lb-fame { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 6px; }
+.lb-fame .lb-list { overflow: visible; flex: none; padding-right: 0; }
+.lb-fame .lb-head { flex: none; }
