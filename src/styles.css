@@ -2058,14 +2058,3 @@ body.calm .table-screen.hr .felt-wrap::after, body.calm .table-screen.hr-2::befo
 .fame-cup { width: 150px; height: auto; filter: drop-shadow(0 0 14px rgba(255,200,70,.7)); }
 .fame-stars { font-size: 22px; letter-spacing: 8px; color: #ffd966; text-shadow: 0 0 10px rgba(255,200,70,.8); }
 .fame-sub { margin: 0; max-width: 260px; font: 500 16px/1.35 var(--body, system-ui); color: #e6dcff; }
-
-/* Haven's Fame side card: a trophy on a podium */
-.hf-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px 18px 18px; border-radius: 24px; text-align: center; overflow: hidden;
-  background: radial-gradient(ellipse at 50% 30%, #4b1fa8, #240c66 60%, #12063a); border: 3px solid #ffd54f; box-shadow: 0 0 0 4px #1a0950, 0 0 24px rgba(255,200,61,.5), inset 0 0 26px rgba(0,0,0,.4); }
-.hf-card::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-conic-gradient(from 0deg at 50% 38%, rgba(255,220,120,.10) 0 8deg, transparent 8deg 24deg); }
-.hf-title { position: relative; font: 400 46px/1 var(--display); letter-spacing: 3px; color: #fff4c4; text-shadow: 0 3px 0 #8a5a00, 0 0 18px rgba(255,210,100,.65); }
-.hf-trophy { position: relative; width: 150px; height: 150px; filter: drop-shadow(0 0 14px rgba(255,200,61,.7)); }
-.hf-steps { position: relative; display: flex; align-items: flex-end; gap: 4px; }
-.hf-steps span { display: grid; place-items: start center; width: 62px; padding-top: 6px; font: 400 28px var(--display); color: #3b2300; background: linear-gradient(180deg, #ffe27a, #d98400); border-radius: 8px 8px 0 0; box-shadow: inset 0 0 0 2px rgba(255,255,255,.4); }
-.hf-steps .s1 { height: 66px; } .hf-steps .s2 { height: 50px; filter: saturate(.3) brightness(1.2); } .hf-steps .s3 { height: 38px; filter: hue-rotate(-18deg) brightness(.85); }
-.hf-sub { position: relative; margin: 6px 0 0; max-width: 250px; font: 500 15px/1.35 var(--body, system-ui); color: #e6dcff; }
