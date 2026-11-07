@@ -72,7 +72,7 @@ export const TOPICS: Topic[] = [
     answer: 'Some players are computer players (tap a player to see their profile; computer players say COMPUTER PLAYER). They take empty seats after a table has waited 15 seconds for real people (or straight away if someone taps "Start now"). Computer players never appear on the leaderboard.',
     related: ['private', 'leaderboard'] },
   { id: 'leave', title: 'Leaving a table', keys: ['leave', 'leave the table', 'leave table', 'quit', 'exit', 'forfeit', 'get out', 'stop playing'],
-    answer: 'Open the menu (☰, top right) → Leave table. Leaving before the game starts is free; leaving during a game forfeits your bet, and a computer player takes your seat. If you bid Nil or Blind Nil and then leave, it costs 1.5× the bet on the leaderboards.',
+    answer: 'Open the menu (☰, top right) → Leave table. Leaving before the game starts is free; leaving during a game forfeits your bet, and a computer player takes your seat. If you bid Nil or Blind Nil and then leave, it costs 1.5× the bet, in coins and on the leaderboards.',
     related: ['disconnect'] },
   { id: 'disconnect', title: 'Disconnected / game stopped', keys: ['disconnect', 'disconnected', 'lag', 'kicked', 'froze', 'frozen', 'stuck', 'connection', 'reconnect', 'crash', 'restart', 'not loading', 'slow'],
     answer: 'If the game stops responding, refresh the page. The server restarts now and then (and whenever the game is updated); a game in progress at that moment ends, but your coins, level and leaderboard results are kept. If it keeps happening, check your internet connection.',

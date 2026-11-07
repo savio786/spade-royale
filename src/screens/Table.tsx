@@ -181,6 +181,12 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     if (view && st && charged.current && !settled.current && st.phase !== 'waiting' && st.phase !== 'gameOver') {
       settled.current = true;
       profile.set((x) => ({ card: { ...x.card, last5: ((x.card?.last5 ?? '') + 'L').slice(-5) } as typeof x.card, stats: { ...x.stats, played: x.stats.played + 1 } }));
+      // walking out on a Nil / Blind Nil bid: 1.5x the bet in total, so another half a bet on top of the bet already paid (never below 0 coins)
+      if (st.bids?.[me] === 0) {
+        const extra = Math.round(st.settings.bet * 0.5);
+        profile.set((x) => ({ coins: Math.max(0, x.coins - extra) }));
+        toast(`You left on a Nil bid: ${fmt(Math.round(st.settings.bet * 1.5))} coins lost in total`, 'error');
+      }
     }
     // ...and against computers the bet also comes off the boards (online games do that on the server)
     if (view && !view.online && st && charged.current && st.phase !== 'waiting' && st.phase !== 'gameOver' && !boardsDone.current) {
