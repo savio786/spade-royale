@@ -143,7 +143,21 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <aside className="lb-side">
-          {tab === 'friends' && !last ? (
+          {tab === 'fame' ? (
+            <div className="fame-card">
+              <div className="fame-title">Haven’s<br />Fame</div>
+              <svg className="fame-cup" viewBox="0 0 120 130" aria-hidden="true">
+                <defs><linearGradient id="fcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff2a8" /><stop offset=".55" stopColor="#ffc22e" /><stop offset="1" stopColor="#b86e00" /></linearGradient></defs>
+                <path d="M30 14h60v32c0 22-13 36-30 36S30 68 30 46z" fill="url(#fcg)" stroke="#7a4600" strokeWidth="3" />
+                <path d="M30 22H12c0 22 8 34 22 38M90 22h18c0 22-8 34-22 38" fill="none" stroke="#e5a117" strokeWidth="6" strokeLinecap="round" />
+                <rect x="54" y="82" width="12" height="18" fill="url(#fcg)" stroke="#7a4600" strokeWidth="2" />
+                <rect x="36" y="100" width="48" height="14" rx="4" fill="url(#fcg)" stroke="#7a4600" strokeWidth="3" />
+                <text x="60" y="58" textAnchor="middle" fontSize="34" fill="#7a4600">♠</text>
+              </svg>
+              <div className="fame-stars" aria-hidden="true">★ ★ ★</div>
+              <p className="fame-sub">The biggest winners the table has ever seen. Win big to join them.</p>
+            </div>
+          ) : tab === 'friends' && !last ? (
             <div className="inv-card">
               <div className="inv-title">Bring a<br />friend to<br />the table</div>
               <div className="inv-seats" aria-hidden="true"><span>♠</span><span>♥</span><span>♣</span><span>♦</span></div>

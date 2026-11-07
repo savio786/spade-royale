@@ -2050,3 +2050,11 @@ body.calm .table-screen.hr .felt-wrap::after, body.calm .table-screen.hr-2::befo
 .inv-btn { min-width: 200px; height: 58px; border-radius: 999px; border: 3px solid #fff2b0; cursor: pointer; font: 400 34px var(--display); letter-spacing: 3px; color: #3b2300;
   background: linear-gradient(180deg, #ffe27a, #ffb21f 60%, #d98400); box-shadow: 0 5px 0 #8a5200, 0 8px 14px rgba(0,0,0,.4); }
 .inv-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #8a5200; }
+
+/* Haven's Fame: trophy card (replaces Rank Rewards) */
+.fame-card { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 18px; border-radius: 24px; text-align: center;
+  background: radial-gradient(ellipse at 50% 30%, #4a2a8f, #1b0f4d 65%, #0b0630); border: 3px solid #ffd966; box-shadow: 0 0 0 4px #1b0f4d, 0 0 24px rgba(255,200,70,.5), inset 0 0 26px rgba(0,0,0,.4); }
+.fame-title { font: 400 50px/1 var(--display); letter-spacing: 3px; color: #fff4c4; text-shadow: 0 3px 0 #8a5a00, 0 0 18px rgba(255,210,100,.65); }
+.fame-cup { width: 150px; height: auto; filter: drop-shadow(0 0 14px rgba(255,200,70,.7)); }
+.fame-stars { font-size: 22px; letter-spacing: 8px; color: #ffd966; text-shadow: 0 0 10px rgba(255,200,70,.8); }
+.fame-sub { margin: 0; max-width: 260px; font: 500 16px/1.35 var(--body, system-ui); color: #e6dcff; }
