@@ -39,7 +39,7 @@ export async function reportPlayer(p: { id: string; key: string; target: string;
   } catch { return 'Could not reach the server.'; }
 }
 
-export async function reportWin(p: { id: string; name: string; avatar: string; mode: Mode; bet: number; prize: number; lost?: boolean }) {
+export async function reportWin(p: { id: string; name: string; avatar: string; mode: Mode; bet: number; prize: number; lost?: boolean; leftNil?: boolean }) {
   const base = apiBase();
   if (!base) return;
   try {

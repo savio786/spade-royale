@@ -37,7 +37,13 @@ const forfeits = new Set<string>();
 const forfeit = (playerId: string, tableId: string) => { if (forfeits.size > 20_000) forfeits.clear(); forfeits.add(`${playerId}:${tableId}`); };
 const inProgress = (r: Room) => r.rt.g.phase !== 'waiting' && r.rt.g.phase !== 'gameOver';
 /** A player who leaves or drops out of a game in progress loses their bet on the boards too (their seat then goes to a computer player). */
-const forfeitBoards = (r: Room, playerId: string) => { const s = r.rt.g.seats.find((x) => x && !x.bot && x.id === playerId); if (s) debit(s, r.rt.g.settings.bet); };
+const forfeitBoards = (r: Room, playerId: string) => {
+  const g = r.rt.g;
+  const i = g.seats.findIndex((x) => x && !x.bot && x.id === playerId);
+  if (i < 0) return;
+  const nil = g.bids?.[i] === 0;   // bid nil or blind nil this round and walked away: 1.5x the bet comes off the boards
+  debit(g.seats[i]!, nil ? Math.round(g.settings.bet * 1.5) : g.settings.bet);
+};
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
 interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
 
@@ -414,10 +420,10 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         const max = prizeFor({ mode, bet }) * 1.1 + 1;
         const now = Date.now();
         if (!id || !(bet >= 100 && bet <= 2_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
-        if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
-        lastReport.set(id, now);
+        if (!lost && now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });   // wins are throttled; a loss or forfeit is always recorded
+        if (!lost) lastReport.set(id, now);
         if (isBanned(id)) return json(res, 200, { ok: true });
-        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, bet); else credit(who, prize); });
+        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, b.leftNil === true ? Math.round(bet * 1.5) : bet); else credit(who, prize); });
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });

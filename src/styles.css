@@ -2009,3 +2009,9 @@ body.calm .table-shape .aurora { opacity: .55; }
 .st-delete-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .st-delete-go { padding: 9px 16px; border-radius: 999px; border: 0; font: 400 20px var(--display); letter-spacing: 1px; color: #fff; background: linear-gradient(#e14a4a, #a31d1d); cursor: pointer; }
 .st-delete-go:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Readability: the "your turn" timer sits in the top-left corner instead of over the cards in the middle, and the cards played to the table are drawn above the timer, chat bubbles and your own hand */
+.table-screen .turn-clock { left: 20px; right: auto; top: 104px; bottom: auto; translate: none; z-index: 5; font-size: 22px; padding: 5px 14px; }
+.table-screen .trick { z-index: 30; }
+.table-screen .bubble { z-index: 2; }
+.tcard.at-top { transform: translate(0, calc(var(--card-w) * -.46)); }

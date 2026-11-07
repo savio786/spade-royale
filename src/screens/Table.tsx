@@ -180,7 +180,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     if (view && !view.online && st && charged.current && !settled.current && st.phase !== 'waiting' && st.phase !== 'gameOver') {
       settled.current = true;
       const me2 = profile.get();
-      reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize: 0, lost: true });
+      reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize: 0, lost: true, leftNil: st.bids?.[me] === 0 });   // walking out on a nil / blind nil bid costs 1.5x the bet
     }
     ctl.leave();
     onExit();
