@@ -16,7 +16,7 @@ const FEATURES = [
   { icon: 'globe', title: 'Online lobby', text: 'Pick a city table by bet size and game-ending points, or hit Play Now for instant matchmaking.' },
   { icon: 'lock', title: 'Private tables', text: 'Create a table, share a 5-letter invite code, and play with friends. Bots fill any empty seat.' },
   { icon: 'chat', title: 'Table chat & gifts', text: 'Quick phrases, emoji and free text at every table — plus gifts you can send to other players.' },
-  { icon: 'podium', title: 'Weekly leaderboard', text: 'Climb the global board, compete with friends and land on the Wall of Fame. Top 100 earn rewards.' },
+  { icon: 'podium', title: 'Weekly leaderboard', text: 'Climb the global board, compete with friends and land on the Haven’s Fame. Top 100 earn rewards.' },
   { icon: 'gift', title: 'Daily rewards', text: 'Daily gift, bonus wheel every 4 hours, trophies to unlock and a VIP Club with extra perks.' },
 ];
 

@@ -70,7 +70,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
           <div className="tabs" role="tablist">
             {(['global', 'friends', 'fame'] as const).map((t) => (
               <button key={t} role="tab" aria-selected={tab === t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => { sfx.click(); setTab(t); }}>
-                {t === 'global' ? 'Global' : t === 'friends' ? 'Friends' : 'Wall of Fame'}
+                {t === 'global' ? 'Global' : t === 'friends' ? 'Friends' : 'Haven’s Fame'}
               </button>
             ))}
           </div>
@@ -96,7 +96,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               </>
             )
           ) : (
-            !b || (b.fame.length === 0 && !(b.allTime?.length)) ? empty('The best players of all time appear here. Win games to get on the Wall of Fame.') : (
+            !b || (b.fame.length === 0 && !(b.allTime?.length)) ? empty('The best players of all time appear here. Win games to get on the Haven’s Fame.') : (
               <>
               {!!b.allTime?.length && (
                 <>

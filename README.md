@@ -14,7 +14,7 @@ A complete Spades game with a marketing landing page, installable web app (Windo
 | Gameplay | Full rules: bidding 1–13 and Nil, follow suit, spades breaking, trick winner, 10 bags = −100, nil ±100, game-end at max/min points, round summary, victory/defeat, prize payout, XP |
 | Bots | Bid estimation, nil protection, covering partner's nil, ducking bags — fill any empty seat |
 | Chat | Table chat with quick phrases, emoji, free text, speech bubbles on seats, bots that reply; gifts you can send to players |
-| Leaderboard | Global / Friends / Wall of Fame, rank rewards (50K, 25K, 10K, …), countdown to week end, last-week results + reward claim |
+| Leaderboard | Global / Friends / Haven’s Fame, rank rewards (50K, 25K, 10K, …), countdown to week end, last-week results + reward claim |
 | Multiplayer | WebSocket server: quick-match public tables, live table list, private tables with 5-letter invite codes, server-side rules, turn timer (auto-play on timeout), disconnected players replaced by bots |
 | Offline | Everything except online/private multiplayer works offline against bots (service worker caches the app) |
 
@@ -52,7 +52,7 @@ The same `shared/` engine runs in the browser (offline play) and on the server (
 The live service runs on Render's free plan with two settings:
 
 - `KEEP_AWAKE=1` makes the server visit its own `/health` page every 10 minutes, so Render never puts it to sleep. One service running all month fits inside Render's 750 free hours.
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` store the leaderboard, Wall of Fame and purchases in a free Upstash Redis database, so restarts don't wipe them. Without these two settings the server saves to files in `DATA_DIR`, which is fine on your own computer or with a paid Render disk.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` store the leaderboard, Haven’s Fame and purchases in a free Upstash Redis database, so restarts don't wipe them. Without these two settings the server saves to files in `DATA_DIR`, which is fine on your own computer or with a paid Render disk.
 
 Free-plan limit: Render still restarts free services now and then, and on every deploy. Games in progress at that moment are interrupted, but saved data is kept.
 
@@ -212,7 +212,7 @@ These are wired up in the UI but use placeholders until you add your own account
 - **Sign-in**: the Facebook and Google Play Games buttons create a local profile. For real accounts, add Firebase Authentication (web) or `@capacitor-firebase/authentication` (native), then send the verified user id in the server `hello` message.
 - **Payments in the phone apps**: Apple and Google require their own billing for coins and Chat Passes inside apps. Use Google Play Billing and StoreKit, for example through RevenueCat (`@revenuecat/purchases-capacitor`). Until then buying is switched off in the apps.
 - **Rewarded ads**: the “+100 coins AD” slot is a 5-second placeholder. Use `@capacitor-community/admob` on mobile.
-- **Losses on the boards**: when a real player loses a game their bet comes off both the weekly Global total and the all-time (Wall of Fame) total; leaving or dropping out of a game in progress does the same. Winners are credited the full prize they collect (for example 90,000 for a 50,000 partners game), losers lose their bet. Totals never go below zero: a player who has lost more than they won stays on the board showing 0 and climbs again with their next wins (weekly rewards and the Wall of Fame champion only go to players above 0). Games against computers are reported by the player's device (`/api/report`, `lost: true`), games at online tables are settled by the server.
+- **Losses on the boards**: when a real player loses a game their bet comes off both the weekly Global total and the all-time (Haven’s Fame) total; leaving or dropping out of a game in progress does the same. Winners are credited the full prize they collect (for example 90,000 for a 50,000 partners game), losers lose their bet. Totals never go below zero: a player who has lost more than they won stays on the board showing 0 and climbs again with their next wins (weekly rewards and the Haven’s Fame champion only go to players above 0). Games against computers are reported by the player's device (`/api/report`, `lost: true`), games at online tables are settled by the server.
 - **Wallet security**: coins, XP and stats are stored on the device (`src/lib/profile.ts`). Before launch, move the wallet and leaderboard into a database on the server (for example Postgres or Firestore), and settle bets and prizes there. That way players can't edit their own balance.
 - **Store policy**: coins are virtual and can't be cashed out. Google Play and Apple treat purchasable coins for card games as “simulated gambling”, so you'll need the matching age rating (17+ on iOS, an IARC rating on Play). Real-money tournaments like Skillz's need gambling licenses and a different integration.
 
@@ -251,5 +251,5 @@ Without these, the link says reset isn't set up yet. For testing on your own com
 
 **Account deletion and backups:** a player can delete their own account from Settings (open “Table & cards, guest code and more”, then “Delete my account”, and type DELETE). It removes the account, email login, guest code, name, friends, picture, leaderboard entries and chat mute; payment records, reports and suspensions are kept. The owner page has a **Download backup** button (`GET /api/admin/backup`, owner key needed): one JSON file with every stored record except profile photos (add `&photos=1` for those). It contains password hashes and account keys, so keep it private.
 
-The same page lets the owner **suspend** a cheater (the account and its email can no longer sign in, connect to tables or sync progress; anyone playing is disconnected at once and sees "Account suspended"), **wipe winnings** (takes a player off the Global ranking and the Wall of Fame), let a player back in, and read **reports** that players send from the player card ("⚑ REPORT PLAYER"). Coins are kept on each player's device, so they are not wiped.
+The same page lets the owner **suspend** a cheater (the account and its email can no longer sign in, connect to tables or sync progress; anyone playing is disconnected at once and sees "Account suspended"), **wipe winnings** (takes a player off the Global ranking and the Haven’s Fame), let a player back in, and read **reports** that players send from the player card ("⚑ REPORT PLAYER"). Coins are kept on each player's device, so they are not wiped.
 

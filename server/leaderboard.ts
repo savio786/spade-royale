@@ -1,4 +1,4 @@
-// Real weekly leaderboard + Wall of Fame, stored on the server in data/leaderboard.json.
+// Real weekly leaderboard + Haven’s Fame, stored on the server in data/leaderboard.json.
 // Starts empty: only real players' winnings ever appear here.
 import { loadJSON, saveJSON } from './storage';
 
@@ -9,7 +9,7 @@ interface Store {
   players: Record<string, LbEntry>;
   lastWeek: { week: string; rows: LbEntry[] } | null;
   fame: FameEntry[];
-  allTime: Record<string, LbEntry>;   // everything each player has ever won: the Wall of Fame list
+  allTime: Record<string, LbEntry>;   // everything each player has ever won: the Haven’s Fame list
   seeded: boolean;
 }
 
@@ -50,7 +50,7 @@ const sorted = (rows: LbEntry[]) => rows.filter((r) => r.earnings >= 0).sort((a,
 function rollover() {
   const now = weekKey();
   if (store.week === now) return;
-  const rows = sorted(Object.values(store.players)).filter((r) => r.earnings > 0);   // weekly rewards and the Wall of Fame champion only go to players who actually won something
+  const rows = sorted(Object.values(store.players)).filter((r) => r.earnings > 0);   // weekly rewards and the Haven’s Fame champion only go to players who actually won something
   store.lastWeek = { week: store.week, rows: rows.slice(0, 100) };
   if (rows[0]) store.fame = [{ week: store.week, name: rows[0].name, avatar: rows[0].avatar, earnings: rows[0].earnings }, ...store.fame].slice(0, 52);
   store.players = {};
@@ -88,7 +88,7 @@ function adjust(p: { id: string; name: string; avatar: string }, delta: number) 
   save();
 }
 
-/** A win: the prize is added to the week's total and to the all-time (Wall of Fame) total. */
+/** A win: the prize is added to the week's total and to the all-time (Haven’s Fame) total. */
 export function credit(p: { id: string; name: string; avatar: string }, amount: number) {
   if (!p.id || !(amount > 0)) return;
   adjust(p, Math.round(amount));
@@ -119,10 +119,10 @@ export function board(id?: string) {
   };
 }
 
-/** Wipes every leaderboard and Wall of Fame entry. */
+/** Wipes every leaderboard and Haven’s Fame entry. */
 export function resetAll() { store = empty(); save(); }
 
-/** Takes a player off both boards completely (this week, all-time, last week, and any Wall of Fame weeks under their name). */
+/** Takes a player off both boards completely (this week, all-time, last week, and any Haven’s Fame weeks under their name). */
 export function removePlayer(id: string, name?: string) {
   const gone = store.players[id]?.name ?? store.allTime[id]?.name ?? name;
   delete store.players[id]; delete store.allTime[id];
