@@ -70,7 +70,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
           <div className="tabs" role="tablist">
             {(['global', 'friends', 'fame'] as const).map((t) => (
               <button key={t} role="tab" aria-selected={tab === t} className={`tab ${tab === t ? 'on' : ''}`} onClick={() => { sfx.click(); setTab(t); }}>
-                {t === 'global' ? 'Global' : t === 'friends' ? 'Friends' : 'Haven’s Fame'}
+                {t === 'global' ? 'Weekly Rankings' : t === 'friends' ? 'Friends' : 'Haven’s Fame'}
               </button>
             ))}
           </div>

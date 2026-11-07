@@ -155,7 +155,7 @@ export function AdminPage() {
             </>)}
 
             {tab === 'reports' && (<>
-              <p>Reports from players. “Suspend” keeps the person out of the game; “Wipe winnings” takes them off the Global and Haven’s Fame boards.</p>
+              <p>Reports from players. “Suspend” keeps the person out of the game; “Wipe winnings” takes them off the Weekly Rankings and Haven’s Fame boards.</p>
               {reasonBox}
               {reports.length === 0 && <p style={{ opacity: .7 }}>No reports.</p>}
               <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
