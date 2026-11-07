@@ -149,7 +149,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
           {!last && <div className="ends">ENDS IN: <b>{ends}</b></div>}
-          <Pill color="green" onClick={() => { sfx.click(); setLast(!last); }}>{last ? 'Current week results' : 'Last week results'}</Pill>
+          <Pill color="green" onClick={() => { sfx.click(); setLast(!last); if (tab === 'fame') setTab('global'); }}>{last ? 'Current week results' : 'Last week results'}</Pill>
         </aside>
       </div>
     </Modal>
