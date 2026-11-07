@@ -80,7 +80,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       const city = st.settings.city;
       profile.set((x) => ({
         card: {
-          last5: second ? (x.card?.last5 ?? '') : ((x.card?.last5 ?? '') + (won ? 'W' : 'L')).slice(-5),   // 2nd place in solo is not a loss
+          last5: ((x.card?.last5 ?? '') + (won || second ? 'W' : 'L')).slice(-5),   // 2nd place in solo counts as a win in the record
           nil: (x.card?.nil ?? 0) + myNils.length, nilMade: (x.card?.nilMade ?? 0) + myNils.filter((h) => h.nilResults[me]).length,
           blind: (x.card?.blind ?? 0) + blinds.length, blindMade: (x.card?.blindMade ?? 0) + blinds.filter((h) => h.nilResults[me]).length,
           rings: won ? { ...(x.card?.rings ?? {}), [city]: ((x.card?.rings ?? {})[city] ?? 0) + 1 } : (x.card?.rings ?? {}),
@@ -89,7 +89,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         xp: x.xp + 40 + (won ? 80 : 0),
         weekEarnings: x.weekEarnings + (second ? 0 : prize),   // a refunded bet is not earnings
         stats: {
-          ...x.stats, played: x.stats.played + (second ? 0 : 1), won: x.stats.won + (won ? 1 : 0),
+          ...x.stats, played: x.stats.played + 1, won: x.stats.won + (won || second ? 1 : 0),
           soloWins: x.stats.soloWins + (won && st.settings.mode === 'solo' ? 1 : 0),
           partnersWins: x.stats.partnersWins + (won && st.settings.mode === 'partners' ? 1 : 0),
           nilsMade: x.stats.nilsMade + nils, biggestWin: second ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
@@ -740,7 +740,7 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
   const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
   return (
     <div className="modal-backdrop">
-      <div className={`modal gameover ${won ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">
+      <div className={`modal gameover ${won || second ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">
         <div className="go-title">{won ? 'VICTORY!' : mode === 'solo' ? `${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE` : 'DEFEAT'}</div>
         {prize > 0 && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
         <ol className="go-places">
