@@ -99,27 +99,29 @@ function coverChoice(g: GameState, seat: number, partner: number, legal: Card[])
 let inSearch = false;   // true while a look-ahead is playing the rest of the round out (those plays use the plain rules, no nested search)
 
 /**
- * Cover a partner's Nil by looking ahead: deal the cards nobody has shown to the other players many times (the Nil partner's hand
+ * Look ahead for a Nil, either to cover my partner's or to break an opponent's: deal the cards nobody has shown to the other players many times (the Nil partner's hand
  * leans low, because a Nil bid is made from low cards), play the round out with the plain rules, and choose the card that keeps the Nil
- * alive most often. The small cost of spending a high card breaks ties.
+ * alive most often (cover) or break it most often (opponent): the round's result for my side decides, and the small cost of spending a
+ * high card breaks ties.
  */
-function coverSearch(g: GameState, seat: number, partner: number, legal: Card[]): Card | null {
+function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): Card | null {
   const unseen = unseenCards(g, seat);
   const others = [0, 1, 2, 3].filter((x) => x !== seat);
   const sizes = others.map((x) => g.hands[x].length);
   if (unseen.length !== sizes.reduce((a, b) => a + b, 0)) return null;
   const SAMPLES = 36;
+  const blindNil = !!g.blind?.[partner];   // a blind Nil is bid before looking, so the hand is not specially low
   const total = new Map<string, number>(legal.map((c) => [c.s + c.r, 0]));
   inSearch = true;
   try {
     for (let k = 0; k < SAMPLES; k++) {
-      // the Nil partner draws first, favouring low cards (and few spades)
+      // the Nil bidder draws first, favouring low cards (and few spades) unless the Nil was blind
       const pool = unseen.slice();
       const pIdx = others.indexOf(partner), pn = sizes[pIdx];
       const pHand: Card[] = [];
       for (let i = 0; i < pn && pool.length; i++) {
         let sum = 0;
-        const w = pool.map((c) => { const x = Math.exp(-(c.r - 2) / 4) * (c.s === 'S' ? 0.5 : 1); sum += x; return x; });
+        const w = pool.map((c) => { const x = blindNil ? 1 : Math.exp(-(c.r - 2) / 4) * (c.s === 'S' ? 0.5 : 1); sum += x; return x; });
         let r = Math.random() * sum, j = 0;
         while (j < pool.length - 1 && (r -= w[j]) > 0) j++;
         pHand.push(pool.splice(j, 1)[0]);
@@ -159,7 +161,7 @@ export function botPlay(g: GameState, seat: number): Card {
   // 2) Cover partner's nil
   const partnerNil = partners && g.bids[partner] === 0 && g.tricks[partner] === 0;
   if (partnerNil && !inSearch) {
-    const searched = coverSearch(g, seat, partner, legal);
+    const searched = nilSearch(g, seat, partner, legal);
     if (searched) return searched;
   }
   if (partnerNil) {
@@ -174,6 +176,15 @@ export function botPlay(g: GameState, seat: number): Card {
     }
     if (!partnerPlayed) return coverChoice(g, seat, partner, legal);   // partner plays after me: raise the trick only as high as needed
     // partner already played and somebody else is winning: partner is safe, play on normally
+  }
+
+  // 2b) An opponent's Nil is alive: try to make them take a trick
+  if (!inSearch) {
+    const nilSeat = [0, 1, 2, 3].find((x) => x !== seat && sideOf(mode, x) !== sideOf(mode, seat) && g.bids[x] === 0 && g.tricks[x] === 0);
+    if (nilSeat !== undefined) {
+      const searched = nilSearch(g, seat, nilSeat, legal);
+      if (searched) return searched;
+    }
   }
 
   // 3) Normal contract play
@@ -255,11 +266,9 @@ export function skilledBid(g: GameState, seat: number, skill: BotSkill): number 
   if (Math.random() < 0.3) return Math.max(1, Math.min(13, best + (Math.random() < 0.5 ? -1 : 1)));
   return best;
 }
-/** Is this seat, or its partner, playing for a Nil that is still alive? Computer players never play loosely then. */
-function nilAlive(g: GameState, seat: number): boolean {
-  const mine = g.bids[seat] === 0 && g.tricks[seat] === 0;
-  const p = (seat + 2) % 4;
-  return mine || (g.settings.mode === 'partners' && g.bids[p] === 0 && g.tricks[p] === 0);
+/** Is any seat playing for a Nil that is still alive? Computer players never play loosely then. */
+function nilAlive(g: GameState, _seat: number): boolean {
+  return [0, 1, 2, 3].some((x) => g.bids[x] === 0 && g.tricks[x] === 0);   // anybody's: partners cover it, opponents try to break it
 }
 export function skilledPlay(g: GameState, seat: number, skill: BotSkill): Card {
   if (nilAlive(g, seat)) return skill === 'expert' ? expertPlay(g, seat) : botPlay(g, seat);
@@ -322,7 +331,7 @@ export function expertPlay(g: GameState, seat: number): Card {
   if (legal.length === 1) return legal[0];
   const myNil = g.bids[seat] === 0 && g.tricks[seat] === 0;
   const partners = g.settings.mode === 'partners';
-  if (myNil || (partners && g.bids[(seat + 2) % 4] === 0 && g.tricks[(seat + 2) % 4] === 0)) return botPlay(g, seat);
+  if (nilAlive(g, seat)) return botPlay(g, seat);
   const unseen = unseenCards(g, seat);
   const others = [0, 1, 2, 3].filter((x) => x !== seat);
   const sizes = others.map((x) => g.hands[x].length);
