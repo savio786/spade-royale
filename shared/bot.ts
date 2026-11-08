@@ -96,6 +96,49 @@ function coverChoice(g: GameState, seat: number, partner: number, legal: Card[])
   return best;
 }
 
+let inSearch = false;   // true while a look-ahead is playing the rest of the round out (those plays use the plain rules, no nested search)
+
+/**
+ * Cover a partner's Nil by looking ahead: deal the cards nobody has shown to the other players many times (the Nil partner's hand
+ * leans low, because a Nil bid is made from low cards), play the round out with the plain rules, and choose the card that keeps the Nil
+ * alive most often. The small cost of spending a high card breaks ties.
+ */
+function coverSearch(g: GameState, seat: number, partner: number, legal: Card[]): Card | null {
+  const unseen = unseenCards(g, seat);
+  const others = [0, 1, 2, 3].filter((x) => x !== seat);
+  const sizes = others.map((x) => g.hands[x].length);
+  if (unseen.length !== sizes.reduce((a, b) => a + b, 0)) return null;
+  const SAMPLES = 36;
+  const total = new Map<string, number>(legal.map((c) => [c.s + c.r, 0]));
+  inSearch = true;
+  try {
+    for (let k = 0; k < SAMPLES; k++) {
+      // the Nil partner draws first, favouring low cards (and few spades)
+      const pool = unseen.slice();
+      const pIdx = others.indexOf(partner), pn = sizes[pIdx];
+      const pHand: Card[] = [];
+      for (let i = 0; i < pn && pool.length; i++) {
+        let sum = 0;
+        const w = pool.map((c) => { const x = Math.exp(-(c.r - 2) / 4) * (c.s === 'S' ? 0.5 : 1); sum += x; return x; });
+        let r = Math.random() * sum, j = 0;
+        while (j < pool.length - 1 && (r -= w[j]) > 0) j++;
+        pHand.push(pool.splice(j, 1)[0]);
+      }
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      const hands = g.hands.map((h) => h.slice());
+      let o = 0;
+      others.forEach((x, idx) => { if (x === partner) hands[x] = pHand; else { hands[x] = pool.slice(o, o + sizes[idx]); o += sizes[idx]; } });
+      for (const c of legal) {
+        const after = applyAction({ ...g, hands }, { type: 'play', seat, card: c });
+        total.set(c.s + c.r, total.get(c.s + c.r)! + rollout(after, seat) - 0.4 * ((c.r - 2) / 12 + (c.s === 'S' ? 0.35 : 0)));
+      }
+    }
+  } catch { return null; } finally { inSearch = false; }
+  let best = legal[0], bestV = -Infinity;
+  for (const c of legal) { const v = total.get(c.s + c.r)!; if (v > bestV + 1e-9) { bestV = v; best = c; } }
+  return best;
+}
+
 export function botPlay(g: GameState, seat: number): Card {
   const legal = legalCards(g, seat);
   if (legal.length === 1) return legal[0];
@@ -115,6 +158,10 @@ export function botPlay(g: GameState, seat: number): Card {
 
   // 2) Cover partner's nil
   const partnerNil = partners && g.bids[partner] === 0 && g.tricks[partner] === 0;
+  if (partnerNil && !inSearch) {
+    const searched = coverSearch(g, seat, partner, legal);
+    if (searched) return searched;
+  }
   if (partnerNil) {
     const partnerPlayed = g.trick.some((t) => t.seat === partner);
     const best = currentBest(g);
