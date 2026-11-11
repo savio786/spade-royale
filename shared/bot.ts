@@ -104,12 +104,15 @@ let inSearch = false;   // true while a look-ahead is playing the rest of the ro
  * alive most often (cover) or break it most often (opponent): the round's result for my side decides, and the small cost of spending a
  * high card breaks ties.
  */
+/** Look-ahead tuning (exported so a simulation can try other values). decay: how strongly a Nil hand leans low; spade: weight of a spade in it; cost: how much saving a high card matters. */
+export const NIL_TUNING = { decay: 9, spade: 0.8, cost: 0.15, samples: 36 };
+
 function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): Card | null {
   const unseen = unseenCards(g, seat);
   const others = [0, 1, 2, 3].filter((x) => x !== seat);
   const sizes = others.map((x) => g.hands[x].length);
   if (unseen.length !== sizes.reduce((a, b) => a + b, 0)) return null;
-  const SAMPLES = 36;
+  const SAMPLES = NIL_TUNING.samples;
   const blindNil = !!g.blind?.[partner];   // a blind Nil is bid before looking, so the hand is not specially low
   const total = new Map<string, number>(legal.map((c) => [c.s + c.r, 0]));
   inSearch = true;
@@ -121,7 +124,7 @@ function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): 
       const pHand: Card[] = [];
       for (let i = 0; i < pn && pool.length; i++) {
         let sum = 0;
-        const w = pool.map((c) => { const x = blindNil ? 1 : Math.exp(-(c.r - 2) / 4) * (c.s === 'S' ? 0.5 : 1); sum += x; return x; });
+        const w = pool.map((c) => { const x = blindNil ? 1 : Math.exp(-(c.r - 2) / NIL_TUNING.decay) * (c.s === 'S' ? NIL_TUNING.spade : 1); sum += x; return x; });
         let r = Math.random() * sum, j = 0;
         while (j < pool.length - 1 && (r -= w[j]) > 0) j++;
         pHand.push(pool.splice(j, 1)[0]);
@@ -132,7 +135,7 @@ function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): 
       others.forEach((x, idx) => { if (x === partner) hands[x] = pHand; else { hands[x] = pool.slice(o, o + sizes[idx]); o += sizes[idx]; } });
       for (const c of legal) {
         const after = applyAction({ ...g, hands }, { type: 'play', seat, card: c });
-        total.set(c.s + c.r, total.get(c.s + c.r)! + rollout(after, seat) - 0.4 * ((c.r - 2) / 12 + (c.s === 'S' ? 0.35 : 0)));
+        total.set(c.s + c.r, total.get(c.s + c.r)! + rollout(after, seat) - NIL_TUNING.cost * ((c.r - 2) / 12 + (c.s === 'S' ? 0.35 : 0)));
       }
     }
   } catch { return null; } finally { inSearch = false; }
