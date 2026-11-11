@@ -169,7 +169,9 @@ export function botPlay(g: GameState, seat: number): Card {
     if (ruffs.length) return lowest(ruffs);
   }
   if (partnerNil && !inSearch) {
-    const searched = nilSearch(g, seat, partner, legal);
+    // leading: a low lead leaves my Nil partner forced to win (they must follow suit with whatever they hold), so only the top card of each suit is a candidate
+    const cands = leading ? (['S', 'H', 'D', 'C'] as Suit[]).map((su) => legal.filter((c) => c.s === su)).filter((a) => a.length).map((a) => highest(a)) : legal;
+    const searched = nilSearch(g, seat, partner, cands);
     if (searched) return searched;
   }
   if (partnerNil) {
