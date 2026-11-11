@@ -163,6 +163,11 @@ export function botPlay(g: GameState, seat: number): Card {
 
   // 2) Cover partner's nil
   const partnerNil = partners && g.bids[partner] === 0 && g.tricks[partner] === 0;
+  if (partnerNil && !inSearch && !leading && !g.trick.some((t) => t.seat === partner) && g.trick[0].card.s !== 'S' && !legal.some((c) => c.s === g.trick[0].card.s)) {
+    // void in the led suit while my Nil partner still has to play: trump in with the cheapest spade that wins, so they can slip under it
+    const ruffs = legal.filter((c) => c.s === 'S' && beats(c, g));
+    if (ruffs.length) return lowest(ruffs);
+  }
   if (partnerNil && !inSearch) {
     const searched = nilSearch(g, seat, partner, legal);
     if (searched) return searched;
