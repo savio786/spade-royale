@@ -66,7 +66,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal onClose={onClose} wide className="lb-modal">
-      <h2 className="lb-title">LEADERBOARD — {last ? 'LAST WEEK' : 'CURRENT WEEK'}</h2>
+      <h2 className="lb-title"><img src="/ui/trophy.webp" alt="" aria-hidden="true" />LEADERBOARD — {last ? 'LAST WEEK' : 'CURRENT WEEK'}<img src="/ui/trophy.webp" alt="" aria-hidden="true" /></h2>
       <div className="lb-wrap">
         <div className="lb-main">
           <div className="tabs" role="tablist">
@@ -87,8 +87,8 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
                 <div className="lb-head"><span>Rank</span><span>Player</span><span>Earnings</span></div>
                 <ol className="lb-list">
                   {rows.slice(0, 100).map((r, i) => (
-                    <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''}`}>
-                      <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
+                    <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''} ${i < 3 ? `top t${i + 1}` : ''}`}>
+                      <span className="lb-rank">{i < 3 ? <img className={`medal-img m${i + 1}`} src={`/ui/medal${i + 1}.webp`} alt={['1st', '2nd', '3rd'][i]} /> : i + 1}</span>
                       <Avatar k={r.avatar} size={44} />
                       <span className="lb-name">{r.name}{r.me ? ' (you)' : ''}</span>
                       <span className="lb-earn"><Coin size={24} />{fmt(r.earnings)}</span>
@@ -105,8 +105,8 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
                   <div className="lb-head"><span>Rank</span><span>Player</span><span>Total won</span></div>
                   <ol className="lb-list">
                     {b.allTime.map((r, i) => (
-                      <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''}`}>
-                        <span className="lb-rank">{i < 3 ? <span className={`medal m${i + 1}`}>{['I', 'II', 'III'][i]}</span> : i + 1}</span>
+                      <li key={r.name + i} className={`lb-row ${r.me ? 'me' : ''} ${i < 3 ? `top t${i + 1}` : ''}`}>
+                        <span className="lb-rank">{i < 3 ? <img className={`medal-img m${i + 1}`} src={`/ui/medal${i + 1}.webp`} alt={['1st', '2nd', '3rd'][i]} /> : i + 1}</span>
                         <Avatar k={r.avatar} size={44} />
                         <span className="lb-name">{r.name}{r.me ? ' (you)' : ''}</span>
                         <span className="lb-earn"><Coin size={24} />{fmt(r.earnings)}</span>
@@ -119,7 +119,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
               <ol className="lb-list">
                 {b.fame.map((f) => (
                   <li key={f.week} className="lb-row">
-                    <span className="lb-rank"><span className="medal m1">I</span></span>
+                    <span className="lb-rank"><img className="medal-img m1" src="/ui/medal1.webp" alt="1st" /></span>
                     <span className="lb-week">Week of {new Date(f.week + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' })}</span>
                     <Avatar k={f.avatar} size={44} />
                     <span className="lb-name">{f.name}</span>
@@ -147,14 +147,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
           {tab === 'fame' ? (
             <div className="fame-card">
               <div className="fame-title">Haven’s<br />Fame</div>
-              <svg className="fame-cup" viewBox="0 0 120 130" aria-hidden="true">
-                <defs><linearGradient id="fcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff2a8" /><stop offset=".55" stopColor="#ffc22e" /><stop offset="1" stopColor="#b86e00" /></linearGradient></defs>
-                <path d="M30 14h60v32c0 22-13 36-30 36S30 68 30 46z" fill="url(#fcg)" stroke="#7a4600" strokeWidth="3" />
-                <path d="M30 22H12c0 22 8 34 22 38M90 22h18c0 22-8 34-22 38" fill="none" stroke="#e5a117" strokeWidth="6" strokeLinecap="round" />
-                <rect x="54" y="82" width="12" height="18" fill="url(#fcg)" stroke="#7a4600" strokeWidth="2" />
-                <rect x="36" y="100" width="48" height="14" rx="4" fill="url(#fcg)" stroke="#7a4600" strokeWidth="3" />
-                <text x="60" y="58" textAnchor="middle" fontSize="34" fill="#7a4600">♠</text>
-              </svg>
+              <img className="fame-cup-img" src="/ui/trophy.webp" alt="" aria-hidden="true" />
               <div className="fame-stars" aria-hidden="true">★ ★ ★</div>
               <p className="fame-sub">The biggest winners the table has ever seen. Win big to join them.</p>
             </div>

@@ -2058,3 +2058,42 @@ body.calm .table-screen.hr .felt-wrap::after, body.calm .table-screen.hr-2::befo
 .fame-cup { width: 150px; height: auto; filter: drop-shadow(0 0 14px rgba(255,200,70,.7)); }
 .fame-stars { font-size: 22px; letter-spacing: 8px; color: #ffd966; text-shadow: 0 0 10px rgba(255,200,70,.8); }
 .fame-sub { margin: 0; max-width: 260px; font: 500 16px/1.35 var(--body, system-ui); color: #e6dcff; }
+
+/* ---- Leaderboard redesign: Canva 3D medals + trophy, podium rows, gold title ---- */
+.modal.lb-modal { background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(120,150,255,.38), transparent 70%), radial-gradient(ellipse 60% 45% at 85% 100%, rgba(255,200,90,.12), transparent 70%), linear-gradient(180deg, #1a2aa6, #0a1050); }
+.lb-title { display: flex; align-items: center; justify-content: center; gap: 18px; background: linear-gradient(180deg, #fff8d2 8%, #ffd45a 50%, #e8a21a 92%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; text-shadow: none; filter: drop-shadow(0 3px 0 #3a2300) drop-shadow(0 0 16px rgba(255,200,80,.35)); }
+.lb-title img { width: 64px; height: 64px; object-fit: contain; -webkit-text-fill-color: initial; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+.lb-modal .tabs { gap: 10px; }
+.lb-modal .tab { border-radius: 999px; height: 52px; background: rgba(20,30,130,.7); border: 2px solid rgba(160,180,255,.35); transition: transform .12s, background .15s; }
+.lb-modal .tab:hover { transform: translateY(-1px); background: rgba(40,56,180,.8); }
+.lb-modal .tab.on { color: #2a1a00; background: linear-gradient(180deg, #ffe68a, #f2b21f); border-color: #fff2b8; box-shadow: 0 0 18px rgba(255,200,70,.55), inset 0 -3px 0 rgba(150,90,0,.35); }
+.lb-row { position: relative; background: linear-gradient(90deg, rgba(36,52,170,.65), rgba(14,22,100,.85)); border: 2px solid rgba(120,140,235,.45); border-radius: 14px; box-shadow: 0 3px 0 rgba(4,8,50,.55); }
+.lb-rank { font-size: 34px; color: #cdd6ff; }
+.lb-row:not(.top) .lb-rank { width: 46px; height: 46px; margin: 0 12px; border-radius: 50%; background: rgba(8,14,80,.7); border: 2px solid rgba(140,160,255,.4); font-size: 26px; }
+.medal-img { width: 62px; height: 62px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,.55)); }
+.lb-row.top { padding-top: 10px; padding-bottom: 10px; }
+.lb-row.top .lb-name { font-size: 40px; }
+.lb-row.top .lb-earn { font-size: 42px; }
+.lb-row.t1 { border-color: #ffd45a; background: linear-gradient(90deg, rgba(255,200,70,.34), rgba(60,40,140,.9) 55%); box-shadow: 0 0 22px rgba(255,200,70,.35), 0 3px 0 rgba(60,40,0,.6); }
+.lb-row.t1 .medal-img { width: 72px; height: 72px; }
+.lb-row.t1 .lb-name { color: #fff0b0; }
+.lb-row.t2 { border-color: #c9d6ee; background: linear-gradient(90deg, rgba(190,210,255,.26), rgba(30,40,130,.9) 55%); box-shadow: 0 0 16px rgba(190,210,255,.25), 0 3px 0 rgba(10,20,70,.6); }
+.lb-row.t2 .lb-name { color: #eaf1ff; }
+.lb-row.t3 { border-color: #e09a5a; background: linear-gradient(90deg, rgba(230,140,70,.28), rgba(40,30,110,.9) 55%); box-shadow: 0 0 16px rgba(230,140,70,.25), 0 3px 0 rgba(60,25,0,.55); }
+.lb-row.t3 .lb-name { color: #ffd9b3; }
+.lb-row.me:not(.top) { border-color: var(--gold); background: linear-gradient(90deg, rgba(255,200,70,.2), rgba(40,26,110,.95)); }
+.lb-me { display: inline-block; align-self: center; padding: 6px 20px; border-radius: 999px; background: rgba(6,10,70,.65); border: 1.5px solid rgba(255,214,102,.45); }
+.fame-card { position: relative; overflow: hidden; }
+.fame-card::before { content: ""; position: absolute; left: 50%; top: 46%; width: 360px; height: 360px; margin: -180px 0 0 -180px; background: repeating-conic-gradient(from 0deg, rgba(255,210,100,.16) 0 9deg, transparent 9deg 22deg); -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 66%); mask-image: radial-gradient(circle, #000 18%, transparent 66%); pointer-events: none; animation: fameRays 40s linear infinite; }
+.fame-card > * { position: relative; }
+.fame-cup-img { width: 190px; height: 190px; object-fit: contain; filter: drop-shadow(0 0 18px rgba(255,200,70,.65)) drop-shadow(0 8px 6px rgba(0,0,0,.45)); animation: fameFloat 4s ease-in-out infinite; }
+@keyframes fameFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes fameRays { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fame-card::before, .fame-cup-img { animation: none; } }
+body.calm .fame-card::before, body.calm .fame-cup-img { animation: none; }
+
+.medal-img { width: 80px; height: 80px; margin: -4px 0; }
+.lb-row.t1 .medal-img { width: 92px; height: 92px; margin: -4px 0; }
+.lb-row.top .lb-rank { width: 84px; }
+.rewards { padding-top: 14px; }
+.rewards-title { margin-top: 2px; line-height: 1.1; }
