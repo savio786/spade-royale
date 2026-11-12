@@ -4,6 +4,7 @@ import { useId, type ReactNode } from 'react';
 import { PEOPLE, PEOPLE_KEYS, PersonArt } from './people';
 import { BOT_PHOTO_BY_ID } from '../../shared/botphotos';
 import { ART_KEYS } from './avatarart';
+import { BuiltAvatar, isBuilt } from './avatarbuilder';
 
 const INK = '#1d1a24';
 const BLUSH = '#ff8fa3';
@@ -296,10 +297,11 @@ export const AVATARS: Record<string, Def> = {
 /** People first (most realistic), then animals and characters. */
 export const AVATAR_KEYS = [...PEOPLE_KEYS, ...Object.keys(AVATARS)];
 export const isPhoto = (k: string) => k.startsWith('u:');
-export const avatarName = (k: string) => (isPhoto(k) ? 'Your photo' : BOT_PHOTO_BY_ID[k]?.name ?? PEOPLE[k]?.name ?? AVATARS[k]?.name ?? 'Player');
+export const avatarName = (k: string) => (isPhoto(k) ? 'Your photo' : isBuilt(k) ? 'Your design' : BOT_PHOTO_BY_ID[k]?.name ?? PEOPLE[k]?.name ?? AVATARS[k]?.name ?? 'Player');
 
 export function AvatarArt({ k }: { k: string }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  if (isBuilt(k)) return <BuiltAvatar code={k} />;
   const person = PEOPLE[k];
   const photo = BOT_PHOTO_BY_ID[k];
   if (ART_KEYS.has(k)) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><image href={`/avatars/${k}.webp`} width="100" height="100" preserveAspectRatio="xMidYMid slice" /></svg>;

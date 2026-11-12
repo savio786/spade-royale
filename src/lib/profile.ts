@@ -28,6 +28,7 @@ export interface Profile {
   guestCode: string | null;     // guest restore code shown to the player, e.g. K7QM-4XPT
   updatedAt: number;            // last local change (ms), used to sync with the server
   theme: string | null;         // chosen table & card theme (see themes.ts)
+  avatarOwned?: string[];       // avatar-designer parts bought with coins, e.g. 'hair:2'
 }
 
 // v2: every player starts over with a brand-new account (old v1 data is ignored and removed)

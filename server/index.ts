@@ -322,7 +322,7 @@ function cleanStats(v: unknown): PublicStats | undefined {
 }
 
 /** Only built-in avatar keys or uploaded photo ids are passed on to other players. */
-function cleanAvatar(v: unknown) { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : 'a1'; }
+function cleanAvatar(v: unknown) { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24}|c:[0-9a-z]{8})$/.test(s) ? s : 'a1'; }
 
 // ---- profile photos ----
 const photoCache = new Map<string, Buffer>();

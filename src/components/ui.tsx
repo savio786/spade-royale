@@ -4,6 +4,8 @@ import { sfx } from '../lib/sound';
 import { AvatarArt, avatarName, isPhoto, AVATAR_KEYS as AVATAR_KEYS_LIST } from './avatars';
 import { PEOPLE_KEYS } from './people';
 import { photoUrl, uploadPhoto } from '../lib/photo';
+import { AvatarBuilderModal } from './avatarbuilder-modal';
+import { isBuilt } from './avatarbuilder';
 
 // ---------------- Icons ----------------
 const P: Record<string, ReactNode> = {
@@ -95,6 +97,7 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (k:
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const [designing, setDesigning] = React.useState(false);
   const onFile = async (f: File | undefined) => {
     if (!f) return;
     setBusy(true); setErr(null);
@@ -111,7 +114,9 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (k:
       <div className="ap-preview"><Avatar k={value} size={84} /><b>{avatarName(value)}</b>
         <button type="button" className="ap-upload" disabled={busy} onClick={() => fileRef.current?.click()}>{busy ? 'Uploading…' : isPhoto(value) ? 'Change photo' : 'Use my photo'}</button>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+        <button type="button" className="ap-design" onClick={() => { sfx.click(); setDesigning(true); }}>{isBuilt(value) ? 'Edit my design' : 'Design your own'}</button>
       </div>
+      {designing && <AvatarBuilderModal initial={isBuilt(value) ? value : 'c:00000000'} onClose={() => setDesigning(false)} onDone={(c) => { onChange(c); setDesigning(false); }} />}
       {err && <p className="ap-err" role="alert">{err}</p>}
       <div className="avatar-grid" role="radiogroup" aria-label="Choose an avatar">
         <span className="ap-group">People</span>
