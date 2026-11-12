@@ -104,7 +104,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
     if (newest && newest.id !== lastChatId.current) {
-      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !m.text.startsWith('🎁:'));
+      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !st.seats[m.seat]?.bot && !m.text.startsWith('🎁:'));
       lastChatId.current = newest.id;
       if (fresh.length && !profile.get().settings.chatOff) { sfx.chat(); if (!chatOpen) setUnread((u) => u + fresh.length); }
       // a gift announces itself with a hidden chat line "🎁:<seat>:<gift id>": make it fly to that player
@@ -772,7 +772,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   const pass = chatPassLabel(p);
   const chatOn = !p.settings.chatOff;
   const ownKeys = useOwnKeyboard();
-  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-40);
+  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && !view.snap?.state.seats[m.seat]?.bot && (chatOn || m.seat === me)).slice(-40);
   const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs.length, ownKeys]);
   // the box stays open after sending so the player sees their message and the replies; BACK closes it
