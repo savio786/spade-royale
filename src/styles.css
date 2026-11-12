@@ -2165,3 +2165,25 @@ body.calm .orbit-cards, body.calm .oc { animation: none; }
 .lt-empty-btn:hover { filter: brightness(1.08); }
 @media (prefers-reduced-motion: reduce) { .lt-create-img { animation: none; } }
 body.calm .lt-create-img { animation: none; }
+
+/* ---- Create table redesign: city skyline hero, coin-pile bet chip, gold controls ---- */
+.create-modal { width: 720px; overflow: hidden; }
+.create-hero { position: relative; margin: -18px -26px 6px; padding: 20px 26px 4px; background-size: cover; background-position: center 40%; border-bottom: 3px solid #ffd45a; animation: cityIn .5s ease; }
+.create-hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,10,70,.72), rgba(8,10,70,.18) 45%, rgba(8,10,70,.55)); pointer-events: none; }
+.create-hero > * { position: relative; }
+.create-hero .create-head { text-shadow: 0 3px 8px rgba(0,0,50,.8); }
+.create-hero .city-name { padding-bottom: 6px; filter: drop-shadow(0 4px 0 #4a2600) drop-shadow(0 4px 16px rgba(0,0,0,.7)); }
+@keyframes cityIn { from { opacity: .6; } to { opacity: 1; } }
+.bet-bubble { gap: 6px; padding: 4px 22px 4px 10px; border-radius: 999px; border: 3px solid #ffd45a; background: linear-gradient(180deg, #4b5ce0, #1f2aa0); box-shadow: 0 4px 0 rgba(0,0,50,.5), 0 0 16px rgba(255,200,70,.3); }
+.bet-bubble img { width: 58px; height: 58px; object-fit: contain; margin: -10px 0; filter: drop-shadow(0 3px 3px rgba(0,0,0,.5)); }
+.slider-row input[type=range] { height: 26px; background: linear-gradient(180deg, #050838, #1a2490); border-color: rgba(255,214,102,.6); box-shadow: inset 0 3px 6px rgba(0,0,0,.6); }
+.slider-row input[type=range]::-webkit-slider-thumb { background: linear-gradient(180deg, #fff1a8, #f0ae1c); border: 3px solid #fff7d6; box-shadow: 0 0 14px rgba(255,200,70,.8); }
+.slider-row input[type=range]::-moz-range-thumb { background: #f0ae1c; border: 3px solid #fff7d6; }
+.round-btn { background: linear-gradient(180deg, #ffe68a, #f0ae1c); color: #3a2200; box-shadow: 0 3px 0 rgba(120,70,0,.55); }
+.prize-line { padding: 6px 14px; border-radius: 999px; align-self: flex-start; background: rgba(255,214,102,.12); border: 1.5px solid rgba(255,214,102,.35); color: #ffeab0; }
+.points-box { background: linear-gradient(180deg, rgba(6,8,48,.7), rgba(6,8,48,.35)); border-top: 2px solid rgba(255,214,102,.35); }
+.points-title { color: #ffe08a; }
+.stepper b { border-color: rgba(255,214,102,.45); background: rgba(6,8,44,.85); }
+.play-now-btn { width: 340px; min-height: 72px; font-size: 44px; box-shadow: 0 0 24px rgba(60,255,140,.35), 0 8px 0 rgba(0,60,20,.6); }
+.create-hero .create-head { border: 0; box-shadow: none; padding-bottom: 0; }
+.create-hero .create-head::after, .create-hero .create-head::before { display: none; }

@@ -758,10 +758,12 @@ export function CreateTableModal({ mode, onClose, onCreate, title = 'Create', pr
   const city = cityForBet(bet);
   return (
     <Modal onClose={onClose} className="create-modal">
-      <div className="create-head">{title} <span className="mode-word">{mode.toUpperCase()}</span> {privateTable ? 'private ' : ''}table</div>
-      <div className="city-name">{city}</div>
+      <div className="create-hero" style={{ backgroundImage: `url(/ui/city/${city.toLowerCase().replace(/\s+/g, '')}.webp)` }}>
+        <div className="create-head">{title} <span className="mode-word">{mode.toUpperCase()}</span> {privateTable ? 'private ' : ''}table</div>
+        <div className="city-name" key={city}>{city}</div>
+      </div>
       <div className="bet-box">
-        <div className="bet-bubble">BET {short(bet)} <Coin size={26} /></div>
+        <div className="bet-bubble"><img src="/ui/lobby/coins.webp" alt="" aria-hidden="true" /><span>BET {short(bet)}</span></div>
         <div className="slider-row">
           <button className="round-btn" aria-label="Lower bet" onClick={() => setBi(Math.max(0, bi - 1))}><Icon name="minus" /></button>
           <input type="range" min={0} max={affordable.length - 1} value={Math.min(bi, affordable.length - 1)} onChange={(e) => setBi(+e.target.value)} aria-label="Bet" />
