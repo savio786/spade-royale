@@ -144,6 +144,46 @@ function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): 
   return best;
 }
 
+/**
+ * Fixed rules for protecting my partner's Nil (a broken Nil costs 100, a bag costs 1, so this beats bags and my own bid):
+ *  1. Partner has not played yet, or played a card of 9+ that is winning: take the trick with my highest winning card (a spade when void). Never duck.
+ *  2. Last to play and partner is winning: overtake them with a higher card in the suit, or a spade when void.
+ *  3. Leading: unplayed Aces, then protected Kings, in plain suits; high spades (A/K/Q) to pull trumps; never a low card (2-7) if a higher lead exists.
+ *  4. Void and partner at risk: ruff with the spade that is needed to win; partner already safe: slough a low card.
+ * Returns null when no rule decides (the look-ahead search takes over).
+ */
+function nilCover(g: GameState, seat: number, partner: number, legal: Card[], leading: boolean): Card | null {
+  const hand = g.hands[seat];
+  if (leading) {
+    const played = new Set((g.played ?? []).map((c) => c.s + c.r));
+    const aces = legal.filter((c) => c.s !== 'S' && c.r === 14);
+    if (aces.length) return aces[0];
+    const kings = legal.filter((c) => c.s !== 'S' && c.r === 13 && (played.has(c.s + 14) || hand.some((x) => x.s === c.s && x.r === 14)));
+    if (kings.length) return kings[0];
+    const highSpades = legal.filter((c) => c.s === 'S' && c.r >= 12);
+    if (highSpades.length) return highest(highSpades);
+    return null;   // the look-ahead picks among the top cards of each suit, never a low (2-7) card when a higher lead exists
+  }
+  const led = g.trick[0].card.s;
+  const hasLed = legal.some((c) => c.s === led);
+  const partnerCard = g.trick.find((t) => t.seat === partner)?.card;
+  const best = currentBest(g);
+  const winners = legal.filter((c) => beats(c, g));
+  const takeOver = () => {
+    if (!winners.length) return null;
+    if (hasLed) return highest(winners);                                   // highest winning card in the suit
+    const spades = winners.filter((c) => c.s === 'S');
+    return spades.length ? lowestRank(spades) : null;                       // void: the spade that is needed to win
+  };
+  if (!partnerCard) return takeOver() ?? lowestNonSpadeFirst(legal);        // rule 1 (partner still to play), rule 4 (void ruff)
+  if (best === partner) {
+    if (partnerCard.r >= 9 || g.trick.length === 3) return takeOver() ?? lowestNonSpadeFirst(legal);   // rules 1 and 2
+    if (winners.length) { const plain = winners.filter((c) => c.s !== 'S'); return lowestRank(plain.length ? plain : winners); }
+    return lowestNonSpadeFirst(legal);
+  }
+  return hasLed ? null : lowestNonSpadeFirst(legal);                        // rule 4: partner already safe, slough
+}
+
 export function botPlay(g: GameState, seat: number): Card {
   const legal = legalCards(g, seat);
   if (legal.length === 1) return legal[0];
@@ -163,19 +203,14 @@ export function botPlay(g: GameState, seat: number): Card {
 
   // 2) Cover partner's nil
   const partnerNil = partners && g.bids[partner] === 0 && g.tricks[partner] === 0;
-  if (partnerNil && !inSearch && !leading && !g.trick.some((t) => t.seat === partner) && g.trick[0].card.s !== 'S' && !legal.some((c) => c.s === g.trick[0].card.s)) {
-    // void in the led suit while my Nil partner still has to play: trump in with the cheapest spade that wins, so they can slip under it
-    const ruffs = legal.filter((c) => c.s === 'S' && beats(c, g));
-    if (ruffs.length) return lowest(ruffs);
-  }
-  if (partnerNil && !inSearch && !leading && !g.trick.some((t) => t.seat === partner) && legal.every((c) => c.s === g.trick[0].card.s)) {
-    // following suit while my Nil partner still has to play behind me: play my highest card if it wins the trick, so they can't be forced over it
-    const top = highest(legal);
-    if (beats(top, g)) return top;
+  if (partnerNil && !inSearch) {
+    const forced = nilCover(g, seat, partner, legal, leading);
+    if (forced) return forced;
   }
   if (partnerNil && !inSearch) {
     // leading: a low lead leaves my Nil partner forced to win (they must follow suit with whatever they hold), so only the top card of each suit is a candidate
-    const cands = leading ? (['S', 'H', 'D', 'C'] as Suit[]).map((su) => legal.filter((c) => c.s === su)).filter((a) => a.length).map((a) => highest(a)) : legal;
+    let cands = leading ? (['S', 'H', 'D', 'C'] as Suit[]).map((su) => legal.filter((c) => c.s === su)).filter((a) => a.length).map((a) => highest(a)) : legal;
+    if (leading && cands.some((c) => c.r >= 8)) { const hi = cands.filter((c) => c.r >= 8); cands.length = 0; cands.push(...hi); }
     const searched = nilSearch(g, seat, partner, cands);
     if (searched) return searched;
   }
