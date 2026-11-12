@@ -2143,3 +2143,25 @@ body.calm .ring-img, body.calm .promo-crown-img { animation: none; }
 .ring-btn:hover .orbit-cards, .ring-btn:hover .oc { animation-duration: 6s; }
 @media (prefers-reduced-motion: reduce) { .orbit-cards, .oc { animation: none; } }
 body.calm .orbit-cards, body.calm .oc { animation: none; }
+
+/* ---- Online Lobby redesign: Canva 3D art, glass header, gold create button ---- */
+.online-lobby::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 60% 55% at 30% 62%, rgba(255,200,90,.16), transparent 70%), radial-gradient(ellipse 80% 40% at 50% 0%, rgba(140,120,255,.28), transparent 70%); }
+.ol-head { background: linear-gradient(180deg, rgba(10,6,50,.78), rgba(10,6,50,0)); }
+.ol-box { border-radius: 20px; border: 2px solid rgba(255,214,102,.55); background: linear-gradient(180deg, rgba(40,32,140,.85), rgba(12,10,70,.92)); box-shadow: 0 6px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18); }
+.ol-label { color: #ffe08a; text-shadow: 0 2px 0 rgba(60,30,0,.6); }
+.ol-ctl b { display: flex; align-items: center; justify-content: center; gap: 6px; border-color: rgba(255,214,102,.45); background: rgba(6,8,44,.85); }
+.ol-mode-img { width: 38px; height: 38px; object-fit: contain; margin: -4px 0 -4px -10px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.ol-ctl button { background: linear-gradient(180deg, #ffe68a, #f0ae1c); color: #3a2200; box-shadow: 0 3px 0 rgba(120,70,0,.55); }
+.ol-ctl button:hover { filter: brightness(1.1); }
+.online-lobby .back-btn { background: linear-gradient(180deg, #5a74ff, #1f2fb0); border: 3px solid #ffd45a; box-shadow: 0 0 14px rgba(255,200,70,.45), 0 4px 0 rgba(0,0,40,.5); }
+.lt-create { width: 330px; gap: 2px; }
+.lt-create-img { width: 300px; height: 300px; object-fit: contain; filter: drop-shadow(0 0 18px rgba(255,200,61,.35)) drop-shadow(0 14px 14px rgba(0,0,0,.5)); animation: lobbyFloat 4.2s ease-in-out infinite; transition: filter .2s; pointer-events: none; }
+.lt-create:hover .lt-create-img { filter: drop-shadow(0 0 28px rgba(255,200,61,.75)) drop-shadow(0 14px 14px rgba(0,0,0,.5)); }
+.lt-create-txt { margin-top: -14px; padding: 8px 30px 6px; border-radius: 999px; font-size: 30px; color: #3a2200; background: linear-gradient(180deg, #ffe68a, #f0ae1c); -webkit-text-fill-color: #3a2200; filter: none; box-shadow: 0 4px 0 rgba(120,70,0,.6), 0 8px 16px rgba(0,0,0,.45), inset 0 2px 0 rgba(255,255,255,.55); }
+.lt-empty { display: flex; align-items: center; gap: 22px; max-width: 640px; padding: 20px 30px 20px 18px; border-radius: 26px; background: linear-gradient(180deg, rgba(40,28,120,.7), rgba(10,5,50,.8)); border: 2px solid rgba(255,214,102,.4); box-shadow: 0 10px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.15); }
+.lt-empty-img { flex: none; width: 190px; height: 190px; object-fit: contain; filter: drop-shadow(0 10px 10px rgba(0,0,0,.5)); pointer-events: none; }
+.lt-empty-txt { min-width: 0; }
+.lt-empty-btn { margin-top: 14px; padding: 8px 26px 6px; border-radius: 999px; font: 400 26px var(--display); letter-spacing: 2px; color: #3a2200; background: linear-gradient(180deg, #ffe68a, #f0ae1c); box-shadow: 0 4px 0 rgba(120,70,0,.6), inset 0 2px 0 rgba(255,255,255,.55); cursor: pointer; }
+.lt-empty-btn:hover { filter: brightness(1.08); }
+@media (prefers-reduced-motion: reduce) { .lt-create-img { animation: none; } }
+body.calm .lt-create-img { animation: none; }

@@ -61,7 +61,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
           <span className="ol-label">ROOM TYPE</span>
           <div className="ol-ctl">
             <button aria-label="Previous room type" onClick={() => setMode(mode === 'solo' ? 'partners' : 'solo')}><Icon name="left" size={18} /></button>
-            <b>{mode.toUpperCase()} {mode === 'partners' ? '♠♠' : '♠'}</b>
+            <b><img className="ol-mode-img" src={`/ui/lobby/ol-${mode}.webp`} alt="" aria-hidden="true" />{mode.toUpperCase()}</b>
             <button aria-label="Next room type" onClick={() => setMode(mode === 'solo' ? 'partners' : 'solo')}><Icon name="right" size={18} /></button>
           </div>
         </div>
@@ -83,12 +83,14 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
 
       <div className="lt-row">
         <button className="lt-create" onClick={() => { sfx.click(); setCreating('pick'); }} aria-label="Create a table">
-          <CreateTableArt />
+          <img className="lt-create-img" src="/ui/lobby/ol-create.webp" alt="" aria-hidden="true" draggable={false} />
           <span className="lt-create-txt">CREATE TABLE</span>
         </button>
         {tables.map((t) => <LobbyTable key={t.id} t={t} poor={p.coins < t.settings.bet} onJoin={() => join(t)} />)}
         {tables.length === 0 && (
           <div className="lt-empty" role="status">
+            <img className="lt-empty-img" src="/ui/lobby/ol-empty.webp" alt="" aria-hidden="true" draggable={false} />
+            <div className="lt-empty-txt">
             {status !== 'online' ? (
               <><b>Can’t reach the game server</b><p>Live tables appear here when you’re online. You can still play against the computer from PLAY NOW.</p></>
             ) : live === null ? (
@@ -97,6 +99,8 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
               <><b>No one is playing {mode === 'partners' ? 'Partners' : 'Solo'} right now</b>
                 <p>Tables with real players show up here as soon as someone sits down. Create one and others can join you.</p></>
             )}
+            {status === 'online' && live !== null && <button className="lt-empty-btn" onClick={() => { sfx.click(); setCreating('pick'); }}>CREATE A TABLE</button>}
+            </div>
           </div>
         )}
       </div>
