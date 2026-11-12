@@ -3,7 +3,18 @@ import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
 import { fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
 import { PlayerCard } from '../components/PlayerCard';
+import { GlobeArt } from '../components/LobbyArt';
 const Art = ({ n, c = 'lobby-img' }: { n: string; c?: string }) => <img className={c} src={`/ui/lobby/${n}.webp`} alt="" aria-hidden="true" draggable={false} />;
+
+/** The Online Lobby icon: the real spinning globe, wrapped in a gold ring with playing cards orbiting it. */
+const GlobeOrbit = () => (
+  <span className="globe-orbit" aria-hidden="true">
+    <span className="orbit-ring back" />
+    <span className="orbit-globe"><GlobeArt /></span>
+    <span className="orbit-ring front" />
+    <span className="orbit-cards">{[['♥', 'red', 0], ['♦', 'blue', 120], ['♠', 'dark', 240]].map(([g, c, a]) => <i key={String(a)} style={{ transform: `rotate(${a}deg) translateY(-84px) rotate(${-Number(a)}deg)` }}><b className={`oc ${c}`}>{g}</b></i>)}</span>
+  </span>
+);
 
 const MEGA_MS = 4 * 3600e3;
 const clock = (ms: number) => { const t = Math.ceil(ms / 1000); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map((n) => String(n).padStart(2, '0')).join(':'); };
@@ -88,7 +99,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
         <div className="lobby-rings">
           <RingButton color="green" label="PLAY NOW" onClick={() => setModal('roomtype')}
             icon={<Art n="play" c="ring-img" />} />
-          <RingButton color="blue" label="ONLINE LOBBY" onClick={onOnlineLobby} icon={<Art n="globe" c="ring-img" />} />
+          <RingButton color="blue" label="ONLINE LOBBY" onClick={onOnlineLobby} icon={<GlobeOrbit />} />
           <RingButton color="purple" label="PRIVATE GAME" onClick={() => setModal('private')} icon={<Art n="lock" c="ring-img" />}
             badge={<span className="now-open">NOW OPEN</span>} />
         </div>
