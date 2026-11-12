@@ -790,7 +790,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
       </aside>
       <div className="chat-mid">
       <div className="chat-log" ref={logRef} aria-live="polite" aria-label="Messages at this table">
-        {msgs.length === 0 && <p className="cl-empty">No messages yet. Tap a phrase or an emoji to say something.</p>}
+        {msgs.length === 0 && <div className="cl-empty-wrap"><img className="cl-empty-img" src="/ui/chat-bubbles.webp" alt="" aria-hidden="true" draggable={false} /><p className="cl-empty">No messages yet. Tap a phrase or an emoji to say something.</p></div>}
         {msgs.map((m) => (
           <div key={m.id} className={`cl-line ${m.seat === me ? 'mine' : ''}`}>
             <Avatar k={view.snap?.state.seats[m.seat]?.avatar ?? 'a1'} size={44} />
@@ -816,6 +816,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
           </form>
         ) : (
           <>
+            <img className="cc-ticket" src="/ui/chat-pass.webp" alt="" aria-hidden="true" draggable={false} />
             <span className="cc-txt">GET A <b>CHAT PASS</b> TO TYPE YOUR OWN MESSAGES</span>
             <button className="cc-buy" onClick={() => { sfx.click(); store.open({ tab: 'chat' }); }}>BUY NOW</button>
           </>

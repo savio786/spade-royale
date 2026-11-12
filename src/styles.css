@@ -2225,3 +2225,22 @@ body.calm .go-art { animation: none; }
 @keyframes modeFloat { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .mode-img { animation: none; } }
 body.calm .mode-img { animation: none; }
+
+/* ---- Chat box redesign ---- */
+.chat-dim { background: radial-gradient(ellipse at 50% 40%, rgba(20,16,80,.55), rgba(4,2,20,.82)); backdrop-filter: blur(4px); }
+.chat-phrases, .chat-emoji, .chat-log { border-color: #aebcff; box-shadow: 0 0 0 3px #050a3a, 0 0 28px rgba(110,130,255,.35), 0 12px 32px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.18); }
+.chat-log { background: radial-gradient(120% 60% at 50% 0%, rgba(110,130,255,.22), transparent 60%), linear-gradient(180deg, rgba(22,38,160,.9), rgba(8,14,90,.94)); }
+.speech { background: linear-gradient(180deg, #ffffff, #dcd8ff 50%, #b4adf2); border-color: #6a72c8; }
+.speech:hover { filter: brightness(1.06) drop-shadow(0 0 10px rgba(190,180,255,.7)); }
+.chat-back { background: linear-gradient(180deg, #7bc8ff, #2a86ee 50%, #0d4fb8); }
+.cl-line { padding: 6px 12px 6px 6px; border-radius: 999px; background: linear-gradient(90deg, rgba(255,255,255,.1), rgba(255,255,255,.02)); }
+.cl-line.mine { background: linear-gradient(90deg, rgba(255,214,102,.22), rgba(255,214,102,.04)); }
+.cl-empty-wrap { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.cl-empty-img { width: 150px; height: 150px; object-fit: contain; filter: drop-shadow(0 10px 14px rgba(0,0,0,.5)); animation: goFloat 3.2s ease-in-out infinite; }
+.cl-empty-wrap .cl-empty { margin: 0; max-width: 520px; }
+.chat-custom { background: linear-gradient(180deg, #2430b4, #0b1160); box-shadow: 0 -6px 20px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.2); }
+.cc-ticket { flex: none; width: 74px; height: 74px; object-fit: contain; margin: -14px -4px -10px -6px; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); animation: goFloat 3s ease-in-out infinite; }
+.cc-buy { background: linear-gradient(180deg, #fff0a0, #ffc83d 50%, #e08f06); box-shadow: inset 0 2px 0 rgba(255,255,255,.7), 0 4px 10px rgba(0,0,0,.4), 0 0 16px rgba(255,200,60,.5); }
+@media (prefers-reduced-motion: reduce) { .cl-empty-img, .cc-ticket { animation: none; } }
+body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
+@media (max-height: 520px) { .cl-empty-img { width: 90px; height: 90px; } }
