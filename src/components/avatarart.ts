@@ -1,0 +1,2 @@
+// Keys that have finished 3D-cartoon artwork in /public/avatars/<key>.webp (drawn instead of the SVG).
+export const ART_KEYS = new Set(['a1', 'a10', 'a11', 'a12', 'a13', 'a14', 'a15', 'a16', 'a17', 'a18', 'a19', 'a2', 'a20', 'a21', 'a22', 'a23', 'a24', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9', 'p1', 'p10', 'p11', 'p12', 'p13', 'p14', 'p15', 'p16', 'p17', 'p18', 'p19', 'p2', 'p20', 'p21', 'p22', 'p23', 'p24', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9']);

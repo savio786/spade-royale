@@ -3,6 +3,7 @@
 import { useId, type ReactNode } from 'react';
 import { PEOPLE, PEOPLE_KEYS, PersonArt } from './people';
 import { BOT_PHOTO_BY_ID } from '../../shared/botphotos';
+import { ART_KEYS } from './avatarart';
 
 const INK = '#1d1a24';
 const BLUSH = '#ff8fa3';
@@ -301,6 +302,7 @@ export function AvatarArt({ k }: { k: string }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const person = PEOPLE[k];
   const photo = BOT_PHOTO_BY_ID[k];
+  if (ART_KEYS.has(k)) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><image href={`/avatars/${k}.webp`} width="100" height="100" preserveAspectRatio="xMidYMid slice" /></svg>;
   if (photo) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><image href={photo.file} width="100" height="100" preserveAspectRatio="xMidYMid slice" /></svg>;
   if (person) return <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><PersonArt p={person} uid={`pa${uid}`} /></svg>;
   const a = AVATARS[k] ?? AVATARS.a1;
