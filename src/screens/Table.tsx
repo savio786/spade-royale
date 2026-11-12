@@ -742,6 +742,7 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
   return (
     <div className="modal-backdrop">
       <div className={`modal gameover ${won || second ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">
+        <img className="go-art" src={won || second ? '/ui/go-win.webp' : '/ui/go-lose.webp'} alt="" aria-hidden="true" draggable={false} />
         <div className="go-title">{won ? 'VICTORY!' : mode === 'solo' ? `${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE` : 'DEFEAT'}</div>
         {prize > 0 && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
         <ol className="go-places">
