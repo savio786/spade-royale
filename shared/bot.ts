@@ -168,6 +168,11 @@ export function botPlay(g: GameState, seat: number): Card {
     const ruffs = legal.filter((c) => c.s === 'S' && beats(c, g));
     if (ruffs.length) return lowest(ruffs);
   }
+  if (partnerNil && !inSearch && !leading && !g.trick.some((t) => t.seat === partner) && legal.every((c) => c.s === g.trick[0].card.s)) {
+    // following suit while my Nil partner still has to play behind me: play my highest card if it wins the trick, so they can't be forced over it
+    const top = highest(legal);
+    if (beats(top, g)) return top;
+  }
   if (partnerNil && !inSearch) {
     // leading: a low lead leaves my Nil partner forced to win (they must follow suit with whatever they hold), so only the top card of each suit is a candidate
     const cands = leading ? (['S', 'H', 'D', 'C'] as Suit[]).map((su) => legal.filter((c) => c.s === su)).filter((a) => a.length).map((a) => highest(a)) : legal;
