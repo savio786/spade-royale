@@ -277,7 +277,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           const cs = chatSeen.current, t0 = Date.now();
           for (const m of view.snap!.chat) if (!cs.map.has(m.id)) cs.map.set(m.id, cs.first ? 0 : t0);   // lines already there when the table opened are old news
           cs.first = false;
-          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
+          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && !st.seats[m.seat]?.bot && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
           return live.length > 0 && (
             <div className="tbl-chat" aria-live="polite">
               {live.map((m) => (
