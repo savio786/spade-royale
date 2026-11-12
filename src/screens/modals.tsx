@@ -706,8 +706,8 @@ export function RoomTypeModal({ onPick, onClose, online, title }: { onPick: (m: 
       <div className="roomtype2" role="dialog" aria-modal="true" aria-label="Choose room type">
         {title && <div className="roomtype2-title">{title}</div>}
         <div className="roomtype2-cards">
-          {card('solo', 'SOLO', 'Every player for themselves', <SoloArt />)}
-          {card('partners', 'PARTNERS', 'Classic team spades, 2 vs 2', <PartnersArt />)}
+          {card('solo', 'SOLO', 'Every player for themselves', <img className="mode-img" src="/ui/mode-solo.webp" alt="" draggable={false} />)}
+          {card('partners', 'PARTNERS', 'Classic team spades, 2 vs 2', <img className="mode-img" src="/ui/mode-partners.webp" alt="" draggable={false} />)}
         </div>
         <button className="modal-close" onClick={onClose} aria-label="Close"><Icon name="close" size={20} /></button>
       </div>
