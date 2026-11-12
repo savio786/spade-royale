@@ -5,7 +5,7 @@ import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, secondPrizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
 import type { CtlView, TableController } from '../lib/controller';
-import { fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
+import { cityForBet, fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
 import { PlayerCard, ReportDialog } from '../components/PlayerCard';
 import { music, sfx, vibrate } from '../lib/sound';
 import { MusicPicker } from '../components/MusicPicker';
@@ -216,6 +216,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
 
   return (
     <div className={`screen table-screen felt-bg fall-${fall}${hr ? ` hr hr-${hr}` : ''}`} style={themeVars(hr ? highRollerTheme(hr) : activeTheme(p.theme, levelFromXp(p.xp)))}>
+      <div className="table-scene" style={{ backgroundImage: `url(/ui/city/${(st.settings.city || cityForBet(st.settings.bet)).toLowerCase().replace(/\s+/g, '')}.webp)` }} aria-hidden="true" />
       <div className="tbl-top-left">
         <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>BUY COINS</button>
         <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">VIP</span><small>CLUB</small></button>
@@ -444,7 +445,7 @@ function InfoPanel({ st }: { st: PublicState }) {
   return (
     <div className="info-panel">
       <div className="ip-city">{st.settings.city}</div>
-      <div className="ip-row"><span>PRIZE:</span><Coin size={22} /><b>{short(prizeFor(st.settings))}</b></div>
+      <div className="ip-row"><span>PRIZE:</span><img className="ip-coins" src="/ui/lobby/coins.webp" alt="" aria-hidden="true" /><b>{short(prizeFor(st.settings))}</b></div>
       <div className="ip-row"><span>BET:</span><b>{short(st.settings.bet)}</b></div>
       <div className="ip-end">ENDING POINTS:<b>{st.settings.minPoints}/{st.settings.maxPoints}</b></div>
     </div>
