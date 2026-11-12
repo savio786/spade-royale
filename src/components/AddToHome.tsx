@@ -8,11 +8,11 @@ import { alreadyInstalled, installGuide, thisDevice } from '../lib/device';
 import { sfx } from '../lib/sound';
 
 const DISMISS_KEY = 'spade-haven-a2h-dismissed', DONE_KEY = 'spade-haven-a2h-done';
-const SHOW_AGAIN_AFTER = 7 * 24 * 3600e3;   // someone who says "not now" is asked again after a week
+const SHOW_AGAIN_AFTER = 2 * 24 * 3600e3;   // someone who says "not now" is asked again after two days
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } };
 
-export function AddToHome({ installPrompt }: { installPrompt: null | (() => void) }) {
+export function AddToHome({ installPrompt, landing }: { installPrompt: null | (() => void); landing?: boolean }) {
   const dev = thisDevice();
   const guide = installGuide(dev, !!installPrompt);
   // phones & tablets always; computers only when the browser can really install (its one-tap offer, or Safari on a Mac)
@@ -22,9 +22,9 @@ export function AddToHome({ installPrompt }: { installPrompt: null | (() => void
     if (!eligible || alreadyInstalled() || read(DONE_KEY)) return;
     const d = Number(read(DISMISS_KEY) || 0);
     if (d && Date.now() - d < SHOW_AGAIN_AFTER) return;
-    const t = setTimeout(() => setShow(true), 3500); // let the lobby appear first
+    const t = setTimeout(() => setShow(true), landing ? 1200 : 3500); // on the link's first page: right away; in the lobby: after it appears
     return () => clearTimeout(t);
-  }, [eligible]);
+  }, [eligible, landing]);
   useEffect(() => {
     const h = () => { write(DONE_KEY, '1'); setShow(false); };
     window.addEventListener('appinstalled', h);
@@ -37,7 +37,7 @@ export function AddToHome({ installPrompt }: { installPrompt: null | (() => void
   const where = dev.mobile ? 'your home screen' : dev.platform === 'mac' ? 'your Dock' : 'your desktop';
 
   return (
-    <div className="a2h" role="dialog" aria-label={`Add Spade Haven to ${where}`}>
+    <div className={`a2h ${landing ? 'a2h-top' : ''}`} role="dialog" aria-label={`Add Spade Haven to ${where}`}>
       <span className="a2h-ico" aria-hidden="true">♠</span>
       <div className="a2h-text">
         <b>Add Spade Haven to {where}</b>

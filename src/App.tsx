@@ -119,7 +119,7 @@ export default function App() {
 
   return (
     <>
-      {inApp ? <Stage>{body}{p.provider && screen === 'lobby' && !ctl && <AddToHome installPrompt={installPrompt} />}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<HelpBot variant="page" /></>}
+      {inApp ? <Stage>{body}{p.provider && screen === 'lobby' && !ctl && <AddToHome installPrompt={installPrompt} />}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<AddToHome landing installPrompt={installPrompt} /><HelpBot variant="page" /></>}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
       </div>
