@@ -2097,3 +2097,32 @@ body.calm .fame-card::before, body.calm .fame-cup-img { animation: none; }
 .lb-row.top .lb-rank { width: 84px; }
 .rewards { padding-top: 14px; }
 .rewards-title { margin-top: 2px; line-height: 1.1; }
+
+/* ---- Lobby redesign: Canva 3D icons for the rings, badges and bottom bar ---- */
+.ring-img { position: relative; z-index: 1; width: 112%; height: 112%; margin: -6%; object-fit: contain; pointer-events: none; filter: drop-shadow(0 10px 12px rgba(0,0,0,.55)); animation: lobbyFloat 4.2s ease-in-out infinite; transition: transform .2s; }
+.ring-btn.blue .ring-img { animation-delay: -1.4s; } .ring-btn.purple .ring-img { animation-delay: -2.8s; }
+.ring-btn:hover .ring-img { transform: scale(1.07) rotate(-2deg); }
+.ring-btn.green .ring-inner::before, .ring-btn.blue .ring-inner::before, .ring-btn.purple .ring-inner::before { content: ""; position: absolute; inset: 14%; border-radius: 50%; filter: blur(18px); opacity: .75; }
+.ring-btn.green .ring-inner::before { background: #2dff8a; } .ring-btn.blue .ring-inner::before { background: #4aa8ff; } .ring-btn.purple .ring-inner::before { background: #c08bff; }
+@keyframes lobbyFloat { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-5px); } }
+.promo-crown { display: grid; place-items: center; }
+.promo-crown-img { width: 70px; height: 70px; object-fit: contain; margin: -10px 0 -14px; filter: drop-shadow(0 0 14px rgba(255,210,90,.7)) drop-shadow(0 5px 4px rgba(0,0,0,.5)); animation: lobbyFloat 3.6s ease-in-out infinite; }
+.promo-row { gap: 14px; }
+.promo-row > button.ad-chip, .promo-row > button.vip-chip, .promo-row > button.inv-chip { width: 96px; height: 116px; border-radius: 22px; padding: 6px 4px 8px; justify-content: flex-end; gap: 0; border-width: 3px; line-height: 1; }
+.promo-row > button.ad-chip { background: linear-gradient(180deg, #ff6b4a, #b4102e 70%, #6e0012); border-color: #ffd166; }
+.promo-row > button.vip-chip { background: linear-gradient(180deg, #8a5cff, #3a0ea8 65%, #1a0560); border-color: #ffd166; }
+.promo-row > button.inv-chip { background: linear-gradient(180deg, #38d86a, #0f7a35 70%, #07461e); border-color: #ffd166; }
+.chip-img { width: 66px; height: 66px; object-fit: contain; margin: -18px 0 -4px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.5)); transition: transform .15s; }
+button:hover > .chip-img { transform: scale(1.1) rotate(-4deg); }
+.promo-row .ad-chip b { font-size: 26px; line-height: .95; } .promo-row .ad-chip small { font-size: 14px; line-height: 1; }
+.promo-row .vip-chip .gold-text { font-size: 30px; line-height: 1; } .promo-row .vip-chip small { font-size: 14px; letter-spacing: 4px; color: #ffe9a8; line-height: 1; }
+.promo-row .inv-chip b { font-size: 20px; line-height: 1; } .promo-row .inv-chip small { font-size: 10px; line-height: 1.1; }
+.promo-row .ad-tag { bottom: -10px; }
+.bottom-nav > button { gap: 0; transition: transform .15s; }
+.bottom-nav > button:hover { transform: translateY(-3px); }
+.nav-img { width: 76px; height: 76px; object-fit: contain; margin-top: -14px; margin-bottom: -6px; filter: drop-shadow(0 5px 5px rgba(0,0,0,.55)); transition: transform .15s; }
+.bottom-nav > button:hover .nav-img { transform: scale(1.1) rotate(-3deg); }
+.bottom-nav > button span { margin-top: -2px; }
+.bottom-nav .badge { top: 8px; right: calc(50% - 46px); }
+@media (prefers-reduced-motion: reduce) { .ring-img, .promo-crown-img { animation: none; } }
+body.calm .ring-img, body.calm .promo-crown-img { animation: none; }
