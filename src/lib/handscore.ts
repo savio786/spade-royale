@@ -21,9 +21,9 @@ export function explain(r: HandRec, side: number) {
   if (contract > 0) {
     if (won >= contract) {
       lines.push({ t: `Bid ${contract}, took ${won}: made it (${contract} × 10)`, p: contract * 10 });
-      if (won > contract) lines.push({ t: `${plural(won - contract, 'extra trick')} (${plural(won - contract, 'bag')}, 1 point each)`, p: won - contract });
+      if (won > contract) lines.push({ t: `${plural(won - contract, 'extra trick')} (${plural(won - contract, 'bag')}, no points)`, p: 0 });
     } else lines.push({ t: `Bid ${contract}, took ${won}: missed (${contract} × 10)`, p: -contract * 10 });
-  } else if (won > 0) lines.push({ t: `${plural(won, 'trick')} taken with no contract: all bags, 1 point each`, p: won });
+  } else if (won > 0) lines.push({ t: `${plural(won, 'trick')} taken with no contract: all bags, no points`, p: 0 });
   if (res.bagPenalty[side]) lines.push({ t: '10 bags reached: bag penalty', p: -100 });
   const sum = lines.reduce((a, l) => a + l.p, 0);
   return sum === res.delta[side] ? lines : [{ t: 'Hand total', p: res.delta[side] }];

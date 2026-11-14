@@ -278,14 +278,13 @@ export function scoreRound(g: GameState): GameState {
     if (contract > 0) {
       if (won >= contract) {
         const over = won - contract;
-        delta[side] += contract * 10 + over;
+        delta[side] += contract * 10;   // extra tricks are bags: they add no points, but 10 of them cost 100
         bagsAdded[side] = over;
       } else {
         delta[side] -= contract * 10;
       }
     } else {
-      bagsAdded[side] = won; // whole side bid nil: every trick is a bag
-      delta[side] += won;
+      bagsAdded[side] = won; // whole side bid nil: every trick is a bag (no points)
     }
     bags[side] += bagsAdded[side];
     if (bags[side] >= 10) {
@@ -301,9 +300,14 @@ export function scoreRound(g: GameState): GameState {
 
   const anyEnd = scores.some((s) => s >= maxPoints || s <= minPoints);
   const top = Math.max(...scores);
-  const leaders = scores.map((s, i) => (s === top ? i : -1)).filter((i) => i >= 0);
+  let leaders = scores.map((s, i) => (s === top ? i : -1)).filter((i) => i >= 0);
+  if (anyEnd && leaders.length > 1) {   // level on points: the side with fewer bags wins
+    const fewest = Math.min(...leaders.map((i) => bags[i]));
+    const fewer = leaders.filter((i) => bags[i] === fewest);
+    if (fewer.length === 1) leaders = fewer;
+  }
   if (anyEnd && leaders.length === 1) {
-    const placements = scores.map((s, i) => [s, i]).sort((a, b) => b[0] - a[0]).map((x) => x[1]);
+    const placements = scores.map((s, i) => [s, i]).sort((a, b) => b[0] - a[0] || bags[a[1]] - bags[b[1]]).map((x) => x[1]);
     return { ...g, scores, bags, history, phase: 'gameOver', winners: leaders, placements };
   }
   return { ...g, scores, bags, history, phase: 'roundEnd' };

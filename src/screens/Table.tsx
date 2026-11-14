@@ -992,8 +992,8 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
         <p><b>Partners</b>: you sit across from your partner and your bids are added together. <b>Solo</b>: every player is on their own.</p>
         <p><b>Bidding.</b> Your cards are dealt face down: tap <b>See cards</b> on your turn, then bid 1–13 or <b>0 = Nil</b> (promising to win zero tricks). The game suggests a bid from your hand. Feeling brave? <b>Bid Blind Nil</b> before looking — worth ±200.</p>
         <p><b>Play.</b> Follow the suit that was led if you can. If you can't, you may play any card — a spade wins unless a higher spade is played. Spades can't be led until they've been “broken” (played on another suit), unless you have only spades.</p>
-        <p><b>Scoring.</b> Make your bid: 10 × bid, plus 1 point per extra trick (a “bag”). Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points.</p>
-        <p><b>Winning.</b> The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize.</p>
+        <p><b>Scoring.</b> Make your bid: 10 × bid. Extra tricks are “bags” and add no points. Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points.</p>
+        <p><b>Winning.</b> The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize; if two sides are level, the side with fewer bags wins.</p>
       </div>
     </Modal>
   );

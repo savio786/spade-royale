@@ -764,9 +764,9 @@ export function ModeRulesModal({ mode, onClose }: { mode: Mode; onClose: () => v
         ? 'Win at least as many tricks as you bid and you score 10 points for every trick you bid, plus 1 point for each extra trick. Fall short and you lose 10 points for every trick you bid. '
         : 'Your team adds up its tricks. Make your team bid and you score 10 points per trick bid, plus 1 point for each extra trick. Fall short and the team loses 10 points per trick bid. If a nil bidder gets caught, the tricks they took still count toward their partner\'s bid. '}
         A successful Nil is worth <b>+100</b> and a failed one <b>−100</b>. Blind Nil doubles that to <b>±200</b>.</p>)}
-      {sec('Bags', <p>Every extra trick over your bid is a “bag”. {solo ? 'Your bags' : 'Your team\'s bags'} keep adding up from hand to hand, and every time they reach 10 you lose <b>100 points</b>, so don't win more than you need!</p>)}
+      {sec('Bags', <p>Every extra trick over your bid is a “bag” and adds no points. {solo ? 'Your bags' : 'Your team\'s bags'} keep adding up from hand to hand, and every time they reach 10 you lose <b>100 points</b>, so don't win more than you need!</p>)}
       {sec('Winning', <p>The game ends when a {solo ? 'player' : 'team'} reaches the table's top score or drops to its lowest score. The highest score wins
-        {solo ? <>, and the winner takes <b>3.6×</b> the bet.</> : <>, and <b>both partners</b> on the winning team take <b>1.8×</b> the bet.</>} If two {solo ? 'players' : 'teams'} are tied at the top, you play another hand.</p>)}
+        {solo ? <>, and the winner takes <b>3.6×</b> the bet.</> : <>, and <b>both partners</b> on the winning team take <b>1.8×</b> the bet.</>} If two {solo ? 'players' : 'teams'} are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand.</p>)}
       <Pill color="green" className="wide-btn" onClick={onClose}>GOT IT</Pill>
     </Modal>
   );
