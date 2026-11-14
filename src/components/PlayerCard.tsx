@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n';
 // Player profile card: coins, level, city rings and career statistics. Opens when you tap a player's picture.
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon } from './ui';
@@ -73,7 +74,7 @@ export function PlayerCard({ player, onClose, onEdit }: { player: CardPlayer; on
         <header className="pcd-head">
           <div className="pcd-nums">
             <span className="pcd-coins"><Coin size={44} /><b>{fmt(s.coins)}</b></span>
-            <span className="pcd-level"><span className="pcd-lvfill" style={{ width: `${player.levelPct ?? 55}%` }} /><span className="pcd-star">★</span><b>LEVEL {player.level}</b></span>
+            <span className="pcd-level"><span className="pcd-lvfill" style={{ width: `${player.levelPct ?? 55}%` }} /><span className="pcd-star">★</span><b>{tr('LEVEL {n}', { n: player.level })}</b></span>
           </div>
           <div className="pcd-who">
             <span className="pcd-pic"><Avatar k={player.avatar} size={150} name={player.name} /></span>

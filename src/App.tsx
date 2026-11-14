@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import React, { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { track } from './lib/track';
 import { captureJoin, captureRef, clearJoin, pendingJoin, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
@@ -7,6 +7,7 @@ import { Lobby } from './screens/Lobby';
 import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
 import { LegalPage } from './screens/Legal';
+import { useLang } from './lib/i18n';
 import { AdminPage } from './screens/Admin';
 import { InstallPage } from './screens/Install';
 import { StartRequest, StoreModal } from './screens/modals';
@@ -57,6 +58,7 @@ function useHashRoute() {
 
 export default function App() {
   const p = useProfile();
+  const lang = useLang();   // a language change redraws everything in the new language
   useEffect(() => { document.body.classList.toggle('calm', p.settings.calm !== false); }, [p.settings.calm]);   // calm is the default (off only when a player turns it off): no pulsing / drifting table colours
   const hash = useHashRoute();
   // a reset link is /?reset=<token> (a redirect keeps the query, but can drop a #hash); the older #/play/reset/<token> form still works for emails already sent
@@ -156,12 +158,12 @@ export default function App() {
   else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt} />;
 
   return (
-    <>
+    <Fragment key={lang}>
       {inApp ? <Stage>{body}{p.provider && screen === 'lobby' && !ctl && <AddToHome installPrompt={installPrompt} />}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<AddToHome landing installPrompt={installPrompt} /><HelpBot variant="page" /></>}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
       </div>
-    </>
+    </Fragment>
   );
 }
 

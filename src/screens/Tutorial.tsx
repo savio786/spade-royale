@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n';
 // "Learn Spades in 60 seconds": a scripted hand for new players. It runs entirely on the device (a fixed deal, fixed opponent cards),
 // so there is no waiting, nothing can go wrong, and nothing is charged or counted on the boards. Loaded only when needed (own code chunk).
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -83,38 +84,38 @@ export default function Tutorial({ onClose }: { onClose: (playNow: boolean) => v
     : '';
 
   return (
-    <div className="tu" role="dialog" aria-label="Learn Spades in 60 seconds">
-      <button className="tu-skip" onClick={() => finish(false, true)}>Skip</button>
+    <div className="tu" role="dialog" aria-label={tr("Learn Spades in 60 seconds")}>
+      <button className="tu-skip" onClick={() => finish(false, true)}>{tr("Skip")}</button>
       {beat.k !== 'intro' && beat.k !== 'done' && <div className="tu-dots" aria-label={`Step ${step} of ${STEPS}`}>{Array.from({ length: STEPS }, (_, n) => <i key={n} className={n < step ? 'on' : ''} />)}</div>}
 
       {beat.k === 'intro' && (
         <div className="tu-card">
           <div className="tu-big">♠</div>
-          <h2>Learn Spades in 60 seconds</h2>
-          <p>Play one quick practice hand with us. You can't make a mistake.</p>
-          <button className="tu-go" onClick={next}>Start</button>
-          <button className="tu-later" onClick={() => finish(false, true)}>Skip, I know how to play</button>
+          <h2>{tr("Learn Spades in 60 seconds")}</h2>
+          <p>{tr("Play one quick practice hand with us. You can't make a mistake.")}</p>
+          <button className="tu-go" onClick={next}>{tr("Start")}</button>
+          <button className="tu-later" onClick={() => finish(false, true)}>{tr("Skip, I know how to play")}</button>
         </div>
       )}
 
       {beat.k === 'nil' && (
         <div className="tu-card">
-          <div className="tu-big nil">NIL</div>
-          <h2>One bold bid: Nil</h2>
-          <p>Bid <b>Nil</b> and promise to win <b>no tricks at all</b>. Pull it off for <b>+100</b> points. Take even one trick and you lose <b>100</b>.</p>
+          <div className="tu-big nil">{tr("NIL")}</div>
+          <h2>{tr("One bold bid: Nil")}</h2>
+          <p>Bid <b>{tr("Nil")}</b> and promise to win <b>{tr("no tricks at all")}</b>. Pull it off for <b>+100</b> points. Take even one trick and you lose <b>100</b>.</p>
           <p className="tu-small">Bid Nil without looking at your cards (Blind Nil) and it is worth ±200.</p>
-          <button className="tu-go" onClick={next}>Got it</button>
+          <button className="tu-go" onClick={next}>{tr("Got it")}</button>
         </div>
       )}
 
       {beat.k === 'done' && (
         <div className="tu-card">
           <div className="tu-big"><Coin size={72} /></div>
-          <h2>Nice! You know the basics</h2>
+          <h2>{tr("Nice! You know the basics")}</h2>
           <p className="tu-reward">+{fmt(TUTORIAL_REWARD)} coins</p>
-          <p>A full hand has 13 tricks. Make your bid for 10 points per trick you promised.</p>
-          <button className="tu-go" onClick={() => finish(true)}>Play your first game</button>
-          <button className="tu-later" onClick={() => finish(false)}>Back to the lobby</button>
+          <p>{tr("A full hand has 13 tricks. Make your bid for 10 points per trick you promised.")}</p>
+          <button className="tu-go" onClick={() => finish(true)}>{tr("Play your first game")}</button>
+          <button className="tu-later" onClick={() => finish(false)}>{tr("Back to the lobby")}</button>
         </div>
       )}
 
@@ -130,9 +131,9 @@ export default function Tutorial({ onClose }: { onClose: (playNow: boolean) => v
           {beat.k === 'bid' && bid === null && (
             <div className="tu-bids">{[2, 3, 4].map((n) => <button key={n} onClick={() => { sfx.click(); setBid(n); }}>{n}</button>)}</div>
           )}
-          {beat.k === 'bid' && bid !== null && <button className="tu-next" onClick={next}>Next ▶</button>}
-          {beat.k === 'say' && <button className="tu-next" onClick={next}>Next ▶</button>}
-          {beat.k === 'play' && phase === 'result' && <button className="tu-next" onClick={next}>Next ▶</button>}
+          {beat.k === 'bid' && bid !== null && <button className="tu-next" onClick={next}>{tr("Next ▶")}</button>}
+          {beat.k === 'say' && <button className="tu-next" onClick={next}>{tr("Next ▶")}</button>}
+          {beat.k === 'play' && phase === 'result' && <button className="tu-next" onClick={next}>{tr("Next ▶")}</button>}
           <div className="tu-hand">
             {hand.map((c: Card, n) => {
               const id = `${c.r === 14 ? 'A' : c.r === 13 ? 'K' : c.r === 12 ? 'Q' : c.r === 11 ? 'J' : c.r}${c.s}`;

@@ -2378,3 +2378,19 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 .ms-t { flex: 1; position: relative; display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; }
 .ms-t small { opacity: .7; }
 .ms-t i { position: absolute; left: 0; bottom: 0; height: 4px; border-radius: 2px; background: #ffc83c; max-width: 100%; }
+
+/* language picker + scripts the Latin fonts don't cover */
+.st-lang { display: flex; gap: 8px; margin: 10px 0; }
+.st-lang-btn { flex: 1; padding: 10px 8px; border-radius: 12px; border: 2px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; font: 500 18px var(--body); cursor: pointer; }
+.st-lang-btn.on { border-color: #ffc83c; background: rgba(255,200,60,.2); }
+:lang(hi) { --display: 'Noto Sans Devanagari', 'Nirmala UI', 'Kohinoor Devanagari', 'Mangal', sans-serif; --body: 'Noto Sans Devanagari', 'Nirmala UI', 'Kohinoor Devanagari', 'Mangal', 'Rubik', sans-serif; }
+:lang(hi) body { line-height: 1.5; }
+:lang(hi) .logo-name, :lang(hi) [class*="title"] { letter-spacing: 0 !important; }
+
+/* longer words in Spanish and Hindi: keep buttons on one line and shrink the text to fit */
+:lang(es) .buy-coins, :lang(hi) .buy-coins { white-space: nowrap; font-size: 30px; padding: 0 26px; letter-spacing: 1px; }
+:lang(hi) .buy-coins { letter-spacing: 0; font-size: 28px; }
+:lang(es) .level-txt, :lang(hi) .level-txt { white-space: nowrap; }
+:lang(es) .ring-btn span, :lang(hi) .ring-btn span { white-space: nowrap; }
+:lang(es) .pill, :lang(hi) .pill { white-space: nowrap; }
+:lang(es) .center-msg > b { font-size: 70%; white-space: nowrap; }

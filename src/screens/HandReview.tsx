@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n';
 // Hand history: look back at any recent hand: who bid what, how every trick went, and exactly how the points were scored.
 // Loaded only when opened (own code chunk), and built from the small records kept by lib/handlog: nothing here runs at the table.
 import { useEffect, useMemo, useState } from 'react';
@@ -25,7 +26,7 @@ function Bids({ r }: { r: HandRec }) {
   const res = r.res!;
   return (
     <table className="hr-table">
-      <thead><tr><th>Player</th><th>Bid</th><th>Took</th><th /></tr></thead>
+      <thead><tr><th>{tr("Player")}</th><th>{tr("Bid")}</th><th>{tr("Took")}</th><th /></tr></thead>
       <tbody>
         {[0, 1, 2, 3].map((s) => {
           const b = res.bids[s] ?? 0, nil = b === 0;
@@ -34,7 +35,7 @@ function Bids({ r }: { r: HandRec }) {
               <td>{s === r.me ? 'You' : first(r, s)}</td>
               <td>{nil ? (res.blind?.[s] ? 'Blind nil' : 'Nil') : b}</td>
               <td>{res.tricks[s]}</td>
-              <td>{nil ? (res.nilResults[s] ? <b className="ok">✓ made</b> : <b className="no">✗ set</b>) : ''}</td>
+              <td>{nil ? (res.nilResults[s] ? <b className="ok">{tr("✓ made")}</b> : <b className="no">{tr("✗ set")}</b>) : ''}</td>
             </tr>
           );
         })}
@@ -91,7 +92,7 @@ export default function HandReview({ gid, onClose }: { gid: string; onClose: () 
   return (
     <Modal title={pick ? `Hand ${pick.n}` : 'Hand history'} onClose={onClose} wide className="hr-modal">
       {!pick && (list.length === 0
-        ? <p className="muted hr-empty">Finished hands show up here. Play a hand and come back!</p>
+        ? <p className="muted hr-empty">{tr("Finished hands show up here. Play a hand and come back!")}</p>
         : groups.map((g) => (
           <section key={g.gid + g.items[0].ts} className="hr-group">
             <h4>{g.gid === gid ? 'This game' : `${when(g.items[0].ts)} · ${g.items[0].city}`} <small>{g.items[0].mode === 'partners' ? 'Partners' : 'Solo'}</small></h4>
@@ -109,7 +110,7 @@ export default function HandReview({ gid, onClose }: { gid: string; onClose: () 
         )))}
       {pick && (
         <>
-          <button className="hr-back" onClick={() => setPick(null)}>‹ All hands</button>
+          <button className="hr-back" onClick={() => setPick(null)}>{tr("‹ All hands")}</button>
           <div className="hr-tabs" role="tablist">
             {(['score', 'bids', 'tricks'] as const).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{t === 'score' ? 'Score' : t === 'bids' ? 'Bids' : 'Tricks'}</button>)}
           </div>
