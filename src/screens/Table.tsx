@@ -13,6 +13,7 @@ import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
 import { observe as logHand } from '../lib/handlog';
+import { bumpMission } from '../lib/profile';
 import { track } from '../lib/track';
 import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
@@ -74,7 +75,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     if (st.phase === 'bidding' && st.round !== lastRound.current) { if (lastRound.current >= 0) sfx.deal(); lastRound.current = st.round; }   // every new round is dealt with the sound (the first one is heard when the game starts)
     if (st.phase === 'trickEnd' && st.lastTrickWinner === me) {
       const k = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
-      if (wonKey.current !== k) { wonKey.current = k; sfx.trickWon(); vibrate([30, 40, 30]); }   // you took the trick
+      if (wonKey.current !== k) { wonKey.current = k; sfx.trickWon(); vibrate([30, 40, 30]); bumpMission('tricks'); }   // you took the trick
     }
     if (st.phase === 'trickEnd' || st.phase === 'roundEnd' || st.phase === 'gameOver') logHand(st, gid.current);   // write down the trick / the scored hand (a few small numbers)
     const turnKey = `${st.phase}-${st.turn}-${st.round}-${st.trick.length}`;
@@ -86,6 +87,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     if (st.phase === 'gameOver' && !settled.current && charged.current) {
       settled.current = true;
       track('game_end');
+      bumpMission('play'); if (view.online) bumpMission('online');
       const mySide = sideOf(st.settings.mode, me);
       const won = st.winners.includes(mySide);
       const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place gets the bet back
@@ -112,6 +114,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           nilsMade: x.stats.nilsMade + nils, biggestWin: second ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
         },
       }));
+      if (won || second) bumpMission('win'); if (nils) bumpMission('nil', nils);
       won ? (sfx.win(), sfx.coins()) : second ? sfx.coins() : sfx.lose();
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }

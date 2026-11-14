@@ -3,7 +3,7 @@ import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
-import { BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
+import { claimMission, claimableMissions, missionsToday, BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, showFacebook, type AuthConfig } from '../lib/auth';
@@ -311,6 +311,15 @@ export function GiftsModal({ onClose }: { onClose: () => void }) {
         })}
       </ol>
       <Pill color="gold" disabled={!d.can} onClick={collect}>{d.can ? `Collect ${fmt(d.reward)}` : 'Collected today'}</Pill>
+      <h3 className="ms-h">Today's missions</h3>
+      <ul className="ms-list">
+        {missionsToday(p).map((m) => (
+          <li key={m.i} className={`ms ${m.done ? 'done' : ''}`}>
+            <span className="ms-t"><b>{m.label}</b><small>{m.prog}/{m.goal}</small><i style={{ width: `${Math.round((m.prog / m.goal) * 100)}%` }} /></span>
+            <button className="pill gold small-pill" disabled={!m.done || m.claimed} onClick={() => { const r = claimMission(m.i); if (r) { sfx.coins(); track('mission_claim'); toast(`+${fmt(r)} coins`, 'coins'); } }}>{m.claimed ? '✓' : m.done ? `Claim ${fmt(m.reward)}` : fmt(m.reward)}</button>
+          </li>
+        ))}
+      </ul>
     </Modal>
   );
 }

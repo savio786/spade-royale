@@ -1,7 +1,7 @@
 import { WheelArt } from '../components/MegaWheel';
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
-import { dailyState, fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
+import { dailyState, claimableMissions, fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
 import { PlayerCard } from '../components/PlayerCard';
 import { GlobeArt } from '../components/LobbyArt';
 const Art = ({ n, c = 'lobby-img' }: { n: string; c?: string }) => <img className={c} src={`/ui/lobby/${n}.webp`} alt="" aria-hidden="true" draggable={false} />;
@@ -131,7 +131,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
             </>
           )}
         </button>
-        <button onClick={() => { sfx.click(); setModal('gifts'); }}><Art n="gift" c="nav-img" /><span>GIFTS</span>{giftReady && <span className="badge">1</span>}</button>
+        <button onClick={() => { sfx.click(); setModal('gifts'); }}><Art n="gift" c="nav-img" /><span>GIFTS</span>{(giftReady || claimableMissions(p) > 0) && <span className="badge">{(giftReady ? 1 : 0) + claimableMissions(p)}</span>}</button>
         <button onClick={() => { sfx.click(); setModal('friends'); }}><Art n="friends" c="nav-img" /><span>FRIENDS</span>{soc.incoming.length > 0 && <span className="badge" aria-label={`${soc.incoming.length} friend request${soc.incoming.length === 1 ? '' : 's'}`}>{soc.incoming.length}</span>}</button>
       </nav>
 

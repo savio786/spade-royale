@@ -6,7 +6,7 @@ import { profile } from './profile';
 export type EventName =
   | 'app_open' | 'tutorial_shown' | 'tutorial_start' | 'tutorial_done' | 'tutorial_skip'
   | 'game_start' | 'game_online' | 'game_end' | 'rematch_request' | 'rematch_start'
-  | 'table_invite_share' | 'table_link_open' | 'invite_link_open' | 'daily_gift' | 'hand_review_open';
+  | 'table_invite_share' | 'table_link_open' | 'invite_link_open' | 'daily_gift' | 'hand_review_open' | 'mission_claim';
 
 let pending: Partial<Record<EventName, number>> = {};
 let timer: ReturnType<typeof setTimeout> | null = null;

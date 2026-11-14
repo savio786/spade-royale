@@ -18,6 +18,7 @@ export interface Profile {
   card: { last5: string; nil: number; nilMade: number; blind: number; blindMade: number; rings: Record<string, number> };
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
   streak?: number;              // days in a row the daily gift was collected
+  missions?: { day: string; prog: number[]; claimed: boolean[] }; // today's 3 daily missions
   tutorial?: 'done' | 'skipped'; // the 60-second tutorial: finished (reward paid once) or skipped
   lastSpin: number;             // ms
   lastAd: number;               // ms
@@ -49,6 +50,45 @@ export function dailyState(p: { lastDaily: string | null; streak?: number }, now
   const next = can ? current + 1 : current;                           // the day the next/today's gift belongs to
   const dayIdx = (Math.max(1, next) - 1) % DAILY_REWARDS.length;
   return { today, can, current, next, dayIdx, reward: DAILY_REWARDS[dayIdx] };
+}
+
+/** Daily missions: 3 a day (one from each slot, rotating by date). Progress lives in the profile and is counted only when a game or trick ends. */
+export type MissionKind = 'play' | 'win' | 'online' | 'tricks' | 'nil';
+export interface MissionDef { kind: MissionKind; goal: number; reward: number; label: string }
+const SLOTS: MissionDef[][] = [
+  [{ kind: 'play', goal: 2, reward: 1500, label: 'Finish 2 games' }, { kind: 'play', goal: 3, reward: 2500, label: 'Finish 3 games' }],
+  [{ kind: 'win', goal: 1, reward: 2500, label: 'Win a game' }, { kind: 'online', goal: 1, reward: 2000, label: 'Finish an online game' }],
+  [{ kind: 'tricks', goal: 12, reward: 2000, label: 'Win 12 tricks' }, { kind: 'nil', goal: 1, reward: 3000, label: 'Make a nil bid' }],
+];
+export function missionDefs(day = dayStr(new Date())): MissionDef[] {
+  const n = Math.floor(Date.parse(day) / 86_400_000);
+  return SLOTS.map((s, i) => s[(n + i) % s.length]);
+}
+export function missionsToday(p: { missions?: Profile['missions'] }) {
+  const day = dayStr(new Date());
+  const m = p.missions?.day === day ? p.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
+  return missionDefs(day).map((d, i) => ({ ...d, i, prog: m.prog[i] ?? 0, done: (m.prog[i] ?? 0) >= d.goal, claimed: !!m.claimed[i] }));
+}
+export function claimableMissions(p: { missions?: Profile['missions'] }) { return missionsToday(p).filter((m) => m.done && !m.claimed).length; }
+/** Count progress toward today's missions. Does nothing (no re-render) when no mission uses this kind. */
+export function bumpMission(kind: MissionKind, n = 1) {
+  const day = dayStr(new Date());
+  const defs = missionDefs(day);
+  if (!defs.some((d) => d.kind === kind)) return;
+  profile.set((x) => {
+    const m = x.missions?.day === day ? x.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
+    return { missions: { ...m, prog: m.prog.map((v, i) => (defs[i].kind === kind ? Math.min(defs[i].goal, v + n) : v)) } };
+  });
+}
+export function claimMission(i: number): number {
+  const day = dayStr(new Date());
+  const row = missionsToday(profile.get())[i];
+  if (!row || !row.done || row.claimed) return 0;
+  profile.set((x) => {
+    const m = x.missions?.day === day ? x.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
+    return { coins: x.coins + row.reward, missions: { ...m, claimed: m.claimed.map((c, j) => (j === i ? true : c)) } };
+  });
+  return row.reward;
 }
 
 export function weekKey(d = new Date()) {

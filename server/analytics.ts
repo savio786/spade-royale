@@ -12,7 +12,7 @@ export const EVENTS = [
   'game_start', 'game_online', 'game_end',
   'rematch_request', 'rematch_start',
   'table_invite_share', 'table_link_open', 'invite_link_open',
-  'daily_gift', 'hand_review_open',
+  'daily_gift', 'hand_review_open', 'mission_claim',
 ] as const;
 const OK = new Set<string>(EVENTS);
 

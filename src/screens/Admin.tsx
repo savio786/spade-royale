@@ -139,10 +139,10 @@ export function AdminPage() {
                 <p>Last 14 days (UTC). Tutorial: {sum('tutorial_start')} started of {sum('tutorial_shown')} shown ({rate('tutorial_start', 'tutorial_shown')}), {sum('tutorial_done')} finished ({rate('tutorial_done', 'tutorial_start')} of those who started), {sum('tutorial_skip')} skipped. Rematch: {sum('rematch_request')} asked, {sum('rematch_start')} started. Table links opened: {sum('table_link_open')} · invite links opened: {sum('invite_link_open')}.</p>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ borderCollapse: 'collapse', fontSize: 14 }}>
-                    <thead><tr>{['Day', 'Active', 'New', 'Opens', 'Games', 'Online', 'Tut shown', 'Tut start', 'Tut done', 'Tut skip', 'Rematch ask', 'Rematch go', 'Table link', 'Invite link', 'Shared', 'Gift', 'Review'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                    <thead><tr>{['Day', 'Active', 'New', 'Opens', 'Games', 'Online', 'Tut shown', 'Tut start', 'Tut done', 'Tut skip', 'Rematch ask', 'Rematch go', 'Table link', 'Invite link', 'Shared', 'Gift', 'Mission', 'Review'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
                     <tbody>{stats.days.map((d) => (
                       <tr key={d.day} style={{ borderTop: '1px solid #2b3178' }}>
-                        {[d.day, d.active, e(d, 'new_player'), e(d, 'app_open'), e(d, 'game_start'), e(d, 'game_online'), e(d, 'tutorial_shown'), e(d, 'tutorial_start'), e(d, 'tutorial_done'), e(d, 'tutorial_skip'), e(d, 'rematch_request'), e(d, 'rematch_start'), e(d, 'table_link_open'), e(d, 'invite_link_open'), e(d, 'table_invite_share'), e(d, 'daily_gift'), e(d, 'hand_review_open')].map((v, i) => <td key={i} style={td}>{v}</td>)}
+                        {[d.day, d.active, e(d, 'new_player'), e(d, 'app_open'), e(d, 'game_start'), e(d, 'game_online'), e(d, 'tutorial_shown'), e(d, 'tutorial_start'), e(d, 'tutorial_done'), e(d, 'tutorial_skip'), e(d, 'rematch_request'), e(d, 'rematch_start'), e(d, 'table_link_open'), e(d, 'invite_link_open'), e(d, 'table_invite_share'), e(d, 'daily_gift'), e(d, 'mission_claim'), e(d, 'hand_review_open')].map((v, i) => <td key={i} style={td}>{v}</td>)}
                       </tr>))}</tbody>
                   </table>
                 </div>
