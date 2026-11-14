@@ -50,8 +50,9 @@ export default function App() {
   const p = useProfile();
   useEffect(() => { document.body.classList.toggle('calm', p.settings.calm !== false); }, [p.settings.calm]);   // calm is the default (off only when a player turns it off): no pulsing / drifting table colours
   const hash = useHashRoute();
-  const resetToken = hash.match(/^#\/play\/reset\/([\w-]{20,60})$/)?.[1];
-  const inApp = hash.startsWith('#/play') || hash === '#play' || isAppShell();
+  // a reset link is /?reset=<token> (a redirect keeps the query, but can drop a #hash); the older #/play/reset/<token> form still works for emails already sent
+  const resetToken = hash.match(/^#\/play\/reset\/([\w-]{20,60})$/)?.[1] ?? new URLSearchParams(window.location.search).get('reset')?.match(/^[\w-]{20,60}$/)?.[0];
+  const inApp = !!resetToken || hash.startsWith('#/play') || hash === '#play' || isAppShell();
   const [screen, setScreen] = useState<Screen>('lobby');
   const [ctl, setCtl] = useState<TableController | null>(null);
   const [tableKey, setTableKey] = useState(0);

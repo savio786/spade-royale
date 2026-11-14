@@ -165,7 +165,7 @@ function ResetModal({ token }: { token: string }) {
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const done = () => { window.location.hash = '#/play'; };
+  const done = () => { if (window.location.search) history.replaceState(null, '', window.location.pathname); window.location.hash = '#/play'; window.dispatchEvent(new HashChangeEvent('hashchange')); };
   const submit = async () => {
     setBusy(true); setErr(null);
     try { await resetPassword(token, pw); sfx.coins(); notifyReturning(profile.get().name); done(); }
