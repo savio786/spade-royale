@@ -70,6 +70,7 @@ export function AdminPage() {
     setErr(''); setMsg('');
     try { await call(path, body); setMsg(done); await refresh(); } catch (e) { setErr((e as Error).message); }
   };
+  const [gift, setGift] = useState('');
   const go = (t: Tab) => { setTab(t); setMsg(''); void refresh(t); };
   const download = async () => {
     const r = await fetch('/api/admin/users?format=csv', { headers: { 'x-admin-key': key.trim() }, cache: 'no-store' });
@@ -100,11 +101,12 @@ export function AdminPage() {
       {r.muted
         ? <button className="pill small-pill" onClick={() => void act('/api/admin/unmute', { id: r.id }, `${r.name} has their chat back.`)}>Give chat back</button>
         : <Confirm label="Turn off chat" onGo={() => void act('/api/admin/mute', { id: r.id, reason }, `${r.name}'s chat is turned off.`)} />}
+      <Confirm label={`Give ${Number(gift) > 0 ? Number(gift).toLocaleString('en-US') : ''} coins`.replace('  ', ' ')} onGo={() => { if (!(Number(gift) >= 1)) { setErr('Type the gift amount first.'); return; } void act('/api/admin/gift', { id: r.id, coins: Number(gift) }, `${r.name} will get ${Number(gift).toLocaleString('en-US')} coins the next time they open the game.`); }} />
       <Confirm label="Wipe winnings" onGo={() => void act('/api/admin/wipe', { id: r.id }, `${r.name} was taken off the leaderboards.`)} />
     </span>
   );
   const reasonBox = (
-    <p><input style={{ ...input, width: '100%', maxWidth: 420 }} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Reason when suspending (only you see it)" /></p>
+    <p><input style={{ ...input, width: 200, marginRight: 8 }} value={gift} inputMode="numeric" maxLength={9} onChange={(e) => setGift(e.target.value.replace(/\D/g, ''))} placeholder="Gift amount (coins)" /><input style={{ ...input, width: '100%', maxWidth: 420 }} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Reason when suspending (only you see it)" /></p>
   );
 
   return (

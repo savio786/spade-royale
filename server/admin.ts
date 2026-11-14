@@ -8,6 +8,7 @@ import type { Account } from './accounts';
 import { ban, dismissReport, isBanned, isMuted, listBans, listMuted, listReports, mute, unban, unmute } from './moderation';
 import { removePlayer } from './leaderboard';
 import { analyticsReport } from './analytics';
+import { giftCoins, MAX_GIFT } from './referrals';
 
 const KEY = (process.env.ADMIN_KEY || '').trim();
 export const adminEnabled = KEY.length >= 16;
@@ -35,7 +36,7 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
   if (!adminEnabled) return json(res, 404, { error: 'not found' });
   const p = url.pathname;
   const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup', '/api/admin/analytics'].includes(p))
-    || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/reports/dismiss'].includes(p));
+    || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/gift', '/api/admin/reports/dismiss'].includes(p));
   if (!known) return json(res, 404, { error: 'not found' });
   const f = fails.get(ip);
   if (f && f.until > Date.now()) return json(res, 429, { error: 'Too many wrong keys. Try again in 15 minutes.' });
@@ -89,6 +90,13 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
   if (p === '/api/admin/unban') { unban(a.id); return json(res, 200, { ok: true }); }
   if (p === '/api/admin/mute') { mute(a.id, a.name, String(b.reason || '')); return json(res, 200, { ok: true }); }
   if (p === '/api/admin/unmute') { unmute(a.id); return json(res, 200, { ok: true }); }
+  if (p === '/api/admin/gift') {   // owner gift (e.g. making up a loss): whole coins, capped, written to the server log
+    const coins = Math.floor(Number(b.coins));
+    if (!Number.isFinite(coins) || coins < 1 || coins > MAX_GIFT) return json(res, 400, { error: `Enter between 1 and ${MAX_GIFT.toLocaleString('en-US')} coins.` });
+    giftCoins(a.id, coins);
+    console.log(`[admin] gift ${coins} coins to ${a.id} (${a.name})`);
+    return json(res, 200, { ok: true });
+  }
   if (p === '/api/admin/wipe') { removePlayer(a.id, a.name); return json(res, 200, { ok: true }); }
   return json(res, 404, { error: 'not found' });
 }

@@ -72,7 +72,12 @@ export async function syncReferral() {
     if (r && (r.ok || !r.retry)) write(REF_KEY, null);
     else if (r?.retry && retries++ < 4) setTimeout(() => void syncReferral(), 20_000); // the game result is still being saved
   }
-  const got = await call<{ coins: number; chatDays?: number }>('collect', a);
+  const got = await call<{ coins: number; chatDays?: number; gift?: number }>('collect', a);
+  if (got && (got.gift ?? 0) > 0) {
+    profile.addCoins(got.gift!);
+    toast(`+${fmt(got.gift!)} coins — a gift from Spade Haven. Thanks for your patience!`, 'coins');
+    sfx.coins();
+  }
   if (got && (got.coins > 0 || (got.chatDays ?? 0) > 0)) {
     if (got.coins > 0) profile.addCoins(got.coins);
     if (got.chatDays) void syncPurchases();       // the server already extended the Chat Pass; this brings it to the device
