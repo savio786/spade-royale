@@ -134,7 +134,7 @@ The Online Lobby lists only public tables that have at least one real person at 
 
 ## Waiting for real players
 
-Every seat on a public table gets its own **15-second** countdown. When someone opens a table, player 2 has 15 seconds to join; if no real person takes the seat, a computer player sits down and a fresh 15 seconds starts for player 3, then again for player 4. A real player joining also starts a fresh countdown for the next seat. The table shows "Waiting for player N · a computer player joins in Xs". Anyone seated can tap **Start now** to fill all empty seats at once. Each table runs its own timers. Change the length with the `FILL_MS` environment variable in Render (milliseconds, default `15000`). Private tables never add computer players on their own — the host decides.
+Every seat on a public table gets its own countdown. When someone opens a table, player 2 has **8 seconds** to join; if no real person takes the seat, a computer player sits down and a shorter **4-second** countdown starts for player 3, then again for player 4, so an empty table is full in about 16 seconds. A real player joining also starts a fresh countdown for the next seat. The table shows "Waiting for player N · a computer player joins in Xs". Anyone seated can tap **Start now** to fill all empty seats at once. Each table runs its own timers. Change the length with the `FILL_MS` environment variable in Render (milliseconds, default `8000`; later seats use half of it, at least 2.5 s). Private tables never add computer players on their own — the host decides.
 
 ## Computer player skill
 

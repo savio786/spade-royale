@@ -17,6 +17,7 @@ export interface Profile {
   friends: Friend[];
   card: { last5: string; nil: number; nilMade: number; blind: number; blindMade: number; rings: Record<string, number> };
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
+  streak?: number;              // days in a row the daily gift was collected
   lastSpin: number;             // ms
   lastAd: number;               // ms
   claimed: string[];            // achievement ids
@@ -34,6 +35,20 @@ export interface Profile {
 // v2: every player starts over with a brand-new account (old v1 data is ignored and removed)
 const KEY = 'spade-royale-profile-v2';
 try { localStorage.removeItem('spade-royale-profile-v1'); } catch { /* storage unavailable */ }
+
+/** Daily gift: coins for each day of a 7-day streak (day 7 is the big one), then it starts over. */
+export const DAILY_REWARDS = [2000, 2500, 3000, 3500, 4000, 5000, 10000];
+const dayStr = (d: Date) => d.toISOString().slice(0, 10);
+export function dailyState(p: { lastDaily: string | null; streak?: number }, now = new Date()) {
+  const today = dayStr(now);
+  const yesterday = dayStr(new Date(now.getTime() - 86_400_000));
+  const can = p.lastDaily !== today;
+  const kept = p.lastDaily === today || p.lastDaily === yesterday;   // collected today or yesterday: the streak is alive
+  const current = kept ? p.streak ?? 1 : 0;                           // days collected in a row so far
+  const next = can ? current + 1 : current;                           // the day the next/today's gift belongs to
+  const dayIdx = (Math.max(1, next) - 1) % DAILY_REWARDS.length;
+  return { today, can, current, next, dayIdx, reward: DAILY_REWARDS[dayIdx] };
+}
 
 export function weekKey(d = new Date()) {
   const start = new Date(d);

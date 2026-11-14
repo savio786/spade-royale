@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { captureRef, syncReferral } from './lib/referral';
+import { captureJoin, captureRef, clearJoin, pendingJoin, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
 import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
@@ -33,6 +33,7 @@ if (/[?&]purchase=/.test(window.location.search) && !window.location.hash) histo
 
 // an invite link (…/?ref=CODE): remember who invited this player, then tidy the address bar
 captureRef();
+captureJoin();   // a table link (…/?join=CODE): remember the table and open the game
 
 const isAppShell = () => Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
@@ -92,6 +93,16 @@ export default function App() {
     setTableKey((k) => k + 1);
     setScreen('table');
   }, []);
+
+  // someone opened a table link: once signed in and online, sit them at that table
+  const [netStatus, setNetStatus] = useState(net.status);
+  useEffect(() => net.onStatus(setNetStatus), []);
+  useEffect(() => {
+    const code = pendingJoin();
+    if (!code || !inApp || !p.provider || netStatus !== 'online' || ctl) return;
+    clearJoin();
+    start({ mode: 'partners', bet: 0, minPoints: -100, maxPoints: 100, via: 'joinPrivate', code });
+  }, [inApp, p.provider, netStatus, ctl, start]);
 
   // the install link: play.sedigitaltransformation.com/install (or #install)
   if (hash === '#install' || /^\/install\/?$/.test(window.location.pathname)) return <InstallPage installPrompt={installPrompt} />;

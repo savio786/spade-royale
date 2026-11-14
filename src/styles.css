@@ -2281,3 +2281,22 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 .a2h.a2h-top .a2h-ico { width: 46px; height: 46px; font-size: 30px; border-radius: 12px; }
 .a2h.a2h-top .a2h-text b { font-size: 22px; }
 @media (max-height: 460px) { .a2h.a2h-top { top: 66px; } }
+
+/* ---- daily gift streak ---- */
+.daily-modal .daily-lead { margin: 0 0 14px; text-align: center; color: #e9efe9; font-size: 1.05rem; }
+.daily-modal .daily-lead b { color: var(--gold); }
+.daily-days { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.daily-days .dd { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px 8px; border-radius: 12px; background: rgba(255,255,255,.07); border: 2px solid transparent; color: #fff; text-align: center; }
+.daily-days .dd small { font-size: .62rem; letter-spacing: .06em; opacity: .7; font-weight: 800; }
+.daily-days .dd b { font-size: .85rem; }
+.daily-days .dd.today { border-color: var(--gold); background: rgba(255,200,60,.16); box-shadow: 0 0 14px rgba(255,200,60,.35); }
+.daily-days .dd.done { opacity: .55; }
+.daily-days .dd.big { background: rgba(255,200,60,.12); }
+.daily-days .dd-tick { position: absolute; top: 3px; right: 5px; color: #6be28a; font-weight: 900; font-size: .8rem; }
+.daily-modal .pill { display: block; margin: 0 auto; }
+@media (max-width: 520px) { .daily-days { gap: 4px; } .daily-days .dd { padding: 8px 2px 6px; } .daily-days .dd b { font-size: .72rem; } }
+
+/* ---- one-tap table invite ---- */
+.invite { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.invite .invite-share { display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px; border: 0; border-radius: 999px; font: inherit; font-weight: 900; letter-spacing: .05em; color: #fff; background: linear-gradient(#35c46a, #1f9a4c); box-shadow: 0 4px 0 #136a33, 0 8px 18px rgba(0,0,0,.35); cursor: pointer; }
+.invite .invite-share:active { transform: translateY(2px); box-shadow: 0 2px 0 #136a33; }

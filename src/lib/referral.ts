@@ -84,3 +84,22 @@ export async function syncReferral() {
 export const inviteLink = (code: string) => `${LIVE_SERVER}/?ref=${code}`;
 export const inviteText = (code: string) =>
   `Come play Spades with me on Spade Haven — free online Spades with live tables, tournaments and chat. Use my link and we both get bonus coins: ${inviteLink(code)}`;
+
+// ---- table invite links: …/?join=ABCDE opens the game and sits you at that private table ----
+const JOIN_KEY = 'spade-haven-join';
+export const tableLink = (code: string) => `${LIVE_SERVER}/?join=${code}`;
+export const tableInviteText = (code: string) => `Join my Spades table on Spade Haven! Tap to sit down: ${tableLink(code)} (table code ${code})`;
+
+/** Remember a table code from the link the player arrived with, tidy the address bar and open the game. */
+export function captureJoin() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('join')) return;
+    const code = (url.searchParams.get('join') || '').toUpperCase().trim();
+    if (/^[A-Z0-9]{4,8}$/.test(code)) { try { sessionStorage.setItem(JOIN_KEY, code); } catch { /* storage unavailable */ } }
+    url.searchParams.delete('join');
+    history.replaceState(null, '', url.pathname + (url.search || '') + '#play');
+  } catch { /* ignore */ }
+}
+export const pendingJoin = () => { try { return sessionStorage.getItem(JOIN_KEY); } catch { return null; } };
+export const clearJoin = () => { try { sessionStorage.removeItem(JOIN_KEY); } catch { /* ignore */ } };

@@ -3,7 +3,7 @@ import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
-import { BET_STEPS, cityForBet, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
+import { BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, showFacebook, type AuthConfig } from '../lib/auth';
@@ -285,15 +285,31 @@ export function SpinModal({ onClose }: { onClose: () => void }) {
 // ---------------- Gifts ----------------
 export function GiftsModal({ onClose }: { onClose: () => void }) {
   const p = useProfile();
-  const today = new Date().toISOString().slice(0, 10);
-  const can = p.lastDaily !== today;
+  const d = dailyState(p);
+  const collect = () => {
+    const x = dailyState(profile.get());
+    if (!x.can) return;
+    profile.set((q) => ({ coins: q.coins + x.reward, lastDaily: x.today, streak: x.next }));
+    sfx.coins(); toast(`+${fmt(x.reward)} coins`, 'coins');
+  };
   return (
-    <Modal title="Gifts" onClose={onClose}>
-      <div className="gift-card">
-        <Icon name="gift" size={52} />
-        <div><b>Daily free gift</b><p className="muted">2,000 coins every day</p></div>
-        <Pill color="gold" disabled={!can} onClick={() => { profile.set((x) => ({ coins: x.coins + 2000, lastDaily: today })); sfx.coins(); toast('+2,000 coins', 'coins'); }}>{can ? 'Collect' : 'Collected'}</Pill>
-      </div>
+    <Modal title="Daily gift" onClose={onClose} className="daily-modal">
+      <p className="daily-lead">{d.can ? (d.current > 0 ? <>You're on a <b>{d.current}-day streak</b>. Collect today to keep it going!</> : <>Collect every day for a bigger gift each time.</>) : <>Come back tomorrow to keep your <b>{d.current}-day streak</b>.</>}</p>
+      <ol className="daily-days">
+        {DAILY_REWARDS.map((c, i) => {
+          const done = d.can ? i < d.dayIdx : i <= d.dayIdx;
+          const today = d.can && i === d.dayIdx;
+          return (
+            <li key={i} className={`dd ${done ? 'done' : ''} ${today ? 'today' : ''} ${i === DAILY_REWARDS.length - 1 ? 'big' : ''}`}>
+              <small>DAY {i + 1}</small>
+              <Coin size={i === DAILY_REWARDS.length - 1 ? 40 : 30} />
+              <b>{fmt(c)}</b>
+              {done && <span className="dd-tick" aria-label="collected">✓</span>}
+            </li>
+          );
+        })}
+      </ol>
+      <Pill color="gold" disabled={!d.can} onClick={collect}>{d.can ? `Collect ${fmt(d.reward)}` : 'Collected today'}</Pill>
     </Modal>
   );
 }

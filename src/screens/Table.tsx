@@ -12,6 +12,7 @@ import { MusicPicker } from '../components/MusicPicker';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
+import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
 import { activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
@@ -248,15 +249,15 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
                 {(view.snap!.fillAt || (view.online && view.host && view.settings.isPrivate)) && (
                   <div className="waiting-actions">
                     {view.snap!.fillAt
-                      ? <span className="fill-wait" role="timer">Waiting for player {st.seats.filter(Boolean).length + 1} · a computer player joins in <b>{Math.min(15, Math.max(0, Math.ceil((view.snap!.fillAt - Date.now()) / 1000)))}s</b></span>
+                      ? <span className="fill-wait" role="timer">Waiting for player {st.seats.filter(Boolean).length + 1} · a computer player joins in <b>{Math.min(30, Math.max(0, Math.ceil((view.snap!.fillAt - Date.now()) / 1000)))}s</b></span>
                       : <span className="fill-wait">Waiting for friends to join</span>}
                     {view.online && <button className="fill-now" onClick={() => ctl.fillBots()}>{view.settings.isPrivate ? 'Fill with bots' : 'Start now'}</button>}
                   </div>
                 )}
                 {view.code && (
                   <div className="invite">
-                    <span>Invite code</span>
-                    <button className="code" onClick={() => { navigator.clipboard?.writeText(view.code!).then(() => toast('Invite code copied'), () => toast(`Invite code: ${view.code}`)); }} aria-label={`Copy invite code ${view.code}`}>{view.code} <Icon name="copy" size={18} /></button>
+                    <button className="invite-share" onClick={() => { sfx.click(); inviteToTable(view.code!); }}><Icon name="copy" size={20} /> INVITE FRIENDS</button>
+                    <button className="code" onClick={() => { navigator.clipboard?.writeText(view.code!).then(() => toast('Table code copied'), () => toast(`Table code: ${view.code}`)); }} aria-label={`Copy table code ${view.code}`}>Code {view.code} <Icon name="copy" size={18} /></button>
                   </div>
                 )}
 
@@ -942,3 +943,14 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
 }
 
 export type { Card };
+
+/** One tap: the phone's share sheet (WhatsApp, Messages…) with a link that seats your friend at this table; otherwise the link is copied. */
+async function inviteToTable(code: string) {
+  const url = tableLink(code);
+  const text = tableInviteText(code);
+  if (typeof navigator.share === 'function') {
+    try { await navigator.share({ title: 'Spade Haven', text, url }); return; } catch (e) { if ((e as Error)?.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast('Invite link copied: send it to a friend'); }
+  catch { window.prompt('Copy this link and send it to a friend:', url); }
+}

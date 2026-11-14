@@ -139,9 +139,10 @@ export class TableRuntime {
   }
 
   /** Each empty seat gets its own countdown: if no real player takes it in time, one computer player sits down and the next seat's countdown starts. */
-  private armSeatTimer() {
+  private armSeatTimer(fast = false) {
     this.clearSeatTimer();
-    const ms = this.opts.fillBotsAfterMs;
+    const base = this.opts.fillBotsAfterMs;
+    const ms = base === null ? null : fast ? Math.max(2500, Math.round(base / 2)) : base; // once a computer player has sat down, the rest of the table fills quicker
     if (ms === null || this.destroyed || this.g.phase !== 'waiting' || !this.g.seats.some((s) => !s)) return;
     this.fillAt = Date.now() + ms;
     this.fillTimer = setTimeout(() => {
@@ -153,7 +154,7 @@ export class TableRuntime {
       seats[free] = makeBot(seats.filter(Boolean).map((s) => s!.name));
       this.g = { ...this.g, seats };
       if (Math.random() < 0.5) setTimeout(() => this.say(free, pick(BOT_LINES.greet)), 600 + Math.random() * 1500);
-      this.armSeatTimer();
+      this.armSeatTimer(true);
       this.changed();
     }, ms);
   }

@@ -1,7 +1,7 @@
 import { WheelArt } from '../components/MegaWheel';
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
-import { fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
+import { dailyState, fmt, levelFromXp, suggestedBet, useProfile, profile, xpForLevel, publicStats } from '../lib/profile';
 import { PlayerCard } from '../components/PlayerCard';
 import { GlobeArt } from '../components/LobbyArt';
 const Art = ({ n, c = 'lobby-img' }: { n: string; c?: string }) => <img className={c} src={`/ui/lobby/${n}.webp`} alt="" aria-hidden="true" draggable={false} />;
@@ -108,7 +108,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
       {p.coins < 1000 && (
         <div className="low-coins" role="status">
           <Coin size={26} /><span>Running low on coins — top up to keep playing.</span>
-          {giftReady && <button className="pill gold small-pill" onClick={() => { sfx.click(); setModal('gifts'); }}>Free daily gift</button>}
+          {giftReady && <button className="pill gold small-pill" onClick={() => { sfx.click(); setModal('gifts'); }}>{p.lastDaily && dailyState(p).current > 0 ? `Daily gift · day ${dailyState(p).next}` : 'Free daily gift'}</button>}
           <button className="pill green small-pill" onClick={() => { sfx.click(); store.open({ tab: 'coins', need: 1000 }); }}>Buy coins</button>
         </div>
       )}
