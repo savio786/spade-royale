@@ -7,7 +7,9 @@ interface Data { total: number; withEmail: number; byKind: Record<string, number
 interface Rep { n: number; at: number; byName: string; targetId: string; targetName: string; reason: string; note: string; targetBanned: boolean; targetMuted?: boolean }
 interface BanRow { id: string; name: string; reason: string; at: number; email?: string }
 interface MuteRow { id: string; name: string; reason: string; at: number; auto?: boolean }
-type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended';
+type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended' | 'stats';
+interface Stats { days: { day: string; active: number; events: Record<string, number> }[]; cohort: { day: string; size: number; d1: number | null; d7: number | null }[]; note: string }
+const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
 const date = (t: number) => (t ? new Date(t).toLocaleString() : '');
 const KIND: Record<string, string> = { email: 'Email', google: 'Google', facebook: 'Facebook', guest: 'Guest' };
 const input: React.CSSProperties = { padding: '8px 10px', fontSize: 16, borderRadius: 8, border: '1px solid #6f7bd6', background: '#0b0d33', color: '#fff' };
@@ -35,6 +37,7 @@ export function AdminPage() {
   const [bans, setBans] = useState<BanRow[]>([]);
   const [mutes, setMutes] = useState<MuteRow[]>([]);
   const [reason, setReason] = useState('');
+  const [stats, setStats] = useState<Stats | null>(null);
   const [guests, setGuests] = useState(false);   // list guests too (they have no email)
   useEffect(() => {
     document.title = 'Owner · Spade Haven';
@@ -55,6 +58,7 @@ export function AdminPage() {
       if (t === 'players') setData(await call(`/api/admin/users${guestsFlag ?? guests ? '?all=1' : ''}`));
       if (t === 'find') setFound(query.trim().length >= 2 ? ((await call(`/api/admin/find?q=${encodeURIComponent(query.trim())}`)) as { rows: Row[] }).rows : []);
       if (t === 'reports') setReports(((await call('/api/admin/reports')) as { rows: Rep[] }).rows);
+      if (t === 'stats') setStats(await call('/api/admin/analytics'));
       if (t === 'muted') setMutes(((await call('/api/admin/muted')) as { rows: MuteRow[] }).rows);
       if (t === 'suspended') setBans(((await call('/api/admin/bans')) as { rows: BanRow[] }).rows);
       setAuthed(true);
@@ -118,7 +122,7 @@ export function AdminPage() {
         ) : (
           <>
             <p style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended']] as [Tab, string][]).map(([t, l]) => (
+              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended'], ['stats', 'Stats']] as [Tab, string][]).map(([t, l]) => (
                 <button key={t} className={`pill small-pill ${tab === t ? 'gold' : ''}`} onClick={() => go(t)}>{l}</button>
               ))}
               <button className="pill small-pill" onClick={() => void refresh()}>Refresh</button>
@@ -126,6 +130,31 @@ export function AdminPage() {
             </p>
             {err && <p style={{ color: '#ff8a8a' }}>{err}</p>}
             {msg && <p style={{ color: '#7dffb0' }}>{msg}</p>}
+
+            {tab === 'stats' && stats && (() => {
+              const sum = (k: string) => stats.days.reduce((a, d) => a + (d.events[k] ?? 0), 0);
+              const rate = (a: string, b: string) => (sum(b) ? `${Math.round((sum(a) / sum(b)) * 100)}%` : '–');
+              const e = (d: Stats['days'][number], k: string) => d.events[k] ?? 0;
+              return (<>
+                <p>Last 14 days (UTC). Tutorial: {sum('tutorial_start')} started of {sum('tutorial_shown')} shown ({rate('tutorial_start', 'tutorial_shown')}), {sum('tutorial_done')} finished ({rate('tutorial_done', 'tutorial_start')} of those who started), {sum('tutorial_skip')} skipped. Rematch: {sum('rematch_request')} asked, {sum('rematch_start')} started. Table links opened: {sum('table_link_open')} · invite links opened: {sum('invite_link_open')}.</p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead><tr>{['Day', 'Active', 'New', 'Opens', 'Games', 'Online', 'Tut shown', 'Tut start', 'Tut done', 'Tut skip', 'Rematch ask', 'Rematch go', 'Table link', 'Invite link', 'Shared', 'Gift', 'Review'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                    <tbody>{stats.days.map((d) => (
+                      <tr key={d.day} style={{ borderTop: '1px solid #2b3178' }}>
+                        {[d.day, d.active, e(d, 'new_player'), e(d, 'app_open'), e(d, 'game_start'), e(d, 'game_online'), e(d, 'tutorial_shown'), e(d, 'tutorial_start'), e(d, 'tutorial_done'), e(d, 'tutorial_skip'), e(d, 'rematch_request'), e(d, 'rematch_start'), e(d, 'table_link_open'), e(d, 'invite_link_open'), e(d, 'table_invite_share'), e(d, 'daily_gift'), e(d, 'hand_review_open')].map((v, i) => <td key={i} style={td}>{v}</td>)}
+                      </tr>))}</tbody>
+                  </table>
+                </div>
+                <h3>Players who came back</h3>
+                <p>Of the new players on each day, how many played again 1 day later (D1) and 7 days later (D7). A dash means it is too soon to know.</p>
+                <table style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead><tr>{['Signup day', 'New players', 'D1', 'D7'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                  <tbody>{stats.cohort.map((c) => <tr key={c.day} style={{ borderTop: '1px solid #2b3178' }}><td style={td}>{c.day}</td><td style={td}>{c.size}</td><td style={td}>{pct(c.d1)}</td><td style={td}>{pct(c.d7)}</td></tr>)}</tbody>
+                </table>
+                <p style={{ opacity: 0.7 }}>{stats.note} Counting began when this was switched on, so early numbers are small.</p>
+              </>);
+            })()}
 
             {tab === 'players' && data && (<>
               <p>{data.withEmail} players with an email · {data.total} accounts in all ({Object.entries(data.byKind).map(([k, n]) => `${KIND[k] ?? k}: ${n}`).join(' · ')}). Guests have no email.</p>

@@ -12,6 +12,7 @@ import { PRODUCTS, priceLabel } from '../../shared/products';
 import { activeTheme, THEMES, themeVars } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
 import { sfx, vibrate } from '../lib/sound';
+import { track } from '../lib/track';
 import { toast } from '../lib/toast';
 import { net, NetStatus } from '../lib/net';
 import { changeName, checkName, deleteMyAccount } from '../lib/guest';
@@ -290,7 +291,7 @@ export function GiftsModal({ onClose }: { onClose: () => void }) {
     const x = dailyState(profile.get());
     if (!x.can) return;
     profile.set((q) => ({ coins: q.coins + x.reward, lastDaily: x.today, streak: x.next }));
-    sfx.coins(); toast(`+${fmt(x.reward)} coins`, 'coins');
+    sfx.coins(); track('daily_gift'); toast(`+${fmt(x.reward)} coins`, 'coins');
   };
   return (
     <Modal title="Daily gift" onClose={onClose} className="daily-modal">

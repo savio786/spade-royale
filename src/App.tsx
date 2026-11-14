@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { track } from './lib/track';
 import { captureJoin, captureRef, clearJoin, pendingJoin, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
 import { Login } from './screens/Login';
@@ -58,6 +59,8 @@ export default function App() {
   const [bip, setBip] = useState<BIPEvent | null>(null);
   const [tutOpen, setTutOpen] = useState(false);
   const tutChecked = useRef(false);
+  const opened = useRef(false);
+  useEffect(() => { if (inApp && p.provider && !opened.current) { opened.current = true; track('app_open'); } }, [inApp, p.provider]);   // one count per visit
   // brand-new players (no games yet, tutorial never seen) get the 60-second tutorial once; Settings can replay it
   useEffect(() => {
     if (tutChecked.current || !inApp || !p.provider) return;

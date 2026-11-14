@@ -16,6 +16,7 @@ import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreB
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
+import { trackApi } from './analytics';
 import { deleteAccount } from './deleteAccount';
 import { mailConfigured, sendMail } from './mail';
 import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
@@ -438,6 +439,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   if (req.method === 'OPTIONS') return json(res, 204, null);
   if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), (id) => { for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* closed */ } }, 300); } }).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
   if (req.method === 'POST' && url.pathname === '/api/report-player') return void reportPlayerApi(req, res);
+  if (url.pathname === '/api/track') return void trackApi(req, res, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim());
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);

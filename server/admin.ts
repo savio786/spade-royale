@@ -7,6 +7,7 @@ import { exportAll, listRecords } from './storage';
 import type { Account } from './accounts';
 import { ban, dismissReport, isBanned, isMuted, listBans, listMuted, listReports, mute, unban, unmute } from './moderation';
 import { removePlayer } from './leaderboard';
+import { analyticsReport } from './analytics';
 
 const KEY = (process.env.ADMIN_KEY || '').trim();
 export const adminEnabled = KEY.length >= 16;
@@ -33,7 +34,7 @@ const acctId = (id: unknown) => String(id ?? '').slice(0, 64);
 export async function adminApi(req: IncomingMessage, res: ServerResponse, url: URL, ip: string, onBan: (id: string) => void) {
   if (!adminEnabled) return json(res, 404, { error: 'not found' });
   const p = url.pathname;
-  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup'].includes(p))
+  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup', '/api/admin/analytics'].includes(p))
     || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/reports/dismiss'].includes(p));
   if (!known) return json(res, 404, { error: 'not found' });
   const f = fails.get(ip);
@@ -51,6 +52,8 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
     const day = new Date().toISOString().slice(0, 10);
     return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ app: 'spade-haven', exportedAt: new Date().toISOString(), records: all }), { 'content-disposition': `attachment; filename="spade-haven-backup-${day}.json"` });
   }
+
+  if (p === '/api/admin/analytics') return json(res, 200, await analyticsReport());
 
   const accounts = await listRecords<Account>('acct-');
   const row = (a: Account) => ({ id: a.id, name: a.name, kind: a.kind ?? 'guest', email: a.email ?? '', joined: a.createdAt || 0, lastSaved: a.updatedAt || 0, banned: isBanned(a.id), muted: isMuted(a.id) });

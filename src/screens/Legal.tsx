@@ -36,6 +36,7 @@ function Privacy() {
       <li><b>Chat messages</b> you send at tables, which are relayed to the other players at that table and are not stored after the table closes.</li>
       <li><b>Reports and suspensions:</b> if you report a player (from their profile card), we keep your report, your player name and the reason so the owner can review it. If an account is suspended for breaking the rules, we keep its name, email and the reason so it cannot simply return.</li>
       <li><b>Purchases:</b> when you buy coins or a Chat Pass, payment is handled by Stripe (or by Google Play / the App Store in the mobile apps). We receive a record of what you bought, not your full card details.</li>
+      <li><b>Anonymous usage counts:</b> simple counts of things like opening the game, finishing the tutorial or using a rematch, linked to a random ID rather than your name or email, so we can see what helps players. Nothing is recorded about what you do in a hand, and we skip this if your browser sends Do Not Track.</li>
       <li><b>Technical data:</b> basic server logs (such as IP address and time of request) used to keep the service running and to prevent abuse.</li>
     </ul>
     <h2>How we use it</h2>

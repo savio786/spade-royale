@@ -1,10 +1,11 @@
 // Hand history: look back at any recent hand: who bid what, how every trick went, and exactly how the points were scored.
 // Loaded only when opened (own code chunk), and built from the small records kept by lib/handlog: nothing here runs at the table.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '../components/ui';
 import { SUIT_SYMBOL, rankLabel, seatsOfSide, sideOf, sortHand, type Card } from '../../shared/engine';
 import { decodeCard, hands, type HandRec } from '../lib/handlog';
 import { explain } from '../lib/handscore';
+import { track } from '../lib/track';
 
 const first = (r: HandRec, seat: number) => (r.names[seat] || 'Player').split(' ')[0].slice(0, 9);
 const sideName = (r: HandRec, side: number) => {
@@ -80,6 +81,7 @@ function Score({ r }: { r: HandRec }) {
 }
 
 export default function HandReview({ gid, onClose }: { gid: string; onClose: () => void }) {
+  useEffect(() => { track('hand_review_open'); }, []);
   const list = useMemo(() => hands().filter((h) => h.res).reverse(), []);
   const [pick, setPick] = useState<HandRec | null>(null);
   const [tab, setTab] = useState<'bids' | 'tricks' | 'score'>('score');

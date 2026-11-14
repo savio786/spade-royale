@@ -6,6 +6,7 @@ import { sortHand, type Card } from '../../shared/engine';
 import { decodeCard } from '../lib/handlog';
 import { fmt, profile } from '../lib/profile';
 import { sfx, vibrate } from '../lib/sound';
+import { track } from '../lib/track';
 
 export const TUTORIAL_REWARD = 5_000;
 
@@ -45,6 +46,7 @@ export default function Tutorial({ onClose }: { onClose: (playNow: boolean) => v
   const beat = BEATS[i];
   const later = (ms: number, f: () => void) => { timers.current.push(window.setTimeout(f, ms)); };
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => { track('tutorial_shown'); }, []);
 
   const step = BEATS.slice(0, i + 1).filter((b) => b.k === 'say' || b.k === 'bid' || b.k === 'play' || b.k === 'nil').length;
   const winnerSeat = beat.k === 'play' && phase === 'result' ? beat.winner : null;
@@ -57,7 +59,7 @@ export default function Tutorial({ onClose }: { onClose: (playNow: boolean) => v
     later(500 + beat.pre.length * 650 + 150, () => setPhase('ready'));
   }, [i]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const next = () => { sfx.click(); setI((n) => Math.min(BEATS.length - 1, n + 1)); };
+  const next = () => { sfx.click(); if (i === 0) track('tutorial_start'); setI((n) => Math.min(BEATS.length - 1, n + 1)); };
   const playMine = (id: string) => {
     if (beat.k !== 'play' || phase !== 'ready' || id !== beat.need) return;
     sfx.card(); vibrate(10);
@@ -68,6 +70,7 @@ export default function Tutorial({ onClose }: { onClose: (playNow: boolean) => v
   };
 
   const finish = (playNow: boolean, skipped = false) => {
+    if (profile.get().tutorial !== 'done') track(skipped ? 'tutorial_skip' : 'tutorial_done');   // replays are not counted again
     if (skipped) { if (profile.get().tutorial !== 'done') profile.set(() => ({ tutorial: 'skipped' as const })); }
     else if (profile.get().tutorial !== 'done') { profile.set((x) => ({ coins: x.coins + TUTORIAL_REWARD, tutorial: 'done' as const })); sfx.coins(); }
     onClose(playNow);

@@ -13,6 +13,7 @@ import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
 import { observe as logHand } from '../lib/handlog';
+import { track } from '../lib/track';
 import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
 import { activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
@@ -66,6 +67,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     if (!st || !view) return;
     if (!charged.current && st.phase !== 'waiting') {
       charged.current = true;
+      track('game_start'); if (view.online) track('game_online');
       profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));
       sfx.deal();
     }
@@ -83,6 +85,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     }
     if (st.phase === 'gameOver' && !settled.current && charged.current) {
       settled.current = true;
+      track('game_end');
       const mySide = sideOf(st.settings.mode, me);
       const won = st.winners.includes(mySide);
       const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place gets the bet back
@@ -141,6 +144,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     const to = view?.rematch?.to;
     if (!to || rematched.current) return;
     rematched.current = true;
+    track('rematch_start');
     ctl.leave();
     onRematch(to);
   }, [view?.rematch?.to]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -379,7 +383,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       )}
       {st.phase === 'roundEnd' && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
-      {st.phase === 'gameOver' && <GameOver st={st} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else ctl.rematch(); }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
+      {st.phase === 'gameOver' && <GameOver st={st} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else { track('rematch_request'); ctl.rematch(); } }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
@@ -992,6 +996,7 @@ export type { Card };
 
 /** One tap: the phone's share sheet (WhatsApp, Messages…) with a link that seats your friend at this table; otherwise the link is copied. */
 async function inviteToTable(code: string) {
+  track('table_invite_share');
   const url = tableLink(code);
   const text = tableInviteText(code);
   if (typeof navigator.share === 'function') {

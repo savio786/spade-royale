@@ -7,6 +7,7 @@ import { toast } from './toast';
 import { sfx } from './sound';
 import { pullGuestProgress } from './guest';
 import { syncPurchases } from './payments';
+import { track } from './track';
 
 const REF_KEY = 'spade-haven-ref';
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -18,6 +19,7 @@ export function captureRef() {
     const url = new URL(window.location.href);
     const code = (url.searchParams.get('ref') || '').toUpperCase();
     if (!url.searchParams.has('ref')) return;
+    track('invite_link_open');
     if (/^[A-Z0-9]{4,10}$/.test(code) && !read(REF_KEY)) write(REF_KEY, code);
     url.searchParams.delete('ref');
     history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
@@ -95,6 +97,7 @@ export function captureJoin() {
   try {
     const url = new URL(window.location.href);
     if (!url.searchParams.has('join')) return;
+    track('table_link_open');
     const code = (url.searchParams.get('join') || '').toUpperCase().trim();
     if (/^[A-Z0-9]{4,8}$/.test(code)) { try { sessionStorage.setItem(JOIN_KEY, code); } catch { /* storage unavailable */ } }
     url.searchParams.delete('join');
