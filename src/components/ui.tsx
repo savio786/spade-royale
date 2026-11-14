@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect } from 'react';
 import { Card, rankLabel, SUIT_SYMBOL } from '../../shared/engine';
 import { sfx } from '../lib/sound';
-import { AvatarArt, avatarName, isPhoto, AVATAR_KEYS as AVATAR_KEYS_LIST } from './avatars';
+import { AvatarArt, avatarName, isPhoto, AVATAR_KEYS as AVATAR_KEYS_LIST, MORE_PEOPLE_KEYS } from './avatars';
 import { PEOPLE_KEYS } from './people';
 import { photoUrl, uploadPhoto } from '../lib/photo';
 import { AvatarBuilderModal } from './avatarbuilder-modal';
@@ -120,9 +120,9 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (k:
       {err && <p className="ap-err" role="alert">{err}</p>}
       <div className="avatar-grid" role="radiogroup" aria-label="Choose an avatar">
         <span className="ap-group">People</span>
-        {PEOPLE_KEYS.map(tile)}
+        {[...PEOPLE_KEYS, ...MORE_PEOPLE_KEYS].map(tile)}
         <span className="ap-group">Animals & characters</span>
-        {AVATAR_KEYS_LIST.filter((k) => !PEOPLE_KEYS.includes(k)).map(tile)}
+        {AVATAR_KEYS_LIST.filter((k) => !PEOPLE_KEYS.includes(k) && !MORE_PEOPLE_KEYS.includes(k)).map(tile)}
       </div>
     </div>
   );

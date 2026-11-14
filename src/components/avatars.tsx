@@ -294,10 +294,20 @@ export const AVATARS: Record<string, Def> = {
     </g>) },
 };
 
+/** More cartoon people (Chinese, Indian and Hispanic players) and more animals and characters; their pictures are in /public/avatars. */
+export const MORE_PEOPLE: Record<string, string> = {
+  p25: 'Wei', p26: 'Xiu', p27: 'Chen', p28: 'Lin',
+  p29: 'Gurpreet', p30: 'Kavya', p31: 'Rohan', p32: 'Ananya',
+  p33: 'Javier', p34: 'Valentina', p35: 'Diego', p36: 'Elena',
+};
+export const MORE_CHARS: Record<string, string> = {
+  a25: 'Dragon', a26: 'Elephant', a27: 'Red Panda', a28: 'Flamingo', a29: 'Wolf', a30: 'Turtle', a31: 'Cowboy', a32: 'Samurai',
+};
+export const MORE_PEOPLE_KEYS = Object.keys(MORE_PEOPLE);
 /** People first (most realistic), then animals and characters. */
-export const AVATAR_KEYS = [...PEOPLE_KEYS, ...Object.keys(AVATARS)];
+export const AVATAR_KEYS = [...PEOPLE_KEYS, ...MORE_PEOPLE_KEYS, ...Object.keys(AVATARS), ...Object.keys(MORE_CHARS)];
 export const isPhoto = (k: string) => k.startsWith('u:');
-export const avatarName = (k: string) => (isPhoto(k) ? 'Your photo' : isBuilt(k) ? 'Your design' : BOT_PHOTO_BY_ID[k]?.name ?? PEOPLE[k]?.name ?? AVATARS[k]?.name ?? 'Player');
+export const avatarName = (k: string) => (isPhoto(k) ? 'Your photo' : isBuilt(k) ? 'Your design' : BOT_PHOTO_BY_ID[k]?.name ?? PEOPLE[k]?.name ?? MORE_PEOPLE[k] ?? MORE_CHARS[k] ?? AVATARS[k]?.name ?? 'Player');
 
 export function AvatarArt({ k }: { k: string }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
