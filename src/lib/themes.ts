@@ -72,6 +72,9 @@ export function activeTheme(chosen: string | null | undefined, level: number) {
 export const newlyUnlocked = (from: number, to: number) => THEMES.filter((t) => t.level > from && t.level <= to);
 
 /** CSS variables applied to the table screen. */
+/** Suit colors for "four-color suits": spades black, hearts red, diamonds blue, clubs green. It overrides any table theme. */
+export const FOUR_COLOR_VARS = { '--suit-s': FOUR.S, '--suit-h': FOUR.H, '--suit-d': FOUR.D, '--suit-c': FOUR.C } as CSSProperties;
+
 export function themeVars(t: Theme): CSSProperties {
   return {
     '--felt-a': t.felt[0], '--felt-b': t.felt[1], '--felt-c': t.felt[2], '--felt-line': t.feltLine, '--felt-glow': t.glow,

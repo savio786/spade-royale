@@ -14,11 +14,11 @@ import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
 import { observe as logHand } from '../lib/handlog';
-import { bumpMission } from '../lib/profile';
+import { bumpMission, isMutedId, mutePlayer } from '../lib/profile';
 import { track } from '../lib/track';
 import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
-import { activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
+import { FOUR_COLOR_VARS, activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
 const HandReview = lazy(() => import('./HandReview'));   // its own code chunk: only downloaded when someone opens the history
@@ -125,7 +125,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
     if (newest && newest.id !== lastChatId.current) {
-      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !m.text.startsWith('🎁:'));
+      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !m.text.startsWith('🎁:') && !isMutedId(profile.get(), st.seats[m.seat]?.id));
       lastChatId.current = newest.id;
       if (fresh.length && !profile.get().settings.chatOff) { sfx.chat(); if (!chatOpen) setUnread((u) => u + fresh.length); }
       // a gift announces itself with a hidden chat line "🎁:<seat>:<gift id>": make it fly to that player
@@ -243,10 +243,10 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
   const myTurn = st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
   const legal = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me);
   const lastBySeat = new Map<number, { text: string; ts: number }>();
-  for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me)) lastBySeat.set(m.seat, m);
+  for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me) && !isMutedId(p, st.seats[m.seat]?.id)) lastBySeat.set(m.seat, m);
 
   return (
-    <div className={`screen table-screen felt-bg fall-${fall}${hr ? ` hr hr-${hr}` : ''}`} style={themeVars(hr ? highRollerTheme(hr) : activeTheme(p.theme, levelFromXp(p.xp)))}>
+    <div className={`screen table-screen felt-bg fall-${fall}${hr ? ` hr hr-${hr}` : ''}${p.settings.bigCards ? ' big-cards' : ''}`} style={{ ...themeVars(hr ? highRollerTheme(hr) : activeTheme(p.theme, levelFromXp(p.xp))), ...(p.settings.fourColor ? FOUR_COLOR_VARS : {}) }}>
       <div className="table-scene" style={{ backgroundImage: `url(/ui/city/${(st.settings.city || cityForBet(st.settings.bet)).toLowerCase().replace(/\s+/g, '')}.webp)` }} aria-hidden="true" />
       <div className="tbl-top-left">
         <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>{tr("BUY COINS")}</button>
@@ -309,7 +309,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           const cs = chatSeen.current, t0 = Date.now();
           for (const m of view.snap!.chat) if (!cs.map.has(m.id)) cs.map.set(m.id, cs.first ? 0 : t0);   // lines already there when the table opened are old news
           cs.first = false;
-          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && !st.seats[m.seat]?.bot && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
+          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && !st.seats[m.seat]?.bot && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me) && !isMutedId(p, st.seats[m.seat]?.id)).slice(-3);
           return live.length > 0 && (
             <div className="tbl-chat" aria-live="polite">
               {live.map((m) => (
@@ -832,7 +832,10 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   const pass = chatPassLabel(p);
   const chatOn = !p.settings.chatOff;
   const ownKeys = useOwnKeyboard();
-  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-40);
+  const seatOf = (i: number) => view.snap?.state.seats[i];
+  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me) && !isMutedId(p, seatOf(m.seat)?.id)).slice(-40);
+  const [menuFor, setMenuFor] = useState<number | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs.length, ownKeys]);
   // the box stays open after sending so the player sees their message and the replies; BACK closes it
@@ -840,6 +843,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   return (
     <div className={`chat-overlay ${ownKeys ? 'own-keys' : ''}`} role="dialog" aria-label={tr("Table chat")}>
       <div className="chat-dim" onClick={onClose} />
+      {reportId && <ReportDialog id={reportId} onClose={() => setReportId(null)} />}
       <aside className="chat-phrases">
         <div className="chat-scroll">
           {QUICK_PHRASES.map((q) => <button key={q} className="speech" onClick={() => send(q)}>{q}</button>)}
@@ -853,6 +857,17 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
           <div key={m.id} className={`cl-line ${m.seat === me ? 'mine' : ''}`}>
             <Avatar k={view.snap?.state.seats[m.seat]?.avatar ?? 'a1'} size={44} />
             <span className="cl-body"><b className="cl-name">{m.name}:</b> <span className="cl-text">{m.text}</span></span>
+            {m.seat !== me && seatOf(m.seat) && !seatOf(m.seat)!.bot && (
+              <span className="cl-more">
+                <button className="cl-dots" aria-label={tr('Mute or report {n}', { n: m.name })} onClick={() => { sfx.click(); setMenuFor(menuFor === m.id ? null : m.id); }}>⋯</button>
+                {menuFor === m.id && (
+                  <span className="cl-menu" role="menu">
+                    <button role="menuitem" onClick={() => { sfx.click(); mutePlayer(seatOf(m.seat)!.id, m.name); setMenuFor(null); toast(tr('{n} is muted. You can undo this in Settings.', { n: m.name })); }}>{tr('Mute {n}', { n: m.name })}</button>
+                    {p.guestKey && <button role="menuitem" onClick={() => { sfx.click(); setReportId(seatOf(m.seat)!.id); setMenuFor(null); }}>{tr('Report {n}', { n: m.name })}</button>}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -944,7 +959,7 @@ function TableMenu({ onClose, onRules, onHistory, onBot, onThemes, onExit, confi
   const p = useProfile();
   const [picking, setPicking] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
-  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : k === 'calm' ? x.settings.calm === false : !x.settings[k] } }));
+  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm' | 'fourColor' | 'bigCards') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : k === 'calm' ? x.settings.calm === false : !x.settings[k] } }));
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   return (
     <div className="tm-overlay" role="dialog" aria-modal="true" aria-label={tr("Table menu")}>
@@ -978,6 +993,8 @@ function TableMenu({ onClose, onRules, onHistory, onBot, onThemes, onExit, confi
           <Switch label={tr("VIBRATION")} on={p.settings.vibrate} onToggle={() => set('vibrate')} />
           <div className="tm-rule" />
           <Switch label={tr("CALM TABLE")} on={p.settings.calm !== false} onToggle={() => set('calm')} />
+          <Switch label={tr("FOUR-COLOR SUITS")} on={!!p.settings.fourColor} onToggle={() => set('fourColor')} />
+          <Switch label={tr("BIGGER CARDS")} on={!!p.settings.bigCards} onToggle={() => set('bigCards')} />
         </div>
       </aside>
       {target && <ReportDialog id={target} onClose={() => { setTarget(null); setPicking(false); }} />}

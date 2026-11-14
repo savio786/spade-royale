@@ -2394,3 +2394,17 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 :lang(es) .ring-btn span, :lang(hi) .ring-btn span { white-space: nowrap; }
 :lang(es) .pill, :lang(hi) .pill { white-space: nowrap; }
 :lang(es) .center-msg > b { font-size: 70%; white-space: nowrap; }
+
+/* mute / report menu on chat messages */
+.cl-line { position: relative; }
+.cl-more { margin-left: auto; position: relative; flex: none; }
+.cl-dots { background: transparent; border: 0; color: inherit; opacity: .6; font-size: 26px; line-height: 1; padding: 0 8px; cursor: pointer; }
+.cl-dots:hover, .cl-dots:focus-visible { opacity: 1; }
+.cl-menu { position: absolute; right: 0; top: 100%; z-index: 5; display: flex; flex-direction: column; min-width: 190px; padding: 6px; border-radius: 12px; background: #14183a; border: 2px solid rgba(255,255,255,.3); box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+.cl-menu button { background: transparent; border: 0; color: #fff; text-align: left; font: 500 18px var(--body); padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+.cl-menu button:hover, .cl-menu button:focus-visible { background: rgba(255,255,255,.12); }
+.st-muted-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; }
+.st-muted-row .st-lang-btn { flex: none; padding: 6px 14px; }
+
+/* bigger cards option */
+.table-screen.big-cards { --card-w: 200px; }

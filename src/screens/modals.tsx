@@ -4,7 +4,7 @@ import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
-import { claimMission, claimableMissions, missionsToday, BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
+import { claimMission, claimableMissions, unmutePlayer, missionsToday, BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, showFacebook, type AuthConfig } from '../lib/auth';
@@ -612,7 +612,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
   useEffect(() => {
     if (!signedIn && cfg.google && googleRef.current) void mountGoogleButton(googleRef.current, cfg.google, (e) => { if (e) toast(e, 'error'); else { sfx.coins(); toast('Signed in with Google'); } }).catch(() => {});
   }, [cfg.google, signedIn]);
-  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : k === 'calm' ? x.settings.calm === false : !x.settings[k] } }));
+  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm' | 'fourColor' | 'bigCards') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : k === 'calm' ? x.settings.calm === false : !x.settings[k] } }));
   const fb = async () => {
     sfx.click();
     if (!cfg.facebook) { toast('Facebook sign-in is coming soon — use email for now'); return; }
@@ -661,7 +661,15 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         <BigSwitch label={tr("MUSIC")} on={p.settings.music !== false} onToggle={() => set('music')} />
         <BigSwitch label={tr("VIBRATION")} on={p.settings.vibrate} onToggle={() => set('vibrate')} />
         <BigSwitch label={tr("CALM TABLE")} on={p.settings.calm !== false} onToggle={() => set('calm')} />
+        <BigSwitch label={tr("FOUR-COLOR SUITS")} on={!!p.settings.fourColor} onToggle={() => set('fourColor')} />
+        <BigSwitch label={tr("BIGGER CARDS")} on={!!p.settings.bigCards} onToggle={() => set('bigCards')} />
       </div>
+      {(p.muted?.length ?? 0) > 0 && (
+        <section className="tm-sec st-sec st-muted">
+          <h3>{tr('MUTED PLAYERS')}</h3>
+          {p.muted!.map((m) => <div key={m.id} className="st-muted-row"><span>{m.name}</span><button className="st-lang-btn" onClick={() => { sfx.click(); unmutePlayer(m.id); }}>{tr('Unmute')}</button></div>)}
+        </section>
+      )}
       <div className="st-lang" role="group" aria-label="Language">
         {LANGS.map((l) => <button key={l.id} className={`st-lang-btn ${lang === l.id ? 'on' : ''}`} aria-pressed={lang === l.id} lang={l.id} onClick={() => { sfx.click(); void setLang(l.id); }}>{l.name}</button>)}
       </div>

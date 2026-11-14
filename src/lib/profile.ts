@@ -18,12 +18,13 @@ export interface Profile {
   card: { last5: string; nil: number; nilMade: number; blind: number; blindMade: number; rings: Record<string, number> };
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
   streak?: number;              // days in a row the daily gift was collected
+  muted?: { id: string; name: string }[];   // players this player has muted (their chat is hidden on this device)
   missions?: { day: string; prog: number[]; claimed: boolean[] }; // today's 3 daily missions
   tutorial?: 'done' | 'skipped'; // the 60-second tutorial: finished (reward paid once) or skipped
   lastSpin: number;             // ms
   lastAd: number;               // ms
   claimed: string[];            // achievement ids
-  settings: { sound: boolean; fast: boolean; vibrate: boolean; chatOff?: boolean; calm?: boolean; music?: boolean; track?: string };
+  settings: { sound: boolean; fast: boolean; vibrate: boolean; fourColor?: boolean; bigCards?: boolean; chatOff?: boolean; calm?: boolean; music?: boolean; track?: string };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
   chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
   vipUntil: number;             // VIP Club: ms epoch it runs until (paid on Stripe), 0 = none
@@ -90,6 +91,11 @@ export function claimMission(i: number): number {
   });
   return row.reward;
 }
+
+/** Mute list: a muted player's chat messages and speech bubbles are hidden for this player only. */
+export const isMutedId = (p: { muted?: Profile['muted'] }, id: string | undefined) => !!id && !!p.muted?.some((m) => m.id === id);
+export function mutePlayer(id: string, name: string) { profile.set((x) => ({ muted: [...(x.muted ?? []).filter((m) => m.id !== id), { id, name }].slice(-100) })); }
+export function unmutePlayer(id: string) { profile.set((x) => ({ muted: (x.muted ?? []).filter((m) => m.id !== id) })); }
 
 export function weekKey(d = new Date()) {
   const start = new Date(d);
