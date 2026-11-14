@@ -650,6 +650,7 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         <BigSwitch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
         <BigSwitch label="CALM TABLE" on={p.settings.calm !== false} onToggle={() => set('calm')} />
       </div>
+      <button className="st-replay" onClick={() => { onClose(); window.dispatchEvent(new Event('spade-tutorial')); }}>Replay the 60-second tutorial</button>
       <div className="st-music">
         <h3>BACKGROUND MUSIC <small>tap a track to hear it</small></h3>
         <MusicPicker />

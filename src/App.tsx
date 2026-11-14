@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { captureJoin, captureRef, clearJoin, pendingJoin, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
 import { Login } from './screens/Login';
@@ -35,6 +35,8 @@ if (/[?&]purchase=/.test(window.location.search) && !window.location.hash) histo
 captureRef();
 captureJoin();   // a table link (…/?join=CODE): remember the table and open the game
 
+const Tutorial = lazy(() => import('./screens/Tutorial'));   // the 60-second tutorial: its own code chunk, downloaded only for new players
+
 const isAppShell = () => Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
 function useHashRoute() {
@@ -54,6 +56,16 @@ export default function App() {
   const [tableKey, setTableKey] = useState(0);
   const [lastReq, setLastReq] = useState<StartRequest | null>(null);
   const [bip, setBip] = useState<BIPEvent | null>(null);
+  const [tutOpen, setTutOpen] = useState(false);
+  const tutChecked = useRef(false);
+  // brand-new players (no games yet, tutorial never seen) get the 60-second tutorial once; Settings can replay it
+  useEffect(() => {
+    if (tutChecked.current || !inApp || !p.provider) return;
+    tutChecked.current = true;
+    const q = profile.get();
+    if (!q.tutorial && q.stats.played === 0 && !pendingJoin()) setTutOpen(true);
+  }, [inApp, p.provider]);
+  useEffect(() => { const h = () => setTutOpen(true); window.addEventListener('spade-tutorial', h); return () => window.removeEventListener('spade-tutorial', h); }, []);
   const toasts = useToasts();
 
   useEffect(() => {
@@ -120,6 +132,7 @@ export default function App() {
   else if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
   else if (resetToken) body = <Login resetToken={resetToken} />;
   else if (!p.provider) body = <Login />;
+  else if (tutOpen) body = <Suspense fallback={null}><Tutorial onClose={(playNow) => { setTutOpen(false); if (playNow) start({ mode: 'partners', bet: 250, minPoints: -100, maxPoints: 100, via: 'local' }); }} /></Suspense>;
   else if (screen === 'table' && ctl) body = (
     <Table key={tableKey} ctl={ctl}
       onExit={() => { setCtl(null); setScreen('lobby'); }}

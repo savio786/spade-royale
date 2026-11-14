@@ -18,6 +18,7 @@ export interface Profile {
   card: { last5: string; nil: number; nilMade: number; blind: number; blindMade: number; rings: Record<string, number> };
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
   streak?: number;              // days in a row the daily gift was collected
+  tutorial?: 'done' | 'skipped'; // the 60-second tutorial: finished (reward paid once) or skipped
   lastSpin: number;             // ms
   lastAd: number;               // ms
   claimed: string[];            // achievement ids

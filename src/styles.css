@@ -2344,3 +2344,28 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 .hr-score header { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; margin-bottom: 6px; } .hr-score header b { font-size: 1.5rem; }
 .hr-score ul { list-style: none; margin: 0; padding: 0; } .hr-score li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,.08); font-size: .95rem; }
 .hr-score footer { margin-top: 6px; font-size: .8rem; opacity: .7; }
+
+/* ---- 60-second tutorial ---- */
+.st-replay { display: block; margin: 8px auto 4px; padding: 10px 18px; border: 0; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; font: inherit; cursor: pointer; }
+.tu { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 20%, #2b2f8a, #0c1040 70%); color: #fff; overflow: hidden; }
+.tu-skip { position: absolute; top: 12px; right: 14px; z-index: 5; padding: 8px 14px; border: 0; border-radius: 999px; background: rgba(255,255,255,.14); color: #fff; font: inherit; font-size: .9rem; cursor: pointer; }
+.tu-dots { position: absolute; top: 18px; left: 50%; translate: -50% 0; display: flex; gap: 6px; z-index: 4; } .tu-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.25); } .tu-dots i.on { background: var(--gold); }
+.tu-card { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: min(86%, 520px); text-align: center; padding: 22px 20px; border-radius: 22px; background: linear-gradient(180deg, #2a3fb8, #11195e); box-shadow: 0 0 0 3px #7f95ff, 0 20px 50px rgba(0,0,0,.5); }
+.tu-card h2 { margin: 6px 0 8px; font-size: 1.6rem; } .tu-card p { margin: 6px 0; font-size: 1.05rem; line-height: 1.35; } .tu-card .tu-small { opacity: .75; font-size: .9rem; }
+.tu-big { font-size: 64px; line-height: 1; color: var(--gold); } .tu-big.nil { font: 400 64px var(--display); letter-spacing: 4px; } .tu-reward { font: 400 40px var(--display); color: var(--gold); }
+.tu-go { display: block; margin: 14px auto 4px; min-width: 220px; padding: 14px 24px; border: 0; border-radius: 999px; font: 400 26px var(--display); letter-spacing: 1.5px; color: #fff; background: linear-gradient(#35c46a, #1f9a4c); box-shadow: 0 4px 0 #136a33; cursor: pointer; }
+.tu-later { display: block; margin: 8px auto 0; background: none; border: 0; color: #b9c6ff; text-decoration: underline; font: inherit; cursor: pointer; }
+.tu-say { position: absolute; top: 44px; left: 50%; translate: -50% 0; width: min(88%, 640px); min-height: 52px; padding: 10px 16px; text-align: center; font-size: 1.12rem; line-height: 1.3; border-radius: 14px; background: rgba(0,0,0,.4); box-shadow: 0 0 0 2px rgba(255,214,90,.5); z-index: 3; }
+.tu-felt { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: min(78%, 520px); height: 42%; }
+.tu-who { position: absolute; font-size: .8rem; opacity: .75; } .tu-who.s1 { left: 0; top: 50%; } .tu-who.s2 { left: 50%; top: -34px; translate: -50% 0; } .tu-who.s3 { right: 0; top: 50%; }
+.tu-played { position: absolute; --w: min(70px, 15vh); animation: tuDrop .35s cubic-bezier(.2,.9,.3,1.2) both; } .tu-played.win .pcard { box-shadow: 0 0 0 4px var(--gold), 0 0 24px rgba(255,200,60,.8); }
+.tu-played.s0 { left: 50%; bottom: -6px; translate: -50% 0; } .tu-played.s1 { left: 14%; top: 50%; translate: 0 -50%; } .tu-played.s2 { left: 50%; top: -6px; translate: -50% 0; } .tu-played.s3 { right: 14%; top: 50%; translate: 0 -50%; }
+@keyframes tuDrop { from { opacity: 0; transform: translateY(-24px) scale(.8); } }
+.tu-bids { position: absolute; left: 50%; bottom: 36%; translate: -50% 0; display: flex; gap: 14px; z-index: 4; }
+.tu-bids button { width: 78px; height: 64px; border: 0; border-radius: 16px; font: 400 36px var(--display); color: #fff; background: linear-gradient(#4b6cff, #2a3fb8); box-shadow: 0 4px 0 #162584; cursor: pointer; }
+.tu-next { position: absolute; right: 5%; bottom: 36%; z-index: 4; padding: 12px 22px; border: 0; border-radius: 999px; font: 400 24px var(--display); color: #3a2400; background: linear-gradient(#ffd75e, #f2a51c); box-shadow: 0 4px 0 #a36b00; cursor: pointer; animation: tuPulse 1.2s ease-in-out infinite; }
+@keyframes tuPulse { 50% { transform: scale(1.06); } }
+.tu-hand { position: absolute; left: 50%; bottom: 8px; translate: -50% 0; display: flex; justify-content: center; width: 96%; --w: 64px; }
+.tu-hand .pcard, .tu-hand .tu-slot { --w: 64px; width: 64px; margin-left: -22px; } .tu-hand > :first-child { margin-left: 0; } .tu-slot { display: block; height: 90px; flex: none; }
+.tu-hand .tu-c { transition: transform .15s; } .tu-hand .tu-c.dim { filter: brightness(.55); } .tu-hand .tu-c.need { transform: translateY(-22px); box-shadow: 0 0 0 4px var(--gold), 0 0 22px rgba(255,200,60,.9); animation: tuPulse 1s ease-in-out infinite; z-index: 2; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .tu-next, .tu-hand .tu-c.need, .tu-played { animation: none; } }
