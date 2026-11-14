@@ -34,7 +34,16 @@ if (/[?&]purchase=/.test(window.location.search) && !window.location.hash) histo
 
 // an invite link (…/?ref=CODE): remember who invited this player, then tidy the address bar
 captureRef();
-captureJoin();   // a table link (…/?join=CODE): remember the table and open the game
+captureJoin();
+// The installed app is set to reuse its open window, so a link tapped in an email (password reset, table invite) used to just bring that window forward and be ignored. Follow the link instead.
+try {
+  const lq = (window as unknown as { launchQueue?: { setConsumer: (f: (p: { targetURL?: string }) => void) => void } }).launchQueue;
+  lq?.setConsumer((p) => {
+    if (!p.targetURL) return;
+    const u = new URL(p.targetURL);
+    if (u.origin === window.location.origin && u.href !== window.location.href && (u.search || u.hash.length > 1)) window.location.href = u.href;
+  });
+} catch { /* not an installed app */ }   // a table link (…/?join=CODE): remember the table and open the game
 
 const Tutorial = lazy(() => import('./screens/Tutorial'));   // the 60-second tutorial: its own code chunk, downloaded only for new players
 
