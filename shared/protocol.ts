@@ -37,11 +37,14 @@ export type ClientMsg =
   | { t: 'act'; action: Action }
   | { t: 'chat'; text: string }
   | { t: 'leave' }
+  | { t: 'rematch' }                    // on the game-over screen: I want to play the same people again
   | { t: 'ping' }                      // heartbeat: the server answers with pong, so a dead connection is noticed quickly
   | { t: 'rejoin'; tableId: string };   // after a dropped connection: take my seat back
 
 export type ServerMsg =
   | { t: 'pong' }
+  | { t: 'rematch'; votes: number[]; humans: number[]; deadline: number; cancelled?: boolean }   // who has said yes (seats), who is asked (seats), when the offer ends
+  | { t: 'rematchTo'; code: string }          // everyone said yes: sit down at this new private table (your old seat is held for you)
   | { t: 'welcome'; online: OnlineCounts }
   | { t: 'tables'; tables: TableSummary[]; online: OnlineCounts }
   | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings }

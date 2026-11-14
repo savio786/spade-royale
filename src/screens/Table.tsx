@@ -22,7 +22,7 @@ import { FREE_EMOJI, QUICK_PHRASES } from '../../shared/chat';
 import { GIFTS, GIFT_BY_ID, type Gift } from '../../shared/gifts';
 import type { SeatGift } from '../../shared/runtime';
 
-export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onExit: () => void; onPlayAgain: () => void }) {
+export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableController; onExit: () => void; onPlayAgain: () => void; onRematch: (code: string) => void }) {
   const p = useProfile();
   const [view, setView] = useState<CtlView | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -44,6 +44,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const chatSeen = useRef<{ map: Map<number, number>; first: boolean }>({ map: new Map(), first: true });
   const lastTurn = useRef<string>('');
   const lastRound = useRef(-1);
+  const rematched = useRef(false);
   const wonKey = useRef('');
 
   useEffect(() => ctl.subscribe(setView), [ctl]);
@@ -129,6 +130,15 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     }
     if (view.error) toast(view.error, 'error');
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // everyone agreed to a rematch: move to the new table (your old seat is held for you there)
+  useEffect(() => {
+    const to = view?.rematch?.to;
+    if (!to || rematched.current) return;
+    rematched.current = true;
+    ctl.leave();
+    onRematch(to);
+  }, [view?.rematch?.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (chatOpen) setUnread(0); }, [chatOpen]);
   // "SPADES BROKEN!" splash: once per round, the moment the first spade is played on another suit (not when joining a round that's already broken)
@@ -364,7 +374,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       )}
       {st.phase === 'roundEnd' && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
-      {st.phase === 'gameOver' && <GameOver st={st} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
+      {st.phase === 'gameOver' && <GameOver st={st} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else ctl.rematch(); }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
@@ -729,16 +739,19 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
 }
 
 const GAME_OVER_SECONDS = 10;   // the result screen takes everyone back to the lobby after this long
-function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => void; onAgain: () => void }) {
+function GameOver({ st, rematch, onRematch, onLobby, onAgain }: { st: PublicState; rematch?: CtlView['rematch']; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
   const [left, setLeft] = useState(GAME_OVER_SECONDS);
   const [held, setHeld] = useState(false);   // opening the coin store stops the countdown
   const lobbyRef = useRef(onLobby); lobbyRef.current = onLobby;
+  const humans = st.seats.filter((x) => x && !x.bot).length;
+  const offer = !!rematch && !rematch.cancelled && !rematch.to && rematch.humans.length > 0;   // a rematch offer is open: the countdown to the lobby waits
+  const hold = held || offer;
   useEffect(() => {
-    if (held) return;
+    if (hold) return;
     const t = window.setInterval(() => setLeft((n) => n - 1), 1000);
     return () => window.clearInterval(t);
-  }, [held]);
-  useEffect(() => { if (left === 0 && !held) lobbyRef.current(); }, [left, held]);
+  }, [hold]);
+  useEffect(() => { if (left === 0 && !hold) lobbyRef.current(); }, [left, hold]);
   const mode = st.settings.mode;
   const me = st.mySeat;
   const mySide = sideOf(mode, me);
@@ -749,7 +762,7 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
   const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
   return (
     <div className="modal-backdrop">
-      <div className={`modal gameover ${won || second ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">
+      <div className={`modal gameover ${won || second ? 'win' : 'lose'} ${humans >= 2 ? 'has-rm' : ''}`} role="dialog" aria-label="Game over">
         <img className="go-art" src={won || second ? '/ui/go-win.webp' : '/ui/go-lose.webp'} alt="" aria-hidden="true" draggable={false} />
         <div className="go-title">{won ? 'VICTORY!' : mode === 'solo' ? `${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE` : 'DEFEAT'}</div>
         {prize > 0 && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
@@ -763,13 +776,30 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
           ))}
         </ol>
         <p className="muted small">+{40 + (won ? 80 : 0)} XP · Level {levelFromXp(profile.get().xp)}</p>
+        {humans >= 2 && (() => {
+          const iVoted = !!rematch?.votes.includes(st.mySeat);
+          const others = (rematch?.votes ?? []).filter((v) => v !== st.mySeat);
+          const waiting = (rematch?.humans ?? []).filter((h) => !rematch!.votes.includes(h));
+          const names = (xs: number[]) => xs.map((i) => st.seats[i]?.name.split(' ')[0]).filter(Boolean).join(', ');
+          return (
+            <div className="go-rematch">
+              <Pill color="gold" disabled={iVoted && !rematch?.cancelled} onClick={() => { sfx.click(); onRematch(); }}>{iVoted && !rematch?.cancelled ? 'WAITING FOR FRIENDS…' : others.length ? 'ACCEPT REMATCH' : 'REMATCH'}</Pill>
+              <small className="muted">
+                {rematch?.cancelled ? 'Nobody else joined the rematch.'
+                  : iVoted ? `Waiting for ${names(waiting) || 'everyone'}`
+                  : others.length ? `${names(others)} wants to play again!`
+                  : 'Same players, same seats'}
+              </small>
+            </div>
+          );
+        })()}
         <div className="btn-row">
           <Pill color="blue" onClick={onLobby}>Lobby</Pill>
           {profile.get().coins < st.settings.bet
             ? <Pill color="gold" onClick={() => { setHeld(true); store.open({ tab: 'coins', need: st.settings.bet }); }}>Buy coins to play again</Pill>
             : <Pill color="green" onClick={onAgain}>Play again</Pill>}
         </div>
-        {!held && left > 0 && <p className="muted small go-count">Back to the lobby in {left}s</p>}
+        {!hold && left > 0 && <p className="muted small go-count">Back to the lobby in {left}s</p>}
       </div>
     </div>
   );

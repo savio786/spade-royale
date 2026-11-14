@@ -123,7 +123,8 @@ export default function App() {
   else if (screen === 'table' && ctl) body = (
     <Table key={tableKey} ctl={ctl}
       onExit={() => { setCtl(null); setScreen('lobby'); }}
-      onPlayAgain={() => { setCtl(null); if (lastReq) start(lastReq); else setScreen('lobby'); }} />
+      onPlayAgain={() => { setCtl(null); if (lastReq) start(lastReq); else setScreen('lobby'); }}
+      onRematch={(code) => start({ mode: 'partners', bet: 0, minPoints: -100, maxPoints: 100, via: 'joinPrivate', code })} />
   );
   else if (screen === 'online') body = <OnlineLobby onBack={() => setScreen('lobby')} onStart={start} />;
   else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt} />;

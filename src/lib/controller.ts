@@ -13,6 +13,7 @@ export interface CtlView {
   settings: TableSettings;
   kicked: string | null;          // set when removed from the table for inactivity
   conn: 'ok' | 'lost' | 'gone';   // online tables: connection to the server
+  rematch?: { votes: number[]; humans: number[]; deadline: number; to?: string; cancelled?: boolean };   // game over: who has said yes to playing again, and the new table's code once everyone has
   forfeited?: boolean;            // with conn 'gone': you were out of the game for too long (or left), so the bet is lost
 }
 
@@ -23,6 +24,8 @@ export interface TableController {
   /** Buy a gift for one seat, or `'all'` for a round for the whole table. */
   gift(to: number | 'all', giftId: string): void;
   fillBots(): void;
+  /** Game over: say yes to playing the same people again (online tables with 2+ real players). */
+  rematch(): void;
   leave(): void;
 }
 
@@ -57,6 +60,7 @@ export class LocalController implements TableController {
   chat(text: string) { this.rt.say(this.seat, text); }
   gift(to: number | 'all', giftId: string) { this.rt.gift(this.seat, to, giftId); }
   fillBots() { this.rt.fillWithBots(300); }
+  rematch() { /* games against the computer just start again */ }
   leave() { this.rt.destroy(); this.subs.clear(); }
 }
 
@@ -77,6 +81,8 @@ export class RemoteController implements TableController {
       else if (m.t === 'snap') this.update({ snap: { ...m.snap, skew: m.snap.serverNow ? m.snap.serverNow - Date.now() : 0 } });
       else if (m.t === 'error') this.update({ error: m.message });
       else if (m.t === 'kicked') this.update({ kicked: m.reason });
+      else if (m.t === 'rematch') this.update({ rematch: m.cancelled ? { votes: [], humans: [], deadline: 0, cancelled: true } : { votes: m.votes, humans: m.humans, deadline: m.deadline } });
+      else if (m.t === 'rematchTo') this.update({ rematch: { ...(this.view.rematch ?? { votes: [], humans: [], deadline: 0 }), to: m.code } });
       else if (m.t === 'tableGone') this.update({ conn: 'gone', forfeited: !!m.forfeit });
     });
     // dropped connection: show it, and once reconnected ask for our seat back
@@ -100,5 +106,6 @@ export class RemoteController implements TableController {
   chat(text: string) { net.send({ t: 'chat', text }); }
   gift(to: number | 'all', giftId: string) { net.send({ t: 'gift', to, gift: giftId }); }
   fillBots() { net.send({ t: 'fillBots' }); }
+  rematch() { net.send({ t: 'rematch' }); }
   leave() { net.send({ t: 'leave' }); this.off(); this.subs.clear(); }
 }

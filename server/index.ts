@@ -30,9 +30,15 @@ const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 8_000);
 const TURN_MS = Number(process.env.TURN_MS || 12000);
 const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 
-interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>> }
+interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>>;
+  /** game over: who has asked for / agreed to a rematch, and when the offer ends */
+  rematch?: { votes: Set<string>; deadline: number; timer: ReturnType<typeof setTimeout>; done?: boolean };
+  /** a rematch table: each person who said yes has their old seat held until they sit down */
+  reserved?: Map<string, number> }
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
+/** A rematch offer stays open this long; a rematch table waits this long for everyone to sit before computer players take the held seats. */
+const REMATCH_MS = 20_000;
 /** Players who left (or were dropped from) a game in progress: their bet is lost, so a late return must not refund it. Only a table that vanished (server restart) refunds. */
 const forfeits = new Set<string>();
 const forfeit = (playerId: string, tableId: string) => { if (forfeits.size > 20_000) forfeits.clear(); forfeits.add(`${playerId}:${tableId}`); };
@@ -126,7 +132,7 @@ function makeCode() {
 function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean): Room {
   const id = `t${++roomSeq}`;
   const rt = new TableRuntime({ ...settings, isPrivate }, {
-    hostId, fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
+    hostId, botSpeed: Number(process.env.BOT_SPEED || 1), fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
     onInactive: (_seat, playerId) => {
       for (const c of room.clients) if (c.player?.id === playerId) {
         send(c, { t: 'kicked', reason: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` });
@@ -154,7 +160,48 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   return room;
 }
 
-function closeRoom(r: Room) { r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
+function closeRoom(r: Room) { if (r.rematch) clearTimeout(r.rematch.timer); r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
+
+/** The real players still on this finished table's screen, in seat order. */
+function presentHumans(r: Room) {
+  const seen = new Set<string>();
+  const out: { c: Client; id: string; seat: number }[] = [];
+  for (const c of r.clients) {
+    const id = c.player?.id;
+    if (!id || seen.has(id)) continue;
+    const seat = r.rt.g.seats.findIndex((s) => s?.id === id && !s.bot);
+    if (seat >= 0) { seen.add(id); out.push({ c, id, seat }); }
+  }
+  return out.sort((a, b) => a.seat - b.seat);
+}
+
+function broadcastRematch(r: Room, cancelled = false) {
+  const here = presentHumans(r);
+  const msg: ServerMsg = { t: 'rematch', votes: here.filter((h) => r.rematch?.votes.has(h.id)).map((h) => h.seat), humans: here.map((h) => h.seat), deadline: r.rematch?.deadline ?? 0, ...(cancelled ? { cancelled: true } : {}) };
+  for (const h of here) send(h.c, msg);
+}
+
+/** Everyone present said yes (or the offer ran out): build a private table with the same settings and hold each yes-voter's old seat. Computer players take the other seats. */
+function finishRematch(r: Room) {
+  if (!r.rematch || r.rematch.done) return;
+  clearTimeout(r.rematch.timer);
+  const voters = presentHumans(r).filter((h) => r.rematch!.votes.has(h.id));
+  if (voters.length < 2) { r.rematch = undefined; broadcastRematch(r, true); return; }
+  r.rematch.done = true;
+  // the deal moves on: the next yes-voter after the old host deals first
+  const oldHost = r.rt.g.seats.findIndex((s) => s?.id === r.hostId);
+  const order = voters.slice().sort((a, b) => ((a.seat - oldHost + 3) % 4) - ((b.seat - oldHost + 3) % 4));
+  const room2 = createRoom({ ...r.rt.g.settings, isPrivate: true }, order[0].id, true);
+  room2.reserved = new Map(voters.map((v) => [v.id, v.seat]));
+  room2.rt.seatBots([0, 1, 2, 3].filter((i) => !voters.some((v) => v.seat === i)));
+  for (const v of voters) send(v.c, { t: 'rematchTo', code: room2.code! });
+  // someone who never arrives: their held seat goes to a computer player so the others aren't left waiting; an empty table is dropped
+  setTimeout(() => {
+    room2.reserved = undefined;
+    if (room2.rt.humanCount() === 0) closeRoom(room2);
+    else if (room2.rt.g.phase === 'waiting') room2.rt.fillWithBots(400);
+  }, REMATCH_MS);
+}
 
 /** Connection dropped: during a game hold the seat for a while so the player can come back. */
 function dropped(c: Client) {
@@ -185,7 +232,9 @@ function rejoin(c: Client, tableId: string) {
 function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
   leave(c, false);
-  const seat = room.rt.addHuman(c.player);
+  const held = room.reserved?.get(c.player.id);   // a rematch table keeps your old seat (and so your team) for you
+  const seat = room.rt.addHuman(c.player, held);
+  room.reserved?.delete(c.player.id);
   if (seat < 0) return send(c, { t: 'error', message: 'Table is full or already started' });
   c.room = room;
   room.clients.add(c);
@@ -201,6 +250,7 @@ function leave(c: Client, notify = true) {
   if (c.player) { if (inProgress(r)) { forfeit(c.player.id, r.id); forfeitBoards(r, c.player.id); } r.rt.removeHuman(c.player.id); }
   c.room = null;
   if (r.rt.humanCount() === 0) closeRoom(r);
+  else if (r.rematch && !r.rematch.done) { const here = presentHumans(r); if (here.length >= 2 && here.every((h) => r.rematch!.votes.has(h.id))) finishRematch(r); else if (here.length < 2) { clearTimeout(r.rematch.timer); r.rematch = undefined; } }   // someone left the result screen: start if the rest already agreed
   if (notify) send(c, { t: 'left' });
 }
 
@@ -232,6 +282,16 @@ function handle(c: Client, m: ClientMsg) {
     case 'friendRequest': case 'friendRespond': case 'friendRemove': case 'friendCancel':
       void friendOp(c, m);
       return;
+    case 'rematch': {
+      const r = c.room, id = c.player?.id;
+      if (!r || !id || r.rt.g.phase !== 'gameOver' || r.rematch?.done) return;
+      if (!presentHumans(r).some((h) => h.id === id)) return;
+      if (!r.rematch) r.rematch = { votes: new Set(), deadline: Date.now() + REMATCH_MS, timer: setTimeout(() => finishRematch(r), REMATCH_MS) };
+      r.rematch.votes.add(id);
+      const here = presentHumans(r);
+      if (here.length >= 2 && here.every((h) => r.rematch!.votes.has(h.id))) return finishRematch(r);   // everyone said yes: start now
+      return broadcastRematch(r);
+    }
     case 'ping':
       return send(c, { t: 'pong' });
     case 'list':

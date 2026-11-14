@@ -163,6 +163,15 @@ export class TableRuntime {
     this.fillAt = null;
   }
 
+  /** Seat computer players in exactly these empty seats (used to build a rematch table around the people who said yes). */
+  seatBots(seats: number[]) {
+    if (this.destroyed || this.g.phase !== 'waiting') return;
+    const list = this.g.seats.slice();
+    for (const i of seats) if (!list[i]) list[i] = makeBot(list.filter(Boolean).map((x) => x!.name));
+    this.g = { ...this.g, seats: list };
+    this.changed();
+  }
+
   humanCount() { return this.g.seats.filter((s) => s && !s.bot).length; }
 
   /** Seat bots one by one with a small delay, like players arriving. */
