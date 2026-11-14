@@ -1,6 +1,6 @@
 import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, secondPrizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
@@ -12,11 +12,13 @@ import { MusicPicker } from '../components/MusicPicker';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
+import { observe as logHand } from '../lib/handlog';
 import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
 import { activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
+const HandReview = lazy(() => import('./HandReview'));   // its own code chunk: only downloaded when someone opens the history
 const POS = ['bottom', 'left', 'top', 'right'] as const;
 import { FREE_EMOJI, QUICK_PHRASES } from '../../shared/chat';
 import { GIFTS, GIFT_BY_ID, type Gift } from '../../shared/gifts';
@@ -30,6 +32,8 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const gid = useRef(Math.random().toString(36).slice(2, 8));   // identifies this game in the hand history
   const [vip, setVip] = useState(false);
   const [giftFor, setGiftFor] = useState<number | null>(null);
   const [cardSeat, setCardSeat] = useState<number | null>(null);
@@ -70,6 +74,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       const k = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
       if (wonKey.current !== k) { wonKey.current = k; sfx.trickWon(); vibrate([30, 40, 30]); }   // you took the trick
     }
+    if (st.phase === 'trickEnd' || st.phase === 'roundEnd' || st.phase === 'gameOver') logHand(st, gid.current);   // write down the trick / the scored hand (a few small numbers)
     const turnKey = `${st.phase}-${st.turn}-${st.round}-${st.trick.length}`;
     if (turnKey !== lastTurn.current) {
       lastTurn.current = turnKey;
@@ -374,7 +379,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       )}
       {st.phase === 'roundEnd' && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
-      {st.phase === 'gameOver' && <GameOver st={st} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else ctl.rematch(); }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
+      {st.phase === 'gameOver' && <GameOver st={st} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else ctl.rematch(); }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
@@ -383,6 +388,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
         <TableMenu
           onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}
           onRules={() => { setRulesOpen(true); setMenuOpen(false); }}
+          onHistory={() => { setReviewOpen(true); setMenuOpen(false); }}
           onBot={() => { setMenuOpen(false); helpBot.open(); }}
           onThemes={() => { setMenuOpen(false); setThemesOpen(true); }}
           players={view.online ? st.seats.flatMap((s, i) => (s && !s.bot && i !== me ? [{ id: s.id, name: s.name, avatar: s.avatar }] : [])) : []}
@@ -390,6 +396,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           onExit={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }} />
       )}
       {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
+      {reviewOpen && <Suspense fallback={null}><HandReview gid={gid.current} onClose={() => setReviewOpen(false)} /></Suspense>}
       {themesOpen && <ThemeModal onClose={() => setThemesOpen(false)} />}
       {vip && <VipModal onClose={() => setVip(false)} />}
       {cardSeat !== null && st.seats[cardSeat] && (() => {
@@ -739,7 +746,7 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
 }
 
 const GAME_OVER_SECONDS = 10;   // the result screen takes everyone back to the lobby after this long
-function GameOver({ st, rematch, onRematch, onLobby, onAgain }: { st: PublicState; rematch?: CtlView['rematch']; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
+function GameOver({ st, onReview, rematch, onRematch, onLobby, onAgain }: { st: PublicState; rematch?: CtlView['rematch']; onReview: () => void; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
   const [left, setLeft] = useState(GAME_OVER_SECONDS);
   const [held, setHeld] = useState(false);   // opening the coin store stops the countdown
   const lobbyRef = useRef(onLobby); lobbyRef.current = onLobby;
@@ -799,6 +806,7 @@ function GameOver({ st, rematch, onRematch, onLobby, onAgain }: { st: PublicStat
             ? <Pill color="gold" onClick={() => { setHeld(true); store.open({ tab: 'coins', need: st.settings.bet }); }}>Buy coins to play again</Pill>
             : <Pill color="green" onClick={onAgain}>Play again</Pill>}
         </div>
+        <button className="go-review" onClick={() => { sfx.click(); setHeld(true); onReview(); }}>Review the hands</button>
         {!hold && left > 0 && <p className="muted small go-count">Back to the lobby in {left}s</p>}
       </div>
     </div>
@@ -918,8 +926,8 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle:
   );
 }
 
-function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, bet, players }: {
-  onClose: () => void; onRules: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number; players: { id: string; name: string; avatar: string }[];
+function TableMenu({ onClose, onRules, onHistory, onBot, onThemes, onExit, confirmLeave, bet, players }: {
+  onClose: () => void; onRules: () => void; onHistory: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number; players: { id: string; name: string; avatar: string }[];
 }) {
   const p = useProfile();
   const [picking, setPicking] = useState(false);
@@ -938,6 +946,7 @@ function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, be
           {confirmLeave && <p className="tm-warn">Leaving now forfeits your {fmt(bet)} coin bet.</p>}
           <div className="tm-rule" />
           <button className="tm-btn blue" onClick={() => { sfx.click(); onRules(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>HOW TO PLAY</button>
+          <button className="tm-btn blue" onClick={() => { sfx.click(); onHistory(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>HAND HISTORY</button>
           <button className="tm-btn purple" onClick={() => { sfx.click(); onBot(); }}><span className="tm-ico"><Icon name="chat" size={22} /></span>ASK SPADE BOT</button>
           <button className="tm-btn gold" onClick={() => { sfx.click(); onThemes(); }}><span className="tm-ico"><Icon name="star" size={22} /></span>TABLE & CARDS</button>
           {players.length > 0 && p.guestKey && (

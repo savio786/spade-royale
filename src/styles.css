@@ -2319,3 +2319,28 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 .gameover.has-rm .go-places li { padding-top: 4px; padding-bottom: 4px; }
 .gameover.has-rm > .muted.small { margin: 2px 0; }
 .gameover.has-rm .go-rematch { margin: 2px 0 6px; }
+
+/* ---- hand history ---- */
+.go-review { background: none; border: 0; color: #b9c6ff; text-decoration: underline; font: inherit; font-size: .9rem; cursor: pointer; margin: 4px 0 0; }
+.hr-modal { max-width: 560px; }
+.hr-modal .hr-empty { text-align: center; padding: 24px 8px; }
+.hr-group h4 { margin: 10px 0 6px; font-size: .95rem; color: #e9efe9; } .hr-group h4 small { opacity: .65; margin-left: 6px; }
+.hr-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; margin: 0 0 6px; border: 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font: inherit; text-align: left; cursor: pointer; min-height: 48px; }
+.hr-row:active { background: rgba(255,255,255,.16); }
+.hr-row .grow { flex: 1; } .hr-n { display: inline-grid; place-items: center; min-width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.12); font-weight: 800; font-size: .85rem; }
+.hr-modal b.ok { color: #6be28a; } .hr-modal b.no { color: #ff7b8a; }
+.hr-back { background: none; border: 0; color: #b9c6ff; font: inherit; font-size: 1rem; padding: 4px 0 10px; cursor: pointer; }
+.hr-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.hr-tabs button { flex: 1; padding: 10px 0; border: 0; border-radius: 10px; background: rgba(255,255,255,.08); color: #dfe6ff; font: inherit; font-weight: 800; cursor: pointer; }
+.hr-tabs button.on { background: var(--gold); color: #3a2400; }
+.hr-table { width: 100%; border-collapse: collapse; color: #fff; } .hr-table th { text-align: left; font-size: .8rem; opacity: .65; padding: 4px 8px; } .hr-table td { padding: 10px 8px; border-top: 1px solid rgba(255,255,255,.1); } .hr-table tr.me td { color: var(--gold); font-weight: 800; }
+.hr-tricks { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.hr-tricks li { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.06); flex-wrap: wrap; }
+.hr-play { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px; } .hr-play small { font-size: .62rem; opacity: .7; max-width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hr-play small.me { color: var(--gold); opacity: 1; }
+.hr-card { display: inline-flex; align-items: baseline; justify-content: center; min-width: 44px; padding: 6px 6px; border-radius: 8px; background: #fff; color: #14183a; font-weight: 800; font-size: 1.02rem; } .hr-card.red { color: #d3263a; } .hr-card.win { box-shadow: 0 0 0 3px var(--gold); }
+.hr-toggle { width: 100%; padding: 10px; border: 0; border-radius: 10px; background: rgba(255,255,255,.1); color: #fff; font: inherit; cursor: pointer; margin-bottom: 8px; }
+.hr-hand { margin: 8px 0; color: #fff; } .hr-hand > div { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .hr-hand .hr-card { min-width: 38px; padding: 4px; font-size: .9rem; }
+.hr-score { display: grid; gap: 10px; } .hr-score section { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.07); color: #fff; } .hr-score section.mine { box-shadow: inset 0 0 0 2px rgba(255,200,60,.55); }
+.hr-score header { display: flex; justify-content: space-between; align-items: baseline; font-weight: 800; margin-bottom: 6px; } .hr-score header b { font-size: 1.5rem; }
+.hr-score ul { list-style: none; margin: 0; padding: 0; } .hr-score li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,.08); font-size: .95rem; }
+.hr-score footer { margin-top: 6px; font-size: .8rem; opacity: .7; }
