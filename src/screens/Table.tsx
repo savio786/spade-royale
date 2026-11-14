@@ -588,12 +588,16 @@ function TrickCards({ st, rel }: { st: PublicState; rel: (seat: number) => strin
       collected.current = key;
       const winner = seatEl(rel(st.lastTrickWinner));
       if (winner) { winner.classList.remove('won-trick'); void winner.offsetWidth; winner.classList.add('won-trick'); }
+      const wc = winner ? screenCenter(winner) : null;
       els.forEach((el) => {
         const end = translationOf(el);
+        // sweep toward the winner's seat (about 85% of the way) while shrinking and fading; same function list at both ends so it interpolates smoothly
+        const d = wc ? local()(wc.x - screenCenter(el).x, wc.y - screenCenter(el).y) : { x: 0, y: 0 };
         el.animate([
-          { transform: end.t, opacity: 1 },
-          { transform: `translate(${end.x * 0.25}px, ${end.y * 0.25}px) scale(.82)`, opacity: 0 },
-        ], { duration: 380, delay: 700, easing: 'ease-in', fill: 'forwards' });
+          { transform: `translate(0px, 0px) ${end.t === 'none' ? '' : end.t} scale(1)`, opacity: 1 },
+          { offset: 0.15, transform: `translate(0px, 0px) ${end.t === 'none' ? '' : end.t} scale(1)`, opacity: 1 },
+          { transform: `translate(${d.x * 0.85}px, ${d.y * 0.85}px) ${end.t === 'none' ? '' : end.t} scale(.55)`, opacity: 0 },
+        ], { duration: 420, delay: 680, easing: 'cubic-bezier(.5,0,.75,.4)', fill: 'forwards' });
       });
     }
   }, [st.trick, st.phase, st.round, st.lastTrickWinner, rel]);
