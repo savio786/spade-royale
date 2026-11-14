@@ -37,9 +37,11 @@ export type ClientMsg =
   | { t: 'act'; action: Action }
   | { t: 'chat'; text: string }
   | { t: 'leave' }
+  | { t: 'ping' }                      // heartbeat: the server answers with pong, so a dead connection is noticed quickly
   | { t: 'rejoin'; tableId: string };   // after a dropped connection: take my seat back
 
 export type ServerMsg =
+  | { t: 'pong' }
   | { t: 'welcome'; online: OnlineCounts }
   | { t: 'tables'; tables: TableSummary[]; online: OnlineCounts }
   | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings }

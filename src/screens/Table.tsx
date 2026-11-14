@@ -43,6 +43,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   // when each chat line first reached THIS device (a phone's clock can be minutes off the server's, so the server's time stamp can't decide how long a line stays up)
   const chatSeen = useRef<{ map: Map<number, number>; first: boolean }>({ map: new Map(), first: true });
   const lastTurn = useRef<string>('');
+  const lastRound = useRef(-1);
+  const wonKey = useRef('');
 
   useEffect(() => ctl.subscribe(setView), [ctl]);
   // countdowns use the server's clock: a device whose own clock is a few seconds off would otherwise show a wrong or frozen count
@@ -61,6 +63,11 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       charged.current = true;
       profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));
       sfx.deal();
+    }
+    if (st.phase === 'bidding' && st.round !== lastRound.current) { if (lastRound.current >= 0) sfx.deal(); lastRound.current = st.round; }   // every new round is dealt with the sound (the first one is heard when the game starts)
+    if (st.phase === 'trickEnd' && st.lastTrickWinner === me) {
+      const k = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
+      if (wonKey.current !== k) { wonKey.current = k; sfx.trickWon(); vibrate([30, 40, 30]); }   // you took the trick
     }
     const turnKey = `${st.phase}-${st.turn}-${st.round}-${st.trick.length}`;
     if (turnKey !== lastTurn.current) {
@@ -466,7 +473,7 @@ function ScorePanel({ st }: { st: PublicState }) {
         <div className="sp-title">PARTNERS ♠♠</div>
         <div className="sp-grid">
           <span className="team red">THEM</span><span className="team blue">US</span>
-          {sides.map((s) => <b key={`p${s}`}>{st.scores[s]}</b>)}
+          {sides.map((s) => <b key={`p${s}`} className={st.scores[s] > st.scores[1 - s] ? 'sp-lead' : ''}>{st.scores[s]}</b>)}
           <span className="sp-lbl">PTS.</span>
           {sides.map((s) => <b key={`b${s}`}>{st.bags[s]}</b>)}
           <span className="sp-lbl">BAGS</span>

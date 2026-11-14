@@ -232,6 +232,8 @@ function handle(c: Client, m: ClientMsg) {
     case 'friendRequest': case 'friendRespond': case 'friendRemove': case 'friendCancel':
       void friendOp(c, m);
       return;
+    case 'ping':
+      return send(c, { t: 'pong' });
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
     case 'quick': {
