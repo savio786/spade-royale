@@ -14,7 +14,7 @@ import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
 import { observe as logHand } from '../lib/handlog';
-import { bumpMission, isMutedId, mutePlayer } from '../lib/profile';
+import { bumpMission, coinLink, isMutedId, mutePlayer, spendCoins } from '../lib/profile';
 import { track } from '../lib/track';
 import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
@@ -61,6 +61,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
   useEffect(() => { const t = setInterval(() => setNow(Date.now() + skew.current), 500); return () => clearInterval(t); }, []);
 
   const st = view?.snap?.state ?? null;
+  const coinsOnServer = view ? (view.online ? !!view.wallet : coinLink.on) : false;   // server-side coins: the server holds the bet and pays the prize (games against the computers then change no coins)
   const me = st?.mySeat ?? 0;
   const rel = (seat: number) => POS[(seat - me + 4) % 4];
 
@@ -70,7 +71,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     if (!charged.current && st.phase !== 'waiting' && !view.watching) {   // watchers pay nothing and earn nothing
       charged.current = true;
       track('game_start'); if (view.online) track('game_online');
-      profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));
+      if (!coinsOnServer) profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));   // with server-side coins the server already took the bet when you sat down
       sfx.deal();
     }
     if (st.phase === 'bidding' && st.round !== lastRound.current) { if (lastRound.current >= 0) sfx.deal(); lastRound.current = st.round; }   // every new round is dealt with the sound (the first one is heard when the game starts)
@@ -93,6 +94,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       const won = st.winners.includes(mySide);
       const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place gets the bet back
       const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
+      const practice = coinLink.on && !view.online;   // server-side coins: a game against the computers is practice (no coins won or lost)
       const nils = st.history.filter((h) => h.nilResults[me] === true).length;
       const pens = st.history.filter((h) => h.bagPenalty[mySide]).length;
       const myNils = st.history.filter((h) => h.bids[me] === 0);
@@ -105,14 +107,14 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           blind: (x.card?.blind ?? 0) + blinds.length, blindMade: (x.card?.blindMade ?? 0) + blinds.filter((h) => h.nilResults[me]).length,
           rings: won ? { ...(x.card?.rings ?? {}), [city]: ((x.card?.rings ?? {})[city] ?? 0) + 1 } : (x.card?.rings ?? {}),
         },
-        coins: x.coins + prize,
+        coins: x.coins + (coinsOnServer ? 0 : prize),   // with server-side coins the server pays the prize and sends the new balance
         xp: x.xp + 40 + (won ? 80 : 0),
-        weekEarnings: x.weekEarnings + (second ? 0 : prize),   // a refunded bet is not earnings
+        weekEarnings: x.weekEarnings + (second || practice ? 0 : prize),   // a refunded bet is not earnings
         stats: {
           ...x.stats, played: x.stats.played + 1, won: x.stats.won + (won || second ? 1 : 0),
           soloWins: x.stats.soloWins + (won && st.settings.mode === 'solo' ? 1 : 0),
           partnersWins: x.stats.partnersWins + (won && st.settings.mode === 'partners' ? 1 : 0),
-          nilsMade: x.stats.nilsMade + nils, biggestWin: second ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
+          nilsMade: x.stats.nilsMade + nils, biggestWin: second || practice ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
         },
       }));
       if (won || second) bumpMission('win'); if (nils) bumpMission('nil', nils);
@@ -120,7 +122,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
-      if (!view.online && !second) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won }); }   // a loss takes the bet off the boards
+      if (!view.online && !second && !practice) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won }); }   // a loss takes the bet off the boards
     }
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
@@ -138,7 +140,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     }
     if (view.online && view.conn === 'gone' && charged.current && !settled.current && st.phase !== 'gameOver') {
       settled.current = true;
-      if (!view.forfeited) profile.set((x) => ({ coins: x.coins + st.settings.bet }));   // a table that vanished (server update) refunds; leaving or being away too long does not
+      if (!view.forfeited && !coinsOnServer) profile.set((x) => ({ coins: x.coins + st.settings.bet }));   // a table that vanished (server update) refunds; leaving or being away too long does not
     }
     if (view.error) toast(view.error, 'error');
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -215,12 +217,12 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       // walking out on a Nil / Blind Nil bid: 1.5x the bet in total, so another half a bet on top of the bet already paid (never below 0 coins)
       if (st.bids?.[me] === 0) {
         const extra = Math.round(st.settings.bet * 0.5);
-        profile.set((x) => ({ coins: Math.max(0, x.coins - extra) }));
+        if (!coinsOnServer) profile.set((x) => ({ coins: Math.max(0, x.coins - extra) }));
         toast(`You left on a Nil bid: ${fmt(Math.round(st.settings.bet * 1.5))} coins lost in total`, 'error');
       }
     }
     // ...and against computers the bet also comes off the boards (online games do that on the server)
-    if (view && !view.online && st && charged.current && st.phase !== 'waiting' && st.phase !== 'gameOver' && !boardsDone.current) {
+    if (view && !view.online && !coinLink.on && st && charged.current && st.phase !== 'waiting' && st.phase !== 'gameOver' && !boardsDone.current) {
       boardsDone.current = true;
       const me2 = profile.get();
       reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize: 0, lost: true, leftNil: st.bids?.[me] === 0 });   // walking out on a nil / blind nil bid costs 1.5x the bet
@@ -390,7 +392,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       {st.phase === 'roundEnd' && !watching && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">{tr('Next hand in {s}s · waiting for the other players', { s: Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000)) })}</div>}
       {st.phase === 'gameOver' && watching && <WatchOver st={st} onLeave={leave} />}
-      {st.phase === 'gameOver' && !watching && <GameOver st={st} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else { track('rematch_request'); ctl.rematch(); } }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
+      {st.phase === 'gameOver' && !watching && <GameOver st={st} practice={coinLink.on && !view.online} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else { track('rematch_request'); ctl.rematch(); } }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
@@ -422,8 +424,9 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           onBuy={(g, round) => {
             const n = round ? st.seats.filter(Boolean).length : 1, cost = g.cost * n;
             if (p.coins < cost) { toast(tr('Not enough coins for that gift'), 'error'); return; }
-            profile.addCoins(-cost); sfx.coins();
-            ctl.gift(round ? 'all' : giftFor, g.id);
+            if (!view?.online) spendCoins(cost);
+            profile.addCoins(-cost); sfx.coins();   // with server-side coins the server charges the same price and sends the real balance
+            ctl.gift(round ? 'all' : giftFor, g.id, cost);
             setGiftFor(null);
             toast(round ? `${g.e} ${g.name} for everyone at the table!` : `${g.e} ${g.name} sent to ${st.seats[giftFor]?.name ?? 'the player'}`);
           }} />
@@ -783,7 +786,7 @@ function WatchOver({ st, onLeave }: { st: PublicState; onLeave: () => void }) {
   );
 }
 
-function GameOver({ st, onReview, rematch, onRematch, onLobby, onAgain }: { st: PublicState; rematch?: CtlView['rematch']; onReview: () => void; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
+function GameOver({ st, practice, onReview, rematch, onRematch, onLobby, onAgain }: { st: PublicState; practice?: boolean; rematch?: CtlView['rematch']; onReview: () => void; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
   const [left, setLeft] = useState(GAME_OVER_SECONDS);
   const [held, setHeld] = useState(false);   // opening the coin store stops the countdown
   const lobbyRef = useRef(onLobby); lobbyRef.current = onLobby;
@@ -803,12 +806,13 @@ function GameOver({ st, onReview, rematch, onRematch, onLobby, onAgain }: { st: 
   const vip = profile.get().vip;
   const place = st.placements.indexOf(mySide) + 1;
   const second = !won && mode === 'solo' && place === 2;
-  const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
+  const prize = practice ? 0 : won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;   // practice = server-side coins and a game against the computers
   return (
     <div className="modal-backdrop">
       <div className={`modal gameover ${won || second ? 'win' : 'lose'} ${humans >= 2 ? 'has-rm' : ''}`} role="dialog" aria-label={tr("Game over")}>
         <img className="go-art" src={won || second ? '/ui/go-win.webp' : '/ui/go-lose.webp'} alt="" aria-hidden="true" draggable={false} />
         <div className="go-title">{won ? 'VICTORY!' : mode === 'solo' ? `${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE` : 'DEFEAT'}</div>
+        {practice && <p className="center" style={{ opacity: 0.8 }}>Practice game — no coins won or lost</p>}
         {prize > 0 && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
         <ol className="go-places">
           {st.placements.map((side, i) => (
@@ -839,7 +843,7 @@ function GameOver({ st, onReview, rematch, onRematch, onLobby, onAgain }: { st: 
         })()}
         <div className="btn-row">
           <Pill color="blue" onClick={onLobby}>{tr("Lobby")}</Pill>
-          {profile.get().coins < st.settings.bet
+          {!practice && profile.get().coins < st.settings.bet
             ? <Pill color="gold" onClick={() => { setHeld(true); store.open({ tab: 'coins', need: st.settings.bet }); }}>{tr("Buy coins to play again")}</Pill>
             : <Pill color="green" onClick={onAgain}>{tr("Play again")}</Pill>}
         </div>

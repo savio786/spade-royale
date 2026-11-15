@@ -4,6 +4,7 @@
 import { createHash, timingSafeEqual } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { exportAll, listRecords } from './storage';
+import { setWalletOn, topBalances, walletOn } from './wallet';
 import type { Account } from './accounts';
 import { ban, dismissReport, isBanned, isMuted, listBans, listMuted, listReports, mute, unban, unmute } from './moderation';
 import { removePlayer } from './leaderboard';
@@ -32,11 +33,11 @@ const body = (req: IncomingMessage) => new Promise<Record<string, unknown>>((res
 });
 const acctId = (id: unknown) => String(id ?? '').slice(0, 64);
 
-export async function adminApi(req: IncomingMessage, res: ServerResponse, url: URL, ip: string, onBan: (id: string) => void) {
+export async function adminApi(req: IncomingMessage, res: ServerResponse, url: URL, ip: string, onBan: (id: string) => void, onWallet: () => void = () => {}) {
   if (!adminEnabled) return json(res, 404, { error: 'not found' });
   const p = url.pathname;
-  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup', '/api/admin/analytics'].includes(p))
-    || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/gift', '/api/admin/reports/dismiss'].includes(p));
+  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup', '/api/admin/analytics', '/api/admin/wallet'].includes(p))
+    || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/gift', '/api/admin/reports/dismiss', '/api/admin/wallet'].includes(p));
   if (!known) return json(res, 404, { error: 'not found' });
   const f = fails.get(ip);
   if (f && f.until > Date.now()) return json(res, 429, { error: 'Too many wrong keys. Try again in 15 minutes.' });
@@ -77,12 +78,19 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
     if (q.length < 2) return json(res, 200, { rows: [] });
     return json(res, 200, { rows: accounts.filter((a) => a.name.toLowerCase().includes(q) || (a.email ?? '').toLowerCase().includes(q)).slice(0, 30).map(row) });
   }
+  if (p === '/api/admin/wallet' && req.method === 'GET') {   // the server-side coins switch, and the biggest balances saved in accounts (what wallets will start from)
+    const saved = accounts.map((a) => ({ id: a.id, name: a.name, kind: a.kind ?? 'guest', coins: Math.max(0, Math.floor(Number((a.profile as Record<string, unknown> | undefined)?.coins) || 0)) })).sort((x, y) => y.coins - x.coins);
+    const live = await topBalances(15);
+    const names = new Map(accounts.map((a) => [a.id, a.name]));
+    return json(res, 200, { on: walletOn(), saved: { players: saved.length, total: saved.reduce((t, x) => t + x.coins, 0), top: saved.slice(0, 25) }, live: { ...live, top: live.top.map((w) => ({ ...w, name: names.get(w.id) ?? w.id.slice(0, 8) })) } });
+  }
   if (p === '/api/admin/muted') return json(res, 200, { rows: listMuted() });
   if (p === '/api/admin/bans') return json(res, 200, { rows: listBans() });
   if (p === '/api/admin/reports') return json(res, 200, { rows: listReports().map((r) => ({ ...r, targetBanned: isBanned(r.targetId), targetMuted: isMuted(r.targetId) })) });
 
   const b = await body(req);
   if (p === '/api/admin/reports/dismiss') { dismissReport(Number(b.n)); return json(res, 200, { ok: true }); }
+  if (p === '/api/admin/wallet') { await setWalletOn(b.on === true); onWallet(); console.log(`[admin] server-side coins ${b.on === true ? 'ON' : 'OFF'}`); return json(res, 200, { ok: true, on: walletOn() }); }
   const id = acctId(b.id);
   const a = accounts.find((x) => x.id === id);
   if (!a) return json(res, 404, { error: 'That account was not found.' });

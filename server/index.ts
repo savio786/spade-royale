@@ -8,11 +8,13 @@ import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
 import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
-import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
+import { CITIES, prizeFor, secondPrizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
 import { board, credit, debit, initLeaderboard, touch } from './leaderboard';
 import { deleteRecord, getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
-import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
+import { productById } from '../shared/products';
+import { addCoins, balanceOf, earn, ensureWallet, escrowBet, initWallet, refundAllMine, refundEscrow, settleEscrow, spend, takeUpTo, walletClosing, walletOn } from './wallet';
+import { checkName, createGuest, guestName, loadAccount, savedCoins, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
 import { adminApi } from './admin';
@@ -22,7 +24,7 @@ import { mailConfigured, sendMail } from './mail';
 import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
 import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
-import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
+import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, isVip, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
@@ -37,7 +39,9 @@ interface Room { id: string; code: string | null; hostId: string; rt: TableRunti
   /** a rematch table: each person who said yes has their old seat held until they sit down */
   reserved?: Map<string, number>;
   /** people watching this public game (they have no seat and never see a hand) */
-  watchers?: Set<Client> }
+  watchers?: Set<Client>;
+  /** players whose bet the server is holding for this table (server-side coins) */
+  paid?: Set<string> }
 const MAX_WATCHERS = 30;
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
@@ -55,8 +59,50 @@ const forfeitBoards = (r: Room, playerId: string) => {
   const nil = g.bids?.[i] === 0;   // bid nil or blind nil this round and walked away: 1.5x the bet comes off the boards
   debit(g.seats[i]!, nil ? Math.round(g.settings.bet * 1.5) : g.settings.bet);
 };
+
+/** Tell every connection of this player what their server-side balance is. */
+function pushWallet(id: string, coins: number | null, note?: string) {
+  if (coins === null) return;
+  for (const c of clients) if (c.player?.id === id) send(c, { t: 'wallet', coins, ...(note ? { note } : {}) });
+}
+/** Work out (once, from their saved account) and send a player's balance. */
+async function walletHello(c: Client) {
+  const p = c.player;
+  if (!p || !walletOn()) return;
+  await c.auth;
+  if (c.player !== p || !c.verified) return;
+  const coins = await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+  pushWallet(p.id, coins);
+}
+/** A player leaves a table (or is dropped from it). Before the game starts their bet is handed back; after it started it is lost, plus half a bet more for walking out on a nil. */
+function walletLeave(r: Room, id: string) {
+  if (!r.paid?.has(id) || walletClosing()) return;
+  r.paid.delete(id);
+  const g = r.rt.g;
+  if (g.phase === 'gameOver') return;
+  const seat = g.seats.findIndex((x) => x && !x.bot && x.id === id);
+  const extra = g.phase !== 'waiting' && seat >= 0 && g.bids?.[seat] === 0 ? Math.round(g.settings.bet * 0.5) : 0;
+  const waiting = g.phase === 'waiting';
+  void (async () => {
+    if (waiting) pushWallet(id, await refundEscrow(id));
+    else { await settleEscrow(id); if (extra) pushWallet(id, await takeUpTo(id, extra)); }
+  })().catch((e) => console.error('wallet leave', e));
+}
+/** The game is over: pay the winners (and 2nd place in solo, who gets the bet back) and close the held bets. */
+function walletPayout(r: Room, winnerSeats: Set<number>, second: number) {
+  if (!r.paid?.size || walletClosing()) return;
+  const g = r.rt.g;
+  const ids = [...r.paid]; r.paid.clear();
+  for (const id of ids) void (async () => {
+    const seat = g.seats.findIndex((x) => x && !x.bot && x.id === id);
+    const prize = seat >= 0 && winnerSeats.has(seat) ? Math.round(prizeFor(g.settings) * (isVip(id) ? 1.1 : 1)) : seat >= 0 && seat === second ? secondPrizeFor(g.settings) : 0;
+    const coins = prize > 0 ? await addCoins(id, prize) : await balanceOf(id);
+    await settleEscrow(id);
+    pushWallet(id, coins);
+  })().catch((e) => console.error('wallet payout', e));
+}
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
-interface Client { watching?: { room: Room; unsub: () => void }; ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
+interface Client { watching?: { room: Room; unsub: () => void }; ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[]; seating?: boolean }
 
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
@@ -159,6 +205,7 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
     // solo: 2nd place gets their bet back (their client refunds it): no board credit and no board debit
     const second = g.settings.mode === 'solo' && g.placements?.length > 1 && !winnerSeats.has(g.placements[1]) ? g.placements[1] : -1;
     if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat) && seat !== second) debit(s, g.settings.bet); });
+    walletPayout(room, winnerSeats, second);
     setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);
   };
   return room;
@@ -222,7 +269,7 @@ function dropped(c: Client) {
   clearTimeout(r.away.get(id));
   r.away.set(id, setTimeout(() => {
     r.away?.delete(id);
-    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) { forfeit(id, r.id); forfeitBoards(r, id); } r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
+    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) { forfeit(id, r.id); forfeitBoards(r, id); } walletLeave(r, id); r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
   }, REJOIN_MS));
 }
 
@@ -234,24 +281,52 @@ function rejoin(c: Client, tableId: string) {
   clearTimeout(r.away?.get(id)); r.away?.delete(id);
   for (const other of [...r.clients]) if (other !== c && other.player?.id === id) { other.unsub?.(); r.clients.delete(other); other.room = null; }
   c.room = r; r.clients.add(c);
-  send(c, { t: 'joined', tableId: r.id, seat, code: r.code, host: r.hostId === id, settings: r.rt.g.settings });
+  send(c, { t: 'joined', tableId: r.id, seat, code: r.code, host: r.hostId === id, settings: r.rt.g.settings, ...(r.paid?.has(id) ? { wallet: true } : {}) });
   c.unsub = r.rt.subscribe(id, seat, (snap) => send(c, { t: 'snap', snap }));
+}
+
+/** Sits the player down. Returns the seat, or -1 (after telling them why). */
+function seatNow(c: Client, room: Room, paid: boolean): number {
+  const p = c.player!;
+  const held = room.reserved?.get(p.id);   // a rematch table keeps your old seat (and so your team) for you
+  // seats kept for the people from the last game are off limits to everyone else
+  const heldForOthers = held === undefined ? [...(room.reserved?.values() ?? [])] : [];
+  const seat = room.rt.addHuman(p, held, heldForOthers);
+  if (seat < 0) { send(c, { t: 'error', message: heldForOthers.length ? 'Those seats are being held for the players from the last game' : 'Table is full or already started' }); return -1; }
+  room.reserved?.delete(p.id);
+  if (paid) (room.paid ??= new Set()).add(p.id);
+  c.room = room;
+  room.clients.add(c);
+  send(c, { t: 'joined', tableId: room.id, seat, code: room.code, host: room.hostId === p.id, settings: room.rt.g.settings, ...(paid ? { wallet: true } : {}) });
+  c.unsub = room.rt.subscribe(p.id, seat, (snap) => send(c, { t: 'snap', snap }));
+  return seat;
 }
 
 function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
   stopWatching(c);
   leave(c, false);
-  const held = room.reserved?.get(c.player.id);   // a rematch table keeps your old seat (and so your team) for you
-  // seats kept for the people from the last game are off limits to everyone else
-  const heldForOthers = held === undefined ? [...(room.reserved?.values() ?? [])] : [];
-  const seat = room.rt.addHuman(c.player, held, heldForOthers);
-  if (seat < 0) return send(c, { t: 'error', message: heldForOthers.length ? 'Those seats are being held for the players from the last game' : 'Table is full or already started' });
-  room.reserved?.delete(c.player.id);
-  c.room = room;
-  room.clients.add(c);
-  send(c, { t: 'joined', tableId: room.id, seat, code: room.code, host: room.hostId === c.player.id, settings: room.rt.g.settings });
-  c.unsub = room.rt.subscribe(c.player.id, seat, (snap) => send(c, { t: 'snap', snap }));
+  if (!walletOn()) { seatNow(c, room, false); return; }
+  // server-side coins: the bet is taken now and held until the game ends
+  if (c.seating) return;
+  c.seating = true;
+  const p = c.player;
+  void (async () => {
+    await c.auth;
+    if (c.player !== p || !c.verified) { send(c, { t: 'error', message: 'Your account could not be verified. Close and reopen the game, then try again.' }); return; }
+    const bet = room.rt.g.settings.bet;
+    await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+    const left = await escrowBet(p.id, bet, room.id);
+    if (left < 0) {
+      send(c, { t: 'error', message: left === -2 ? 'You are already sitting at a table' : 'You do not have enough coins for this table' });
+      pushWallet(p.id, await balanceOf(p.id));
+      return;
+    }
+    const ok = c.player === p && c.ws.readyState === WebSocket.OPEN && rooms.get(room.id) === room && room.rt.g.phase === 'waiting' && !c.room;
+    const seat = ok ? seatNow(c, room, true) : -1;
+    if (seat < 0) { pushWallet(p.id, await refundEscrow(p.id)); if (!ok) send(c, { t: 'error', message: 'That table is no longer available' }); return; }
+    pushWallet(p.id, left);
+  })().catch((e) => { console.error('seat', e); send(c, { t: 'error', message: 'Could not join the table. Try again.' }); }).finally(() => { c.seating = false; });
 }
 
 function leave(c: Client, notify = true) {
@@ -259,7 +334,7 @@ function leave(c: Client, notify = true) {
   if (!r) return;
   c.unsub?.(); c.unsub = null;
   r.clients.delete(c);
-  if (c.player) { if (inProgress(r)) { forfeit(c.player.id, r.id); forfeitBoards(r, c.player.id); } r.rt.removeHuman(c.player.id); }
+  if (c.player) { if (inProgress(r)) { forfeit(c.player.id, r.id); forfeitBoards(r, c.player.id); } walletLeave(r, c.player.id); r.rt.removeHuman(c.player.id); }
   c.room = null;
   if (r.rt.humanCount() === 0) closeRoom(r);
   else if (r.rematch && !r.rematch.done) { const here = presentHumans(r); if (here.length >= 2 && here.every((h) => r.rematch!.votes.has(h.id))) finishRematch(r); else if (here.length < 2) { clearTimeout(r.rematch.timer); r.rematch = undefined; } }   // someone left the result screen: start if the rest already agreed
@@ -289,7 +364,27 @@ function handle(c: Client, m: ClientMsg) {
       })().catch((e) => console.error('friends sign-in', e));
       c.auth = auth;
       if (prevId && prevId !== p.id) void presenceChanged(prevId); // this connection switched to another player
-      return send(c, { t: 'welcome', online: onlineCounts() });
+      void walletHello(c).catch((e) => console.error('wallet hello', e));
+      return send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() });
+    }
+    case 'wallet': return void walletHello(c).catch((e) => console.error('wallet', e));
+    case 'earn': case 'spend': {
+      const p = c.player;
+      if (!p || !walletOn() || walletClosing()) return;
+      void (async () => {
+        await c.auth;
+        if (c.player !== p || !c.verified) return;
+        await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+        if (m.t === 'earn') {
+          const r = await earn(p.id, String(m.kind), Number(m.amount), String(m.key ?? ''));
+          if ('error' in r) { pushWallet(p.id, await balanceOf(p.id), r.error); console.log(`wallet: refused ${m.kind} ${Number(m.amount)} for ${p.id.slice(0, 8)}: ${r.error}`); }
+          else pushWallet(p.id, r.coins);
+        } else {
+          const left = await spend(p.id, Number(m.amount));
+          pushWallet(p.id, left ?? await balanceOf(p.id), left === null ? 'Not enough coins' : undefined);
+        }
+      })().catch((e) => console.error('wallet op', e));
+      return;
     }
     case 'friendRequest': case 'friendRespond': case 'friendRemove': case 'friendCancel':
       void friendOp(c, m);
@@ -389,7 +484,13 @@ function handle(c: Client, m: ClientMsg) {
       c.gifts.push(now);
       const from = c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id);
       if (from < 0) return;
-      c.room.rt.gift(from, m.to === 'all' ? 'all' : Number(m.to), String(m.gift).slice(0, 30));
+      const send_ = () => { if (c.room) c.room.rt.gift(from, m.to === 'all' ? 'all' : Number(m.to), String(m.gift).slice(0, 30)); };
+      if (!walletOn()) { send_(); return; }
+      // server-side coins: the gift is paid for first (the price comes from the app, and only ever hurts the buyer)
+      const cost = Math.round(Number(m.cost));
+      if (!(cost >= 1)) return;
+      const me = c.player;
+      void (async () => { const left = await spend(me.id, cost); if (left === null) { pushWallet(me.id, await balanceOf(me.id), 'Not enough coins for that gift'); return; } pushWallet(me.id, left); send_(); })().catch((e) => console.error('gift', e));
       return;
     }
     case 'leave':
@@ -464,7 +565,7 @@ function json(res: import('http').ServerResponse, code: number, body: unknown) {
 function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
-  if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), (id) => { for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* closed */ } }, 300); } }).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
+  if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), (id) => { for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* closed */ } }, 300); } }, () => { for (const c of clients) { send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() }); void walletHello(c).catch(() => {}); } }).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
   if (req.method === 'POST' && url.pathname === '/api/report-player') return void reportPlayerApi(req, res);
   if (url.pathname === '/api/track') return void trackApi(req, res, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim());
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
@@ -472,7 +573,18 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);
   if (url.pathname.startsWith('/api/referral')) return referralApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled(), provider: paymentProvider() });
-  if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
+  if (req.method === 'GET' && url.pathname === '/api/purchases') {
+    const id = String(url.searchParams.get('id') || '').slice(0, 64);
+    const out = claim(id) as { grants: { productId: string; session: string }[] };
+    // server-side coins: a coin pack is added to the wallet here (with the VIP bonus), so the device is only told about the other items
+    const packs = walletOn() ? out.grants.filter((g) => productById(g.productId)?.kind === 'coins') : [];
+    if (!packs.length) return json(res, 200, out);
+    const vip = isVip(id);
+    const total = packs.reduce((t, g) => { const c = productById(g.productId)?.coins ?? 0; return t + c + (vip ? Math.round(c * 0.2) : 0); }, 0);
+    addCoins(id, total).then((coins) => { pushWallet(id, coins); json(res, 200, { ...out, grants: out.grants.filter((g) => !packs.includes(g)), credited: total }); })
+      .catch((e) => { console.error(`wallet: could not add ${total} purchased coins to ${id} — add them by hand`, e); json(res, 500, { error: 'try again' }); });
+    return;
+  }
   if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook' || url.pathname === '/api/paypal/capture' || url.pathname === '/api/stripe/confirm')) {
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 200_000) req.destroy(); });
@@ -530,7 +642,17 @@ async function referralApi(req: import('http').IncomingMessage, res: import('htt
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     if (url.pathname === '/api/referral/info') { const r = await referralInfo(b.id, b.key); return r ? json(res, 200, r) : json(res, 403, { error: 'Sign in again' }); }
     if (url.pathname === '/api/referral/redeem') return json(res, 200, await redeemInvite(b.id, b.key, b.code, ip));
-    if (url.pathname === '/api/referral/collect') { const r = await collectReferralCoins(b.id, b.key); return r ? json(res, 200, r) : json(res, 403, { error: 'Sign in again' }); }
+    if (url.pathname === '/api/referral/collect') {
+      const r = await collectReferralCoins(b.id, b.key);
+      if (!r) return json(res, 403, { error: 'Sign in again' });
+      // server-side coins: invite rewards and owner gifts go straight into the wallet
+      const sum = (r.coins ?? 0) + (r.gift ?? 0);
+      if (walletOn() && sum > 0) {
+        try { pushWallet(String(b.id), await addCoins(String(b.id), sum)); } catch (e) { console.error(`wallet: could not add ${sum} reward coins to ${b.id} — add them by hand`, e); return json(res, 500, { error: 'try again' }); }
+        return json(res, 200, { ...r, credited: true });
+      }
+      return json(res, 200, r);
+    }
     return json(res, 404, { error: 'not found' });
   } catch (e) { console.error('referral', e); return json(res, 500, { error: 'Invites are unavailable right now.' }); }
 }
@@ -710,10 +832,12 @@ wss.on('connection', (ws) => {
 // Render stops the old server when a new version goes live: warn everyone first.
 process.on('SIGTERM', () => {
   for (const c of clients) send(c, { t: 'notice', message: c.room && c.room.rt.g.phase !== 'waiting' ? 'The game server is restarting for an update. This game will end and your bet will be refunded.' : 'The game server is restarting for an update — back in a moment.' });
-  setTimeout(() => process.exit(0), 1500);
+  // server-side coins: every bet that is being held goes back (the games end with this server)
+  const refunds = refundAllMine().then((ids) => ids.forEach((id) => void balanceOf(id).then((n) => pushWallet(id, n)).catch(() => {}))).catch(() => {});
+  setTimeout(() => { void Promise.race([refunds, new Promise((r) => setTimeout(r, 4000))]).then(() => process.exit(0)); }, 1500);
 });
 
-Promise.all([initLeaderboard(), initPayments(), initReferrals(), initModeration()]).then(() => {
+Promise.all([initLeaderboard(), initPayments(), initReferrals(), initModeration(), initWallet()]).then(() => {
   http.listen(PORT, () => console.log(`Spade Haven server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
 });
 

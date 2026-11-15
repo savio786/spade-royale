@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { profile, useProfile } from '../lib/profile';
+import { profile, spendCoins, useProfile } from '../lib/profile';
 import { sfx } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { Modal } from './ui';
@@ -17,7 +17,7 @@ export function AvatarBuilderModal({ initial, onClose, onDone }: { initial: stri
     const o = slot.opts[i];
     if (isOwned(owned, slot.id, i)) { sfx.click(); setV((x) => x.map((n, k) => (k === tab ? i : n))); return; }
     if (p.coins < o.price) { sfx.click(); toast(`You need ${o.price.toLocaleString()} coins for ${o.name}`); return; }
-    profile.set((q) => ({ coins: q.coins - o.price, avatarOwned: [...(q.avatarOwned ?? []), ownedKey(slot.id, i)] }));
+    profile.set((q) => ({ coins: q.coins - spendCoins(o.price), avatarOwned: [...(q.avatarOwned ?? []), ownedKey(slot.id, i)] }));
     sfx.coins(); toast(`${o.name} unlocked`);
     setV((x) => x.map((n, k) => (k === tab ? i : n)));
   };

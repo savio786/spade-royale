@@ -27,8 +27,11 @@ export type ClientMsg =
   | { t: 'friendRespond'; id: string; accept: boolean }
   | { t: 'friendRemove'; id: string }
   | { t: 'friendCancel'; id: string }
-  | { t: 'gift'; to: number | 'all'; gift: string }   // a seat number, or 'all' = a round for the whole table
+  | { t: 'gift'; to: number | 'all'; gift: string; cost?: number }   // a seat number, or 'all' = a round for the whole table
   | { t: 'list' }
+  | { t: 'wallet' }                          // coins held by the server: send me my balance
+  | { t: 'earn'; kind: string; amount: number; key: string }   // coins held by the server: pay a free reward (the server checks its limits)
+  | { t: 'spend'; amount: number }           // coins held by the server: I bought something
   | { t: 'watch'; tableId: string }          // look at a public game in progress (no seat, no cards)
   | { t: 'unwatch' }
   | { t: 'quick'; settings: TableSettings }
@@ -47,9 +50,10 @@ export type ServerMsg =
   | { t: 'pong' }
   | { t: 'rematch'; votes: number[]; humans: number[]; deadline: number; cancelled?: boolean }   // who has said yes (seats), who is asked (seats), when the offer ends
   | { t: 'rematchTo'; code: string }          // everyone said yes: sit down at this new private table (your old seat is held for you)
-  | { t: 'welcome'; online: OnlineCounts }
+  | { t: 'welcome'; online: OnlineCounts; wallet?: boolean }   // wallet: the server keeps the coin balance
+  | { t: 'wallet'; coins: number; note?: string }            // your coin balance on the server
   | { t: 'tables'; tables: TableSummary[]; online: OnlineCounts }
-  | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings }
+  | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings; wallet?: boolean }   // wallet: the server holds your bet for this table and pays the prize
   | { t: 'watching'; tableId: string; settings: TableSettings }   // you are now watching this table
   | { t: 'snap'; snap: Snapshot }
   | { t: 'error'; message: string }

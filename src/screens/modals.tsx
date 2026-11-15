@@ -4,7 +4,7 @@ import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, AVATAR_KEYS, AvatarPicker, Coin, Icon, Modal, Pill } from '../components/ui';
-import { claimMission, claimableMissions, unmutePlayer, missionsToday, BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
+import { earnCoins, claimMission, claimableMissions, unmutePlayer, missionsToday, BET_STEPS, cityForBet, DAILY_REWARDS, dailyState, fmt, levelFromXp, MAX_STEPS, MIN_STEPS, profile, rewardForRank, short, useProfile, weekEndsAt, xpForLevel } from '../lib/profile';
 import { Board, BoardRow, fetchBoard } from '../lib/api';
 import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, paymentsReady, store } from '../lib/payments';
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, showFacebook, type AuthConfig } from '../lib/auth';
@@ -138,7 +138,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
             <div className="lb-me">
               {lastRank ? <>You finished <b>#{lastRank}</b>. </> : 'You were not ranked last week. '}
               {lastRank && rewardForRank(lastRank) > 0 && !claimed ? (
-                <Pill color="gold" onClick={() => { profile.set((x) => ({ coins: x.coins + rewardForRank(lastRank), claimedWeeks: [...x.claimedWeeks, lastWeekKey].slice(-20) })); sfx.coins(); toast(`+${fmt(rewardForRank(lastRank))} coins`, 'coins'); }}>
+                <Pill color="gold" onClick={() => { profile.set((x) => ({ coins: x.coins + earnCoins('weekly', rewardForRank(lastRank), lastWeekKey), claimedWeeks: [...x.claimedWeeks, lastWeekKey].slice(-20) })); sfx.coins(); toast(`+${fmt(rewardForRank(lastRank))} coins`, 'coins'); }}>
                   Claim <Coin size={18} /> {fmt(rewardForRank(lastRank))}
                 </Pill>
               ) : lastRank ? <span>{rewardForRank(lastRank) ? 'Reward claimed.' : 'Finish in the top 100 to earn a reward.'}</span> : null}
@@ -266,7 +266,7 @@ export function AdModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={tr("Bonus coins")} onClose={onClose}>
       <div className="bonus-box"><Coin size={64} /><p>{BONUS_COINS} free coins every 30 minutes</p><small>{tr("Come back any time to top up your balance.")}</small></div>
-      <Pill color="green" className="wide-btn" disabled={left > 0} onClick={() => { if (bonusLeftMs(profile.get().lastAd) > 0) return; profile.set((x) => ({ coins: x.coins + BONUS_COINS, lastAd: Date.now() })); sfx.coins(); toast(`+${BONUS_COINS} coins`, 'coins'); onClose(); }}>
+      <Pill color="green" className="wide-btn" disabled={left > 0} onClick={() => { if (bonusLeftMs(profile.get().lastAd) > 0) return; profile.set((x) => ({ coins: x.coins + earnCoins('bonus', BONUS_COINS), lastAd: Date.now() })); sfx.coins(); toast(`+${BONUS_COINS} coins`, 'coins'); onClose(); }}>
         {left > 0 ? `Next bonus in ${mm}:${String(ss).padStart(2, '0')}` : `Collect ${BONUS_COINS} coins`}
       </Pill>
     </Modal>
@@ -280,7 +280,7 @@ export function SpinModal({ onClose }: { onClose: () => void }) {
   const next = useCountdown(p.lastSpin + 4 * 3600e3);
   return (
     <MegaWheel ready={ready} nextIn={next} mult={p.vip ? 2 : 1} onClose={onClose} tick={sfx.tick} jackpot={sfx.jackpot}
-      onWin={(win) => { profile.set((x) => ({ coins: x.coins + win, lastSpin: Date.now() })); sfx.coins(); vibrate(40); }} />
+      onWin={(win) => { profile.set((x) => ({ coins: x.coins + earnCoins('spin', win), lastSpin: Date.now() })); sfx.coins(); vibrate(40); }} />
   );
 }
 
@@ -291,7 +291,7 @@ export function GiftsModal({ onClose }: { onClose: () => void }) {
   const collect = () => {
     const x = dailyState(profile.get());
     if (!x.can) return;
-    profile.set((q) => ({ coins: q.coins + x.reward, lastDaily: x.today, streak: x.next }));
+    profile.set((q) => ({ coins: q.coins + earnCoins('daily', x.reward, x.today), lastDaily: x.today, streak: x.next }));
     sfx.coins(); track('daily_gift'); toast(tr('+{n} coins', { n: fmt(x.reward) }), 'coins');
   };
   return (
@@ -450,7 +450,7 @@ export function TrophyModal({ onClose }: { onClose: () => void }) {
               <Icon name="trophy" size={34} />
               <span className="grow"><b>{a.name}</b><small>{a.desc} · {Math.min(v, a.goal)}/{a.goal}</small>
                 <span className="mini-bar"><span style={{ width: `${Math.min(100, (100 * v) / a.goal)}%` }} /></span></span>
-              <Pill color={claimed ? 'ghost' : 'gold'} disabled={!done || claimed} onClick={() => { profile.set((x) => ({ coins: x.coins + a.reward, claimed: [...x.claimed, a.id] })); sfx.coins(); toast(`+${fmt(a.reward)} coins`, 'coins'); }}>
+              <Pill color={claimed ? 'ghost' : 'gold'} disabled={!done || claimed} onClick={() => { profile.set((x) => ({ coins: x.coins + earnCoins('achievement', a.reward, a.id), claimed: [...x.claimed, a.id] })); sfx.coins(); toast(`+${fmt(a.reward)} coins`, 'coins'); }}>
                 {claimed ? 'Claimed' : <><Coin size={16} /> {short(a.reward)}</>}
               </Pill>
             </li>

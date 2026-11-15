@@ -102,3 +102,10 @@ export async function verifyKey(id: string, key: string): Promise<string | null>
 export async function guestName(id: string): Promise<string | null> {
   try { return (await getRecord<Account>(acctKey(id)))?.name ?? null; } catch { return null; }
 }
+
+/** The coin balance saved with an account (null for a player with no saved account). Used once, to start their server-side wallet. */
+export async function savedCoins(id: string): Promise<number | null> {
+  const a = await getRecord<Account>(acctKey(id));
+  const c = Number((a?.profile as Record<string, unknown> | undefined)?.coins);
+  return a && Number.isFinite(c) ? c : null;
+}

@@ -1,5 +1,6 @@
 import React, { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { track } from './lib/track';
+import './lib/wallet';
 import { captureJoin, captureRef, clearJoin, pendingJoin, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
 import { Login } from './screens/Login';

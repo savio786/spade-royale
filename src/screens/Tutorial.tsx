@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CardView, Coin } from '../components/ui';
 import { sortHand, type Card } from '../../shared/engine';
 import { decodeCard } from '../lib/handlog';
-import { fmt, profile } from '../lib/profile';
+import { earnCoins, fmt, profile } from '../lib/profile';
 import { sfx, vibrate } from '../lib/sound';
 import { track } from '../lib/track';
 
@@ -73,7 +73,7 @@ export default function Tutorial({ onClose }: { onClose: (playNow: boolean) => v
   const finish = (playNow: boolean, skipped = false) => {
     if (profile.get().tutorial !== 'done') track(skipped ? 'tutorial_skip' : 'tutorial_done');   // replays are not counted again
     if (skipped) { if (profile.get().tutorial !== 'done') profile.set(() => ({ tutorial: 'skipped' as const })); }
-    else if (profile.get().tutorial !== 'done') { profile.set((x) => ({ coins: x.coins + TUTORIAL_REWARD, tutorial: 'done' as const })); sfx.coins(); }
+    else if (profile.get().tutorial !== 'done') { profile.set((x) => ({ coins: x.coins + earnCoins('tutorial', TUTORIAL_REWARD, 'done'), tutorial: 'done' as const })); sfx.coins(); }
     onClose(playNow);
   };
 

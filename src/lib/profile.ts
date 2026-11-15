@@ -95,7 +95,7 @@ export function claimMission(i: number): number {
   if (!row || !row.done || row.claimed) return 0;
   profile.set((x) => {
     const m = x.missions?.day === day ? x.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
-    return { coins: x.coins + row.reward, missions: { ...m, claimed: m.claimed.map((c, j) => (j === i ? true : c)) } };
+    return { coins: x.coins + earnCoins('mission', row.reward, `${day}:${i}`), missions: { ...m, claimed: m.claimed.map((c, j) => (j === i ? true : c)) } };
   });
   return row.reward;
 }
@@ -161,6 +161,13 @@ let state: Profile = load();
 const subs = new Set<() => void>();
 const beforeReset = new Set<(p: Profile) => void>();
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ } }
+
+/** Server-side coins: when the server holds the balance, free coins and purchases are asked for from the server (it checks its limits and sends the new balance back). wallet.ts wires this up. */
+export const coinLink: { on: boolean; earn: (kind: string, amount: number, key: string) => void; spend: (amount: number) => void } = { on: false, earn: () => {}, spend: () => {} };
+/** Coins to add to the local balance for a free reward: all of it normally, none when the server pays it. */
+export const earnCoins = (kind: string, amount: number, key = '') => { if (!coinLink.on) return amount; coinLink.earn(kind, amount, key); return 0; };
+/** Coins to take off the local balance for something bought: the server is told too when it holds the balance (its answer corrects the figure). */
+export const spendCoins = (amount: number) => { if (coinLink.on) coinLink.spend(amount); return amount; };
 
 export const profile = {
   get: () => state,

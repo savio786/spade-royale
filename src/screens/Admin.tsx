@@ -7,7 +7,8 @@ interface Data { total: number; withEmail: number; byKind: Record<string, number
 interface Rep { n: number; at: number; byName: string; targetId: string; targetName: string; reason: string; note: string; targetBanned: boolean; targetMuted?: boolean }
 interface BanRow { id: string; name: string; reason: string; at: number; email?: string }
 interface MuteRow { id: string; name: string; reason: string; at: number; auto?: boolean }
-type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended' | 'stats';
+type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended' | 'stats' | 'coins';
+interface WalletInfo { on: boolean; saved: { players: number; total: number; top: { id: string; name: string; kind: string; coins: number }[] }; live: { players: number; total: number; top: { id: string; name: string; coins: number }[] } }
 interface Stats { days: { day: string; active: number; events: Record<string, number> }[]; cohort: { day: string; size: number; d1: number | null; d7: number | null }[]; note: string }
 const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
 const date = (t: number) => (t ? new Date(t).toLocaleString() : '');
@@ -38,6 +39,7 @@ export function AdminPage() {
   const [mutes, setMutes] = useState<MuteRow[]>([]);
   const [reason, setReason] = useState('');
   const [stats, setStats] = useState<Stats | null>(null);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [guests, setGuests] = useState(false);   // list guests too (they have no email)
   useEffect(() => {
     document.title = 'Owner · Spade Haven';
@@ -59,6 +61,7 @@ export function AdminPage() {
       if (t === 'find') setFound(query.trim().length >= 2 ? ((await call(`/api/admin/find?q=${encodeURIComponent(query.trim())}`)) as { rows: Row[] }).rows : []);
       if (t === 'reports') setReports(((await call('/api/admin/reports')) as { rows: Rep[] }).rows);
       if (t === 'stats') setStats(await call('/api/admin/analytics'));
+      if (t === 'coins') setWallet(await call('/api/admin/wallet'));
       if (t === 'muted') setMutes(((await call('/api/admin/muted')) as { rows: MuteRow[] }).rows);
       if (t === 'suspended') setBans(((await call('/api/admin/bans')) as { rows: BanRow[] }).rows);
       setAuthed(true);
@@ -124,7 +127,7 @@ export function AdminPage() {
         ) : (
           <>
             <p style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended'], ['stats', 'Stats']] as [Tab, string][]).map(([t, l]) => (
+              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended'], ['stats', 'Stats'], ['coins', 'Coins']] as [Tab, string][]).map(([t, l]) => (
                 <button key={t} className={`pill small-pill ${tab === t ? 'gold' : ''}`} onClick={() => go(t)}>{l}</button>
               ))}
               <button className="pill small-pill" onClick={() => void refresh()}>Refresh</button>
@@ -133,6 +136,25 @@ export function AdminPage() {
             {err && <p style={{ color: '#ff8a8a' }}>{err}</p>}
             {msg && <p style={{ color: '#7dffb0' }}>{msg}</p>}
 
+            {tab === 'coins' && wallet && (
+              <>
+                <p>Server-side coins are <b style={{ color: wallet.on ? '#7dffb0' : '#ffd166' }}>{wallet.on ? 'ON' : 'OFF'}</b>. {wallet.on
+                  ? 'The server holds every player\'s coins: bets are taken when they sit down, prizes are paid when the game ends, and free coins are checked against fixed limits.'
+                  : 'Coins are still kept on each player\'s phone. Turning this on makes the server keep them, so nobody can change their own balance. Everyone starts from the balance saved in their account (listed below). Games against the computer then become practice (no coins won or lost).'}</p>
+                <p><Confirm danger={!wallet.on} label={wallet.on ? 'Turn OFF server-side coins' : 'Turn ON server-side coins'} onGo={() => void act('/api/admin/wallet', { on: !wallet.on }, wallet.on ? 'Server-side coins are off.' : 'Server-side coins are on.')} /></p>
+                <h3>Balances saved in accounts: {wallet.saved.players.toLocaleString('en-US')} players, {wallet.saved.total.toLocaleString('en-US')} coins in all</h3>
+                <p style={{ opacity: 0.8 }}>These are what wallets start from. Check the biggest ones look right before turning on.</p>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}><thead><tr><th style={th}>Player</th><th style={th}>Sign-in</th><th style={th}>Coins</th></tr></thead><tbody>
+                  {wallet.saved.top.map((r) => <tr key={r.id}><td style={td}>{r.name}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={td}>{r.coins.toLocaleString('en-US')}</td></tr>)}
+                </tbody></table>
+                {wallet.live.players > 0 && <>
+                  <h3>Live wallets: {wallet.live.players.toLocaleString('en-US')} players, {wallet.live.total.toLocaleString('en-US')} coins in all</h3>
+                  <table style={{ borderCollapse: 'collapse', width: '100%' }}><thead><tr><th style={th}>Player</th><th style={th}>Coins</th></tr></thead><tbody>
+                    {wallet.live.top.map((r) => <tr key={r.id}><td style={td}>{r.name}</td><td style={td}>{r.coins.toLocaleString('en-US')}</td></tr>)}
+                  </tbody></table>
+                </>}
+              </>
+            )}
             {tab === 'stats' && stats && (() => {
               const sum = (k: string) => stats.days.reduce((a, d) => a + (d.events[k] ?? 0), 0);
               const rate = (a: string, b: string) => (sum(b) ? `${Math.round((sum(a) / sum(b)) * 100)}%` : '–');
