@@ -29,6 +29,8 @@ export type ClientMsg =
   | { t: 'friendCancel'; id: string }
   | { t: 'gift'; to: number | 'all'; gift: string }   // a seat number, or 'all' = a round for the whole table
   | { t: 'list' }
+  | { t: 'watch'; tableId: string }          // look at a public game in progress (no seat, no cards)
+  | { t: 'unwatch' }
   | { t: 'quick'; settings: TableSettings }
   | { t: 'join'; tableId: string }
   | { t: 'createPrivate'; settings: TableSettings }
@@ -48,6 +50,7 @@ export type ServerMsg =
   | { t: 'welcome'; online: OnlineCounts }
   | { t: 'tables'; tables: TableSummary[]; online: OnlineCounts }
   | { t: 'joined'; tableId: string; seat: number; code: string | null; host: boolean; settings: TableSettings }
+  | { t: 'watching'; tableId: string; settings: TableSettings }   // you are now watching this table
   | { t: 'snap'; snap: Snapshot }
   | { t: 'error'; message: string }
   | { t: 'left' }

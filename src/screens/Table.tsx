@@ -67,22 +67,22 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
   // --- side effects on state changes: coins, sounds, chat counter ---
   useEffect(() => {
     if (!st || !view) return;
-    if (!charged.current && st.phase !== 'waiting') {
+    if (!charged.current && st.phase !== 'waiting' && !view.watching) {   // watchers pay nothing and earn nothing
       charged.current = true;
       track('game_start'); if (view.online) track('game_online');
       profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));
       sfx.deal();
     }
     if (st.phase === 'bidding' && st.round !== lastRound.current) { if (lastRound.current >= 0) sfx.deal(); lastRound.current = st.round; }   // every new round is dealt with the sound (the first one is heard when the game starts)
-    if (st.phase === 'trickEnd' && st.lastTrickWinner === me) {
+    if (st.phase === 'trickEnd' && st.lastTrickWinner === me && !view.watching) {
       const k = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
       if (wonKey.current !== k) { wonKey.current = k; sfx.trickWon(); vibrate([30, 40, 30]); bumpMission('tricks'); }   // you took the trick
     }
-    if (st.phase === 'trickEnd' || st.phase === 'roundEnd' || st.phase === 'gameOver') logHand(st, gid.current);   // write down the trick / the scored hand (a few small numbers)
+    if (!view.watching && (st.phase === 'trickEnd' || st.phase === 'roundEnd' || st.phase === 'gameOver')) logHand(st, gid.current);   // write down the trick / the scored hand (a few small numbers)
     const turnKey = `${st.phase}-${st.turn}-${st.round}-${st.trick.length}`;
     if (turnKey !== lastTurn.current) {
       lastTurn.current = turnKey;
-      if ((st.phase === 'bidding' || st.phase === 'playing') && st.turn === me) { sfx.turn(); vibrate(25); }
+      if ((st.phase === 'bidding' || st.phase === 'playing') && st.turn === me && !view.watching) { sfx.turn(); vibrate(25); }
       if (st.phase === 'playing' || st.phase === 'trickEnd') if (st.trick.length) sfx.card();
     }
     if (st.phase === 'gameOver' && !settled.current && charged.current) {
@@ -240,7 +240,8 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
   const secsLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
   const missedMine = view.snap!.missed?.[me] ?? 0;
   const maxMissed = view.snap!.maxMissed ?? 3;
-  const myTurn = st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
+  const watching = !!view?.watching;
+  const myTurn = !watching && st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
   const legal = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me);
   const lastBySeat = new Map<number, { text: string; ts: number }>();
   for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me) && !isMutedId(p, st.seats[m.seat]?.id)) lastBySeat.set(m.seat, m);
@@ -253,7 +254,8 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
         <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">{tr("VIP")}</span><small>{tr("CLUB")}</small></button>
       </div>
       <div className="tbl-top-right">
-        <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label={tr("Open chat")}><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>
+        {watching && <span className="watch-pill" role="status">{tr("👁 WATCHING")}</span>}
+        {!watching && <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label={tr("Open chat")}><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>}
         <button className="round-ui" onClick={() => { sfx.click(); setMenuOpen(true); }} aria-label={tr("Menu")}><Icon name="menu" size={26} /></button>
       </div>
 
@@ -294,7 +296,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
               </div>
             )}
             <TrickCards st={st} rel={rel} />
-            {st.phase === 'playing' && st.trick.length === 0 && st.turn === me && <div className="status-line you">Your lead{!st.spadesBroken ? ' — spades not broken yet' : ''}</div>}
+            {!watching && st.phase === 'playing' && st.trick.length === 0 && st.turn === me && <div className="status-line you">Your lead{!st.spadesBroken ? ' — spades not broken yet' : ''}</div>}
           </div>
         </div>
 
@@ -302,7 +304,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} total={view.snap!.turnTotal} now={now}
             bubble={null}
             gifts={view.snap!.gifts?.[seat] ?? []}
-            onGift={() => setGiftFor(seat)} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
+            onGift={() => (watching ? toast(tr('Spectators can’t send gifts')) : setGiftFor(seat))} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
         ))}
         {(() => {
           // chat shown on the table too (same lines as the chat box), each for 12 seconds, also while the chat box is open
@@ -357,7 +359,7 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
       {missedBanner && missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
         <div className="missed-warning" role="alert"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg> Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
       )}
-      {st.phase === 'bidding' && st.turn === me && st.bids[me] === null && (st.hand.length === 0
+      {!watching && st.phase === 'bidding' && st.turn === me && st.bids[me] === null && (st.hand.length === 0
         ? <SeeCards secsLeft={secsLeft} onSee={() => { sfx.click(); ctl.act({ type: 'reveal', seat: me }); }} onBlind={() => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: 0, blind: true }); }} />
         : <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />)}
       {view.online && view.conn === 'lost' && !view.kicked && (
@@ -385,9 +387,10 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
           </div>
         </div>
       )}
-      {st.phase === 'roundEnd' && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
+      {st.phase === 'roundEnd' && !watching && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
       {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">{tr('Next hand in {s}s · waiting for the other players', { s: Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000)) })}</div>}
-      {st.phase === 'gameOver' && <GameOver st={st} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else { track('rematch_request'); ctl.rematch(); } }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
+      {st.phase === 'gameOver' && watching && <WatchOver st={st} onLeave={leave} />}
+      {st.phase === 'gameOver' && !watching && <GameOver st={st} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else { track('rematch_request'); ctl.rematch(); } }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
@@ -758,6 +761,28 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
 }
 
 const GAME_OVER_SECONDS = 10;   // the result screen takes everyone back to the lobby after this long
+/** What a spectator sees when the game ends: the result, and a way out. Nothing is charged or paid. */
+function WatchOver({ st, onLeave }: { st: PublicState; onLeave: () => void }) {
+  const mode = st.settings.mode;
+  return (
+    <div className="modal-backdrop">
+      <div className="modal gameover" role="dialog" aria-label={tr("Game over")}>
+        <div className="go-title">{tr("GAME OVER")}</div>
+        <ol className="go-places">
+          {st.placements.map((side, i) => (
+            <li key={side}>
+              <span>{i + 1}.</span>
+              <span className="grow">{seatsOfSide(mode, side).map((s) => st.seats[s]?.name).join(' & ')}</span>
+              <b>{st.scores[side]}</b>
+            </li>
+          ))}
+        </ol>
+        <button className="pill gold" onClick={() => { sfx.click(); onLeave(); }}>{tr("BACK TO LOBBY")}</button>
+      </div>
+    </div>
+  );
+}
+
 function GameOver({ st, onReview, rematch, onRematch, onLobby, onAgain }: { st: PublicState; rematch?: CtlView['rematch']; onReview: () => void; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
   const [left, setLeft] = useState(GAME_OVER_SECONDS);
   const [held, setHeld] = useState(false);   // opening the coin store stops the countdown

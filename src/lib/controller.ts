@@ -14,6 +14,7 @@ export interface CtlView {
   kicked: string | null;          // set when removed from the table for inactivity
   conn: 'ok' | 'lost' | 'gone';   // online tables: connection to the server
   rematch?: { votes: number[]; humans: number[]; deadline: number; to?: string; cancelled?: boolean };   // game over: who has said yes to playing again, and the new table's code once everyone has
+  watching?: boolean;             // looking at somebody else's game: no seat, no cards, nothing is charged
   forfeited?: boolean;            // with conn 'gone': you were out of the game for too long (or left), so the bet is lost
 }
 
@@ -67,6 +68,7 @@ export class LocalController implements TableController {
 export type RemoteJoin =
   | { kind: 'quick'; settings: TableSettings }
   | { kind: 'table'; tableId: string; settings: TableSettings }
+  | { kind: 'watch'; tableId: string; settings: TableSettings }
   | { kind: 'createPrivate'; settings: TableSettings }
   | { kind: 'joinPrivate'; code: string; settings: TableSettings };
 
@@ -77,8 +79,9 @@ export class RemoteController implements TableController {
   constructor(join: RemoteJoin) {
     this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null, conn: 'ok' };
     const offMsg = net.on((m) => {
-      if (m.t === 'joined') { this.tableId = m.tableId; this.update({ code: m.code, host: m.host, settings: m.settings, error: null, conn: 'ok' }); }
-      else if (m.t === 'snap') this.update({ snap: { ...m.snap, skew: m.snap.serverNow ? m.snap.serverNow - Date.now() : 0 } });
+      if (m.t === 'watching') { this.watchId = m.tableId; this.update({ watching: true, settings: m.settings, error: null, conn: 'ok' }); }
+      else if (m.t === 'joined') { this.tableId = m.tableId; this.update({ code: m.code, host: m.host, settings: m.settings, error: null, conn: 'ok' }); }
+      else if (m.t === 'snap') this.update({ snap: { ...m.snap, state: this.watchId ? { ...m.snap.state, mySeat: 0 } : m.snap.state, skew: m.snap.serverNow ? m.snap.serverNow - Date.now() : 0 } });   // a watcher sees the table from the first seat, with no cards of their own
       else if (m.t === 'error') this.update({ error: m.message });
       else if (m.t === 'kicked') this.update({ kicked: m.reason });
       else if (m.t === 'rematch') this.update({ rematch: m.cancelled ? { votes: [], humans: [], deadline: 0, cancelled: true } : { votes: m.votes, humans: m.humans, deadline: m.deadline } });
@@ -88,24 +91,27 @@ export class RemoteController implements TableController {
     // dropped connection: show it, and once reconnected ask for our seat back
     let wasOnline = net.status === 'online';
     const offStatus = net.onStatus((s) => {
-      if (s !== 'online' && wasOnline && this.tableId) this.update({ conn: 'lost' });
-      if (s === 'online' && !wasOnline && this.tableId) net.send({ t: 'rejoin', tableId: this.tableId });
+      if (s !== 'online' && wasOnline && (this.tableId || this.watchId)) this.update({ conn: 'lost' });
+      if (s === 'online' && !wasOnline && this.watchId) { net.send({ t: 'watch', tableId: this.watchId }); this.update({ conn: 'ok' }); }
+      else if (s === 'online' && !wasOnline && this.tableId) net.send({ t: 'rejoin', tableId: this.tableId });
       wasOnline = s === 'online';
     });
     this.off = () => { offMsg(); offStatus(); };
     net.hello();
     if (join.kind === 'quick') net.send({ t: 'quick', settings: join.settings });
     else if (join.kind === 'table') net.send({ t: 'join', tableId: join.tableId });
+    else if (join.kind === 'watch') net.send({ t: 'watch', tableId: join.tableId });
     else if (join.kind === 'createPrivate') net.send({ t: 'createPrivate', settings: join.settings });
     else net.send({ t: 'joinPrivate', code: join.code });
   }
   private tableId: string | null = null;
+  private watchId: string | null = null;
   private update(p: Partial<CtlView>) { this.view = { ...this.view, ...p }; this.subs.forEach((f) => f(this.view)); }
   subscribe(f: (v: CtlView) => void) { this.subs.add(f); f(this.view); return () => { this.subs.delete(f); }; }
-  act(a: Action) { net.send({ t: 'act', action: a }); }
-  chat(text: string) { net.send({ t: 'chat', text }); }
-  gift(to: number | 'all', giftId: string) { net.send({ t: 'gift', to, gift: giftId }); }
-  fillBots() { net.send({ t: 'fillBots' }); }
-  rematch() { net.send({ t: 'rematch' }); }
-  leave() { net.send({ t: 'leave' }); this.off(); this.subs.clear(); }
+  act(a: Action) { if (!this.watchId) net.send({ t: 'act', action: a }); }
+  chat(text: string) { if (!this.watchId) net.send({ t: 'chat', text }); }
+  gift(to: number | 'all', giftId: string) { if (!this.watchId) net.send({ t: 'gift', to, gift: giftId }); }
+  fillBots() { if (!this.watchId) net.send({ t: 'fillBots' }); }
+  rematch() { if (!this.watchId) net.send({ t: 'rematch' }); }
+  leave() { net.send(this.watchId ? { t: 'unwatch' } : { t: 'leave' }); this.watchId = null; this.off(); this.subs.clear(); }
 }

@@ -1,5 +1,10 @@
 // Spanish strings, keyed by the English text. A string missing here shows in English.
 const dict: Record<string, string> = {
+ "👁 WATCH": "👁 VER",
+ "👁 WATCHING": "👁 VIENDO",
+ "Spectators can’t send gifts": "Los espectadores no pueden enviar regalos",
+ "GAME OVER": "FIN DEL JUEGO",
+ "BACK TO LOBBY": "VOLVER AL VESTÍBULO",
  "100 points": "100 puntos",
  ": every player is on their own.": ": cada jugador va por su cuenta.",
  "A friend counts once they are a new player and finish a game. Coins are for play only and have no cash value. Free chat days are added to your Chat Pass.": "Un amigo cuenta cuando es jugador nuevo y termina una partida. Las monedas son solo para jugar y no tienen valor en efectivo. Los días de chat gratis se suman a tu Pase de chat.",

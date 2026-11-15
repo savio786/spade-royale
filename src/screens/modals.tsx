@@ -26,7 +26,7 @@ import { Mode, prizeFor, secondPrizeFor } from '../../shared/engine';
 
 export interface StartRequest {
   mode: Mode; bet: number; minPoints: number; maxPoints: number;
-  via: 'quick' | 'table' | 'createPrivate' | 'joinPrivate' | 'local';
+  via: 'quick' | 'table' | 'watch' | 'createPrivate' | 'joinPrivate' | 'local';
   tableId?: string; code?: string;
 }
 

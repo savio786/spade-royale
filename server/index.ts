@@ -35,7 +35,10 @@ interface Room { id: string; code: string | null; hostId: string; rt: TableRunti
   /** game over: who has asked for / agreed to a rematch, and when the offer ends */
   rematch?: { votes: Set<string>; deadline: number; timer: ReturnType<typeof setTimeout>; done?: boolean };
   /** a rematch table: each person who said yes has their old seat held until they sit down */
-  reserved?: Map<string, number> }
+  reserved?: Map<string, number>;
+  /** people watching this public game (they have no seat and never see a hand) */
+  watchers?: Set<Client> }
+const MAX_WATCHERS = 30;
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
 /** A rematch offer stays open this long; a rematch table waits this long for everyone to sit before computer players take the held seats. */
@@ -53,7 +56,7 @@ const forfeitBoards = (r: Room, playerId: string) => {
   debit(g.seats[i]!, nil ? Math.round(g.settings.bet * 1.5) : g.settings.bet);
 };
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
-interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
+interface Client { watching?: { room: Room; unsub: () => void }; ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
 
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
@@ -161,7 +164,12 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   return room;
 }
 
-function closeRoom(r: Room) { if (r.rematch) clearTimeout(r.rematch.timer); r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
+function stopWatching(c: Client, notify = false) {
+  const w = c.watching; if (!w) return;
+  w.unsub(); w.room.watchers?.delete(c); c.watching = undefined;
+  if (notify) send(c, { t: 'left' });
+}
+function closeRoom(r: Room) { for (const w of [...(r.watchers ?? [])]) { send(w, { t: 'tableGone' }); stopWatching(w); } if (r.rematch) clearTimeout(r.rematch.timer); r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
 
 /** The real players still on this finished table's screen, in seat order. */
 function presentHumans(r: Room) {
@@ -232,6 +240,7 @@ function rejoin(c: Client, tableId: string) {
 
 function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
+  stopWatching(c);
   leave(c, false);
   const held = room.reserved?.get(c.player.id);   // a rematch table keeps your old seat (and so your team) for you
   // seats kept for the people from the last game are off limits to everyone else
@@ -299,6 +308,22 @@ function handle(c: Client, m: ClientMsg) {
       return send(c, { t: 'pong' });
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
+    case 'watch': {
+      if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
+      const r = rooms.get(String(m.tableId));
+      // only public games that are under way; never a private table, never your own table
+      if (!r || r.code || r.rt.g.phase === 'waiting' || r.rt.humanCount() === 0) return send(c, { t: 'error', message: 'That game is not available to watch' });
+      if (c.room) return send(c, { t: 'error', message: 'Leave your table first' });
+      stopWatching(c);
+      r.watchers ??= new Set();
+      if (r.watchers.size >= MAX_WATCHERS) return send(c, { t: 'error', message: 'Too many people are watching this game' });
+      r.watchers.add(c);
+      send(c, { t: 'watching', tableId: r.id, settings: r.rt.g.settings });
+      // seat -1: the view has no hand and the other hands are never sent
+      c.watching = { room: r, unsub: r.rt.subscribe(`watch:${c.player.id}:${r.watchers.size}:${Date.now()}`, -1, (snap) => send(c, { t: 'snap', snap })) };
+      return;
+    }
+    case 'unwatch': return stopWatching(c, true);
     case 'quick': {
       const s = sanitize(m.settings);
       const match = [...rooms.values()].find((r) => !r.code && r.rt.g.phase === 'waiting' && r.rt.g.seats.some((x) => !x) &&
@@ -677,7 +702,7 @@ wss.on('connection', (ws) => {
     try { handle(c, JSON.parse(String(raw))); } catch (e) { send(c, { t: 'error', message: 'Bad message' }); }
   });
   ws.on('close', () => {
-    dropped(c); clients.delete(c);
+    stopWatching(c); dropped(c); clients.delete(c);
     if (c.verified && c.player) void presenceChanged(c.player.id); // friends see them go offline
   });
 });

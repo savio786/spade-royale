@@ -2408,3 +2408,8 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 
 /* bigger cards option */
 .table-screen.big-cards { --card-w: 200px; }
+
+/* spectating */
+.watch-pill { display: inline-flex; align-items: center; height: 40px; padding: 0 14px; margin-right: 6px; border-radius: 20px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,215,120,.6); color: #ffe08a; font-weight: 800; font-size: 13px; letter-spacing: .08em; }
+.lt-watch { cursor: pointer; border: 2px solid rgba(255,255,255,.85); animation: none; opacity: 1; }
+.lt-watch:hover { filter: brightness(1.15); }

@@ -106,12 +106,13 @@ export default function App() {
   const installPrompt = bip ? () => { bip.prompt(); setBip(null); } : null;
 
   const start = useCallback((r: StartRequest) => {
-    if (r.via !== 'joinPrivate' && profile.get().coins < r.bet) { store.open({ tab: 'coins', need: r.bet }); return; }
+    if (r.via !== 'joinPrivate' && r.via !== 'watch' && profile.get().coins < r.bet) { store.open({ tab: 'coins', need: r.bet }); return; }
     const settings: TableSettings = { mode: r.mode, bet: r.bet, minPoints: r.minPoints, maxPoints: r.maxPoints, city: cityForBet(r.bet), isPrivate: r.via === 'createPrivate' || (r.via === 'local' && !!r.code) };
     let c: TableController;
     const online = net.status === 'online';
     if (r.via === 'quick' && online) c = new RemoteController({ kind: 'quick', settings });
     else if (r.via === 'table' && online && r.tableId) c = new RemoteController({ kind: 'table', tableId: r.tableId, settings });
+    else if (r.via === 'watch' && online && r.tableId) c = new RemoteController({ kind: 'watch', tableId: r.tableId, settings });
     else if (r.via === 'createPrivate' && online) c = new RemoteController({ kind: 'createPrivate', settings });
     else if (r.via === 'joinPrivate' && online && r.code) c = new RemoteController({ kind: 'joinPrivate', code: r.code, settings });
     else c = new LocalController(settings);

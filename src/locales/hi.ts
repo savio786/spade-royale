@@ -1,5 +1,10 @@
 // Hindi strings, keyed by the English text. A string missing here shows in English.
 const dict: Record<string, string> = {
+ "👁 WATCH": "👁 देखें",
+ "👁 WATCHING": "👁 देख रहे हैं",
+ "Spectators can’t send gifts": "दर्शक उपहार नहीं भेज सकते",
+ "GAME OVER": "खेल समाप्त",
+ "BACK TO LOBBY": "लॉबी में वापस",
  "100 points": "100 अंक",
  ": every player is on their own.": ": हर खिलाड़ी अकेला खेलता है।",
  "A friend counts once they are a new player and finish a game. Coins are for play only and have no cash value. Free chat days are added to your Chat Pass.": "दोस्त तब गिना जाता है जब वह नया खिलाड़ी हो और एक गेम पूरा करे। सिक्के सिर्फ़ खेलने के लिए हैं और उनकी कोई नकद कीमत नहीं है। मुफ़्त चैट के दिन आपके चैट पास में जुड़ जाते हैं।",

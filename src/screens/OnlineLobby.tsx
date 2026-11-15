@@ -46,6 +46,12 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
     return opts[(opts.indexOf(v) + dir + opts.length) % opts.length];
   };
 
+  const watch = (t: TableSummary) => {
+    sfx.click();
+    const s = t.settings;
+    onStart({ mode: s.mode, bet: s.bet, minPoints: s.minPoints, maxPoints: s.maxPoints, via: 'watch', tableId: t.id });
+  };
+
   const join = (t: TableSummary) => {
     if (t.phase !== 'waiting' || joinSeat(t) < 0) return;
     if (p.coins < t.settings.bet) { store.open({ tab: 'coins', need: t.settings.bet }); return; }
@@ -87,7 +93,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
           <img className="lt-create-img" src="/ui/lobby/ol-create.webp" alt="" aria-hidden="true" draggable={false} />
           <span className="lt-create-txt">{tr("CREATE TABLE")}</span>
         </button>
-        {tables.map((t) => <LobbyTable key={t.id} t={t} poor={p.coins < t.settings.bet} onJoin={() => join(t)} />)}
+        {tables.map((t) => <LobbyTable key={t.id} t={t} poor={p.coins < t.settings.bet} onJoin={() => join(t)} onWatch={() => watch(t)} />)}
         {tables.length === 0 && (
           <div className="lt-empty" role="status">
             <img className="lt-empty-img" src="/ui/lobby/ol-empty.webp" alt="" aria-hidden="true" draggable={false} />
@@ -117,7 +123,7 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
   );
 }
 
-function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoin: () => void }) {
+function LobbyTable({ t, poor, onJoin, onWatch }: { t: TableSummary; poor: boolean; onJoin: () => void; onWatch: () => void }) {
   const city = t.settings.city || cityForBet(t.settings.bet);
   const look = lookFor(city);
   const hr = highRoller(t.settings.bet);
@@ -157,7 +163,7 @@ function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoi
           <span className="lt-arrow">↑</span><b>{tr("PLAY")}</b>
         </button>
       ) : (
-        <span className="lt-live" aria-label={tr("Game in progress")}>{tr("● LIVE")}</span>
+        <button className="lt-live lt-watch" onClick={onWatch} aria-label={`Watch the ${city} game, bet ${fmt(t.settings.bet)}`}>{tr("👁 WATCH")}</button>
       )}
     </div>
   );
