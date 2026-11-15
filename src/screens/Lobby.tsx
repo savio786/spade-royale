@@ -51,7 +51,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
   const megaLeft = Math.max(0, p.lastSpin + MEGA_MS - now);
   const spinReady = megaLeft === 0;
   const lvlPct = Math.min(100, Math.max(0, ((p.xp - xpForLevel(lvl)) / (xpForLevel(lvl + 1) - xpForLevel(lvl))) * 100));
-  const giftReady = p.lastDaily !== new Date().toISOString().slice(0, 10);
+  const giftReady = dailyState(p).can;
 
   useEffect(() => net.onStatus(setStatus), []);
   useEffect(() => { void syncReferral(); }, []);

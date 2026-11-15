@@ -41,12 +41,15 @@ try { localStorage.removeItem('spade-royale-profile-v1'); } catch { /* storage u
 
 /** Daily gift: coins for each day of a 7-day streak (day 7 is the big one), then it starts over. */
 export const DAILY_REWARDS = [2000, 2500, 3000, 3500, 4000, 5000, 10000];
-const dayStr = (d: Date) => d.toISOString().slice(0, 10);
+/** The player's own calendar day (yyyy-mm-dd), so daily gifts, streaks and missions reset at their local midnight, not at UTC midnight. */
+export const dayStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const prevDay = (d: Date) => dayStr(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
 export function dailyState(p: { lastDaily: string | null; streak?: number }, now = new Date()) {
   const today = dayStr(now);
-  const yesterday = dayStr(new Date(now.getTime() - 86_400_000));
-  const can = p.lastDaily !== today;
-  const kept = p.lastDaily === today || p.lastDaily === yesterday;   // collected today or yesterday: the streak is alive
+  const yesterday = prevDay(now);
+  // Dates saved before this change were UTC days, which can be one day ahead of local time: a date at or after today counts as already collected.
+  const can = !p.lastDaily || p.lastDaily < today;
+  const kept = !!p.lastDaily && p.lastDaily >= yesterday;            // collected today or yesterday: the streak is alive
   const current = kept ? p.streak ?? 1 : 0;                           // days collected in a row so far
   const next = can ? current + 1 : current;                           // the day the next/today's gift belongs to
   const dayIdx = (Math.max(1, next) - 1) % DAILY_REWARDS.length;
@@ -65,15 +68,20 @@ export function missionDefs(day = dayStr(new Date())): MissionDef[] {
   const n = Math.floor(Date.parse(day) / 86_400_000);
   return SLOTS.map((s, i) => s[(n + i) % s.length]);
 }
+/** Today's mission day. Progress saved under a later (old UTC) date is kept, so nothing is lost or claimed twice when the switch to local days happens. */
+function missionDay(p: { missions?: Profile['missions'] }) {
+  const today = dayStr(new Date());
+  return p.missions && p.missions.day > today ? p.missions.day : today;
+}
 export function missionsToday(p: { missions?: Profile['missions'] }) {
-  const day = dayStr(new Date());
+  const day = missionDay(p);
   const m = p.missions?.day === day ? p.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
   return missionDefs(day).map((d, i) => ({ ...d, i, prog: m.prog[i] ?? 0, done: (m.prog[i] ?? 0) >= d.goal, claimed: !!m.claimed[i] }));
 }
 export function claimableMissions(p: { missions?: Profile['missions'] }) { return missionsToday(p).filter((m) => m.done && !m.claimed).length; }
 /** Count progress toward today's missions. Does nothing (no re-render) when no mission uses this kind. */
 export function bumpMission(kind: MissionKind, n = 1) {
-  const day = dayStr(new Date());
+  const day = missionDay(profile.get());
   const defs = missionDefs(day);
   if (!defs.some((d) => d.kind === kind)) return;
   profile.set((x) => {
@@ -82,7 +90,7 @@ export function bumpMission(kind: MissionKind, n = 1) {
   });
 }
 export function claimMission(i: number): number {
-  const day = dayStr(new Date());
+  const day = missionDay(profile.get());
   const row = missionsToday(profile.get())[i];
   if (!row || !row.done || row.claimed) return 0;
   profile.set((x) => {

@@ -234,9 +234,11 @@ function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
   leave(c, false);
   const held = room.reserved?.get(c.player.id);   // a rematch table keeps your old seat (and so your team) for you
-  const seat = room.rt.addHuman(c.player, held);
+  // seats kept for the people from the last game are off limits to everyone else
+  const heldForOthers = held === undefined ? [...(room.reserved?.values() ?? [])] : [];
+  const seat = room.rt.addHuman(c.player, held, heldForOthers);
+  if (seat < 0) return send(c, { t: 'error', message: heldForOthers.length ? 'Those seats are being held for the players from the last game' : 'Table is full or already started' });
   room.reserved?.delete(c.player.id);
-  if (seat < 0) return send(c, { t: 'error', message: 'Table is full or already started' });
   c.room = room;
   room.clients.add(c);
   send(c, { t: 'joined', tableId: room.id, seat, code: room.code, host: room.hostId === c.player.id, settings: room.rt.g.settings });

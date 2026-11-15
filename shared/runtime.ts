@@ -100,7 +100,8 @@ export class TableRuntime {
   }
 
   // ---------- seats ----------
-  addHuman(p: Omit<Seat, 'bot'>, preferredSeat?: number): number {
+  /** `held` are seats kept for other people (a rematch table): this player may not take them. */
+  addHuman(p: Omit<Seat, 'bot'>, preferredSeat?: number, held: number[] = []): number {
     const existing = this.g.seats.findIndex((s) => s?.id === p.id);
     if (existing >= 0) {
       const seats = this.g.seats.slice();
@@ -111,7 +112,7 @@ export class TableRuntime {
     if (this.g.phase !== 'waiting') return -1;
     // in Partners, the second person to join sits across from the first (as partner)
     const order = this.g.settings.mode === 'partners' ? [0, 2, 1, 3] : [0, 1, 2, 3];
-    let seat = preferredSeat !== undefined && !this.g.seats[preferredSeat] ? preferredSeat : (order.find((i) => !this.g.seats[i]) ?? -1);
+    let seat = preferredSeat !== undefined && !this.g.seats[preferredSeat] ? preferredSeat : (order.find((i) => !this.g.seats[i] && !held.includes(i)) ?? -1);
     if (seat < 0) return -1;
     const seats = this.g.seats.slice();
     seats[seat] = { ...p, bot: false };
