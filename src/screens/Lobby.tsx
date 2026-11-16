@@ -1,4 +1,5 @@
 import { t as tr } from '../lib/i18n';
+import { LangPicker } from '../components/LangPicker';
 import { WheelArt } from '../components/MegaWheel';
 import { useEffect, useState } from 'react';
 import { Avatar, Coin, Icon, RingButton } from '../components/ui';
@@ -75,6 +76,7 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
           <span className="level-fill" style={{ width: `${lvlPct}%` }} aria-hidden="true" />
           <span className="level-star gold"><GoldStar /></span><span className="level-txt">{tr("LEVEL {n}", { n: lvl })}</span>
         </div>
+        <LangPicker />
         <span className="tb-sep" aria-hidden="true" />
         <span className={`net-dot ${status}`} title={`Server ${status}`} aria-label={`Multiplayer ${status}`} />
         <button className="help-btn" onClick={() => { sfx.click(); helpBot.open(); }} aria-label={tr("Help: ask Spade Bot")}><span>?</span></button>

@@ -438,6 +438,7 @@ const dict: Record<string, string> = {
  "Bidding": "बोली",
  "Playing the cards": "पत्ते खेलना",
  "Scoring": "अंक गणना",
- "Winning": "जीतना"
+ "Winning": "जीतना",
+ "Language": "भाषा"
 };
 export default dict;

@@ -438,6 +438,7 @@ const dict: Record<string, string> = {
  "Bidding": "Apuestas",
  "Playing the cards": "Cómo se juegan las cartas",
  "Scoring": "Puntuación",
- "Winning": "Cómo ganar"
+ "Winning": "Cómo ganar",
+ "Language": "Idioma"
 };
 export default dict;

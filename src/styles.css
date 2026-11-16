@@ -2413,3 +2413,15 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 .watch-pill { display: inline-flex; align-items: center; height: 40px; padding: 0 14px; margin-right: 6px; border-radius: 20px; background: rgba(0,0,0,.55); border: 1px solid rgba(255,215,120,.6); color: #ffe08a; font-weight: 800; font-size: 13px; letter-spacing: .08em; }
 .lt-watch { cursor: pointer; border: 2px solid rgba(255,255,255,.85); animation: none; opacity: 1; }
 .lt-watch:hover { filter: brightness(1.15); }
+
+/* Language dropdown on the main screen: compact (globe + code); the real select is an invisible layer on top */
+.lang-pick { position: relative; display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 14px 0 12px; border-radius: 999px; background: linear-gradient(180deg, #1c2a9a, #0b1260); border: 3px solid #6b7cff; box-shadow: inset 0 2px 8px rgba(0,0,0,.5); cursor: pointer; flex: none; white-space: nowrap; }
+.lang-pick:hover { border-color: #ffc83c; }
+.lang-globe { font-size: 28px; line-height: 1; }
+.lang-code { font: 400 30px var(--display); letter-spacing: 1px; color: #fff; }
+.lang-caret { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #ffc83c; margin-left: 2px; }
+.lang-pick select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font: 500 18px var(--body); }
+.lang-pick:focus-within { outline: 3px solid #ffc83c; outline-offset: 2px; }
+.lobby .topbar > * { white-space: nowrap; }
+.lobby .topbar .help-btn, .lobby .topbar .gear, .lobby .topbar .me-avatar { flex: none; }
+.lobby .topbar { gap: 16px; }
