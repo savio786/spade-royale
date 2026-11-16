@@ -56,6 +56,11 @@ export function Lobby({ onStart, onOnlineLobby, installPrompt }: { onStart: (r: 
 
   useEffect(() => net.onStatus(setStatus), []);
   useEffect(() => { void syncReferral(); }, []);
+  // Warm the Solo/Partners card pictures a moment after the main screen is up, so that screen opens with them already there.
+  useEffect(() => {
+    const id = window.setTimeout(() => { for (const u of ['/ui/mode-solo.webp', '/ui/mode-partners.webp']) { const i = new Image(); i.decoding = 'async'; i.src = u; } }, 1200);
+    return () => window.clearTimeout(id);
+  }, []);
   useEffect(() => net.on((m) => { if (m.t === 'welcome' || m.t === 'tables') setOnline(m.online); }), []);
   useEffect(() => { const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 4500); return () => clearInterval(t); }, []);
 
