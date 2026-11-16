@@ -1,4 +1,5 @@
 import { t as tr, LANGS, setLang, useLang } from '../lib/i18n';
+import { rich } from '../lib/rich';
 import { PartnersArt, SoloArt } from '../components/ModeArt';
 import { MegaWheel } from '../components/MegaWheel';
 import { MusicPicker } from '../components/MusicPicker';
@@ -759,27 +760,26 @@ export function RoomTypeModal({ onPick, onClose, online, title }: { onPick: (m: 
 // ---------------- Rules for each room type ----------------
 export function ModeRulesModal({ mode, onClose }: { mode: Mode; onClose: () => void }) {
   const solo = mode === 'solo';
-  const sec = (h: string, body: JSX.Element) => <section><h3><i />{h}<i /></h3>{body}</section>;
+  const sec = (h: string, body: JSX.Element) => <section><h3><i />{tr(h)}<i /></h3>{body}</section>;
   return (
     <Modal onClose={onClose} wide className="mode-rules">
       <h2 className="mode-rules-title">{tr(solo ? 'SOLO RULES' : 'PARTNERS RULES')}</h2>
-      {sec('The basics', <p>{solo
-        ? 'Four players, and nobody is on your side: every point you score is yours alone. '
-        : 'Four players in two teams. Your partner sits across the table from you, and the two of you win or lose together. '}
-        A normal 52-card deck is dealt out, 13 cards each. Spades always beat the other suits. Cards rank Ace (highest), King, Queen, Jack, 10 down to 2.</p>)}
-      {sec('Bidding', <p>The player on the dealer's left bids first, then the bid goes around the table. Bid how many tricks you think you'll win, from 1 to 13.
-        {solo ? ' Your bid is your own target, so count only on your own cards.' : ' Your bid and your partner\'s bid are added together into one team target.'}{' '}
-        Bid <b>{tr("Nil")}</b> (0) if you're sure you won't win a single trick. Feeling brave? Bid <b>{tr("Blind Nil")}</b> before you even look at your cards.</p>)}
-      {sec('Playing the cards', <p>The player on the dealer's left leads the first card. Everyone else must play the same suit if they have it. If you don't, you can play any card, including a spade to steal the trick.
-        The highest spade wins the trick; if no spade was played, the highest card of the suit that was led wins. You can't lead spades until someone has played one on another suit
-        (“breaking spades”), unless spades are all you have left. Whoever wins a trick leads the next one.</p>)}
-      {sec('Scoring', <p>{solo
-        ? 'Win at least as many tricks as you bid and you score 10 points for every trick you bid, plus 1 point for each extra trick. Fall short and you lose 10 points for every trick you bid. '
-        : 'Your team adds up its tricks. Make your team bid and you score 10 points per trick bid, plus 1 point for each extra trick. Fall short and the team loses 10 points per trick bid. If a nil bidder gets caught, the tricks they took still count toward their partner\'s bid. '}
-        A successful Nil is worth <b>+100</b> and a failed one <b>−100</b>. Blind Nil doubles that to <b>±200</b>.</p>)}
-      {sec('Bags', <p>Every extra trick over your bid is a “bag” and adds no points. {solo ? 'Your bags' : 'Your team\'s bags'} keep adding up from hand to hand, and every time they reach 10 you lose <b>{tr("100 points")}</b>{tr(", so don't win more than you need!")}</p>)}
-      {sec('Winning', <p>The game ends when a {solo ? 'player' : 'team'} reaches the table's top score or drops to its lowest score. The highest score wins
-        {solo ? <>, and the winner takes <b>3.6×</b> the bet.</> : <>, and <b>{tr("both partners")}</b> on the winning team take <b>1.8×</b> the bet.</>} If two {solo ? 'players' : 'teams'} are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand.</p>)}
+      {sec('The basics', <p>{tr(solo
+        ? 'Four players, and nobody is on your side: every point you score is yours alone. A normal 52-card deck is dealt out, 13 cards each. Spades always beat the other suits. Cards rank Ace (highest), King, Queen, Jack, 10 down to 2.'
+        : 'Four players in two teams. Your partner sits across the table from you, and the two of you win or lose together. A normal 52-card deck is dealt out, 13 cards each. Spades always beat the other suits. Cards rank Ace (highest), King, Queen, Jack, 10 down to 2.')}</p>)}
+      {sec('Bidding', <p>{rich(tr(solo
+        ? "The player on the dealer's left bids first, then the bid goes around the table. Bid how many tricks you think you'll win, from 1 to 13. Your bid is your own target, so count only on your own cards. Bid **Nil** (0) if you're sure you won't win a single trick. Feeling brave? Bid **Blind Nil** before you even look at your cards."
+        : "The player on the dealer's left bids first, then the bid goes around the table. Bid how many tricks you think you'll win, from 1 to 13. Your bid and your partner's bid are added together into one team target. Bid **Nil** (0) if you're sure you won't win a single trick. Feeling brave? Bid **Blind Nil** before you even look at your cards."))}</p>)}
+      {sec('Playing the cards', <p>{tr("The player on the dealer's left leads the first card. Everyone else must play the same suit if they have it. If you don't, you can play any card, including a spade to steal the trick. The highest spade wins the trick; if no spade was played, the highest card of the suit that was led wins. You can't lead spades until someone has played one on another suit (“breaking spades”), unless spades are all you have left. Whoever wins a trick leads the next one.")}</p>)}
+      {sec('Scoring', <p>{rich(tr(solo
+        ? 'Win at least as many tricks as you bid and you score 10 points for every trick you bid, plus 1 point for each extra trick. Fall short and you lose 10 points for every trick you bid. A successful Nil is worth **+100** and a failed one **−100**. Blind Nil doubles that to **±200**.'
+        : "Your team adds up its tricks. Make your team bid and you score 10 points per trick bid, plus 1 point for each extra trick. Fall short and the team loses 10 points per trick bid. If a nil bidder gets caught, the tricks they took still count toward their partner's bid. A successful Nil is worth **+100** and a failed one **−100**. Blind Nil doubles that to **±200**."))}</p>)}
+      {sec('Bags', <p>{rich(tr(solo
+        ? 'Every extra trick over your bid is a “bag” and adds no points. Your bags keep adding up from hand to hand, and every time they reach 10 you lose **100 points**, so don\'t win more than you need!'
+        : 'Every extra trick over your bid is a “bag” and adds no points. Your team\'s bags keep adding up from hand to hand, and every time they reach 10 you lose **100 points**, so don\'t win more than you need!'))}</p>)}
+      {sec('Winning', <p>{rich(tr(solo
+        ? "The game ends when a player reaches the table's top score or drops to its lowest score. The highest score wins, and the winner takes **3.6×** the bet. If two players are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand."
+        : "The game ends when a team reaches the table's top score or drops to its lowest score. The highest score wins, and **both partners** on the winning team take **1.8×** the bet. If two teams are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand."))}</p>)}
       <Pill color="green" className="wide-btn" onClick={onClose}>{tr("GOT IT")}</Pill>
     </Modal>
   );

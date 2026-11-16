@@ -1,4 +1,5 @@
 import { t as tr } from '../lib/i18n';
+import { rich } from '../lib/rich';
 import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -1035,12 +1036,12 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title={tr("How to play Spades")} onClose={onClose} wide>
       <div className="rules">
-        <p><b>{tr("Goal.")}</b> Win the number of tricks (“books”) you bid. Spades are always trump.</p>
-        <p><b>{tr("Partners")}</b>: you sit across from your partner and your bids are added together. <b>{tr("Solo")}</b>{tr(": every player is on their own.")}</p>
-        <p><b>{tr("Bidding.")}</b> Your cards are dealt face down: tap <b>{tr("See cards")}</b> on your turn, then bid 1–13 or <b>0 = Nil</b> (promising to win zero tricks). The game suggests a bid from your hand. Feeling brave? <b>{tr("Bid Blind Nil")}</b> before looking — worth ±200.</p>
-        <p><b>{tr("Play.")}</b> Follow the suit that was led if you can. If you can't, you may play any card — a spade wins unless a higher spade is played. Spades can't be led until they've been “broken” (played on another suit), unless you have only spades.</p>
-        <p><b>{tr("Scoring.")}</b> Make your bid: 10 × bid. Extra tricks are “bags” and add no points. Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points.</p>
-        <p><b>{tr("Winning.")}</b> The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize; if two sides are level, the side with fewer bags wins.</p>
+        <p>{rich(tr("**Goal.** Win the number of tricks (“books”) you bid. Spades are always trump."))}</p>
+        <p>{rich(tr("**Partners**: you sit across from your partner and your bids are added together. **Solo**: every player is on their own."))}</p>
+        <p>{rich(tr("**Bidding.** Your cards are dealt face down: tap **See cards** on your turn, then bid 1–13 or **0 = Nil** (promising to win zero tricks). The game suggests a bid from your hand. Feeling brave? **Bid Blind Nil** before looking — worth ±200."))}</p>
+        <p>{rich(tr("**Play.** Follow the suit that was led if you can. If you can't, you may play any card — a spade wins unless a higher spade is played. Spades can't be led until they've been “broken” (played on another suit), unless you have only spades."))}</p>
+        <p>{rich(tr("**Scoring.** Make your bid: 10 × bid. Extra tricks are “bags” and add no points. Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points."))}</p>
+        <p>{rich(tr("**Winning.** The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize; if two sides are level, the side with fewer bags wins."))}</p>
       </div>
     </Modal>
   );

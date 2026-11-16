@@ -1,5 +1,6 @@
 // Spade Haven help bot: free, offline, keyword-matched answers about the game.
 import { useSyncExternalStore } from 'react';
+import { t as tr } from './i18n';
 
 export type BotAction = 'store-coins' | 'store-chat' | 'rules' | 'play';
 export interface Topic {
@@ -11,7 +12,7 @@ export interface Topic {
   related?: string[];
 }
 
-const SUPPORT = (import.meta.env?.VITE_SUPPORT_EMAIL as string | undefined) || 'spades@sedigitaltransformation.com';
+export const SUPPORT = (import.meta.env?.VITE_SUPPORT_EMAIL as string | undefined) || 'spades@sedigitaltransformation.com';
 
 export const TOPICS: Topic[] = [
   { id: 'hello', title: 'Hi', keys: ['hi', 'hello', 'hey', 'yo', 'sup', 'good morning', 'good evening'],
@@ -89,7 +90,7 @@ export const TOPICS: Topic[] = [
     answer: 'No problem: collect the free daily gift and spin the bonus wheel first. If you still need more, tap any table you can\'t afford and the store opens showing exactly how many coins you\'re missing.',
     actions: [{ label: 'Open coin store', action: 'store-coins' }], related: ['coins-free'] },
   { id: 'refund', title: 'Purchase problems', keys: ['refund', 'charged', 'didnt get', "didn't get", 'missing coins', 'purchase failed', 'payment failed', 'not received'],
-    answer: 'Purchases normally appear within a few seconds of paying. If something is missing, refresh the game: delivered purchases are picked up automatically. Still missing? Contact support' + (SUPPORT ? ` at ${SUPPORT}` : ' through the site owner') + ' with the time of the purchase.',
+    answer: 'Purchases normally appear within a few seconds of paying. If something is missing, refresh the game: delivered purchases are picked up automatically. Still missing? Contact support at {email} with the time of the purchase.',
     related: ['coins-buy', 'support'] },
   { id: 'chat-pass', title: 'Chat Pass', keys: ['chat', 'chat pass', 'cant chat', "can't chat", 'cant i chat', "can't i chat", 'chat at the table', 'chat with', 'message', 'talk', 'type', 'locked', 'send message', 'emoji', 'quick phrase'],
     answer: 'Quick phrases (Hello, Good luck, Nice try…) and emoji are free for everyone — tap the chat button at the table. Typing your own messages needs a Chat Pass: $0.99 for 1 day, $2.99 for 30 days, or $9.99 for life (VIP includes it). Use the CHAT switch to turn other players\' messages off.',
@@ -120,14 +121,20 @@ export const TOPICS: Topic[] = [
     answer: 'Windows/Mac (Chrome or Edge): click the install icon in the address bar, or Settings → Install app. iPad/iPhone (Safari): Share → Add to Home Screen. Android (Chrome): menu → Install app. Turn your phone sideways for the best table view.',
     related: ['account'] },
   { id: 'support', title: 'Contact support', keys: ['support', 'help me', 'contact', 'email', 'bug', 'problem', 'report', 'cheat', 'cheating', 'abuse', 'human', 'owner', 'admin'],
-    answer: SUPPORT ? `You can reach support at ${SUPPORT}. Include your player name and what happened.` : 'I can answer most questions about the game. For anything else (a bug, a payment problem, reporting a player), contact the site owner and include your player name and what happened.',
+    answer: 'You can reach support at {email}. Include your player name and what happened.',
     related: ['refund', 'disconnect'] },
 ];
 
 const STARTERS = ['rules', 'coins-free', 'private', 'chat-pass', 'bidding', 'leaderboard'];
 
 // ---- matching ----
-const norm = (s: string) => s.toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+// Works for Latin text (accents ignored, so "cómo" = "como") and for Devanagari (matras are kept).
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’']/g, "'").replace(/[^\p{L}\p{M}\p{N}' ]+/gu, ' ').replace(/\s+/g, ' ').trim();
+/** Extra search words a language file may add for a topic, so players can ask in their own language. */
+function extraKeys(id: string): string[] {
+  const raw = tr('__keys:' + id);
+  return raw.startsWith('__keys:') ? [] : raw.split('|').map((k) => k.trim()).filter(Boolean);
+}
 const stem = (w: string) => w.replace(/'s$/, '').replace(/(ing|ed)$/, '').replace(/([^s])s$/, '$1');
 const words = (s: string) => norm(s).split(' ').filter(Boolean).map(stem);
 
@@ -137,7 +144,7 @@ export function findTopic(question: string): { topic: Topic | null; score: numbe
   let best: Topic | null = null, bestScore = 0;
   for (const t of TOPICS) {
     let score = 0;
-    for (const k of t.keys) {
+    for (const k of [...t.keys, ...extraKeys(t.id)]) {
       const nk = norm(k);
       if (nk.includes(' ')) { if (q.includes(nk)) score += 3; }
       else if (qw.has(stem(nk))) score += t.id === 'hello' || t.id === 'thanks' ? 0.8 : 1.5;
