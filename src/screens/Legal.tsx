@@ -4,21 +4,21 @@ import { useEffect } from 'react';
 const env = (import.meta as { env?: Record<string, string | undefined> }).env ?? {};
 const OPERATOR = env.VITE_OPERATOR_NAME || 'SE Digital Transformation';
 const BY = OPERATOR ? ` (operated by ${OPERATOR})` : '';
-const EMAIL = env.VITE_SUPPORT_EMAIL || 'support@sedigitaltransformation.com';
+const EMAIL = env.VITE_SUPPORT_EMAIL || 'spades@sedigitaltransformation.com';
 const UPDATED = 'October 17, 2026';
 
-export function LegalPage({ page }: { page: 'privacy' | 'terms' | 'delete' }) {
-  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : page === 'terms' ? 'Terms of Service · Spade Haven' : 'Delete your data · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
-  const home = () => { if (/^\/(privacy|terms|data-deletion)\/?$/.test(window.location.pathname)) window.location.href = '/'; else window.location.hash = ''; };
+export function LegalPage({ page }: { page: 'privacy' | 'terms' | 'delete' | 'contact' }) {
+  useEffect(() => { window.scrollTo(0, 0); document.title = page === 'privacy' ? 'Privacy Policy · Spade Haven' : page === 'terms' ? 'Terms of Service · Spade Haven' : page === 'contact' ? 'Contact us · Spade Haven' : 'Delete your data · Spade Haven'; return () => { document.title = 'Spade Haven'; }; }, [page]);
+  const home = () => { if (/^\/(privacy|terms|data-deletion|contact)\/?$/.test(window.location.pathname)) window.location.href = '/'; else window.location.hash = ''; };
   const back = () => { if (history.length > 1) history.back(); else home(); };
   return (
     <div className="legal-page">
       <header className="legal-top">
         <a href="/" className="legal-brand" onClick={(e) => { e.preventDefault(); home(); }}>♠ Spade Haven</a>
-        <nav><a href="/privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="/terms" className={page === 'terms' ? 'on' : ''}>Terms</a><button onClick={back}>Back</button></nav>
+        <nav><a href="/privacy" className={page === 'privacy' ? 'on' : ''}>Privacy</a><a href="/terms" className={page === 'terms' ? 'on' : ''}>Terms</a><a href="/contact" className={page === 'contact' ? 'on' : ''}>Contact</a><button onClick={back}>Back</button></nav>
       </header>
       <article className="legal-body">
-        {page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : <DeleteData />}
+        {page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : page === 'contact' ? <Contact /> : <DeleteData />}
         <p className="legal-meta">Last updated {UPDATED}.{EMAIL && <> Questions: <a href={`mailto:${EMAIL}`}>{EMAIL}</a></>}</p>
       </article>
     </div>
@@ -34,13 +34,17 @@ function Privacy() {
       <li><b>Game profile:</b> your player name, avatar (and your profile photo, if you upload one — it is shown to other players at your table and on leaderboards), coins, level, game results and settings. Guest accounts receive an automatic name and a recovery code.</li>
       <li><b>Account details:</b> if you create an account, your email address (or the name and email your Google or Facebook account shares with us). Passwords are stored only as a secure one-way hash — we never see or store your actual password.</li>
       <li><b>Chat messages</b> you send at tables, which are relayed to the other players at that table and are not stored after the table closes.</li>
+      <li><b>Reports and suspensions:</b> if you report a player (from their profile card), we keep your report, your player name and the reason so the owner can review it. If an account is suspended for breaking the rules, we keep its name, email and the reason so it cannot simply return.</li>
       <li><b>Purchases:</b> when you buy coins or a Chat Pass, payment is handled by Stripe (or by Google Play / the App Store in the mobile apps). We receive a record of what you bought, not your full card details.</li>
+      <li><b>Anonymous usage counts:</b> simple counts of things like opening the game, finishing the tutorial or using a rematch, linked to a random ID rather than your name or email, so we can see what helps players. Nothing is recorded about what you do in a hand, and we skip this if your browser sends Do Not Track.</li>
       <li><b>Technical data:</b> basic server logs (such as IP address and time of request) used to keep the service running and to prevent abuse.</li>
     </ul>
     <h2>How we use it</h2>
     <p>To run games and leaderboards, keep your progress, deliver purchases, prevent cheating and abuse, and fix problems. We do not sell your personal information and we do not show third-party advertising.</p>
     <h2>Storage on your device</h2>
     <p>Your profile is saved in your browser's local storage so you stay signed in. Clearing your browser data removes it; guests can restore their account with their guest code.</p>
+    <p><b>Deleting your account:</b> open Settings, then “Table &amp; cards, guest code and more”, and choose “Delete my account”. This removes your account, progress, email, friends, picture and leaderboard entries straight away. We keep payment records for accounting, reports other players sent about you, and any suspension, so deleting an account does not lift a suspension. You can also email us from the Contact page and we will delete it for you.</p>
+    <p><b>Cookie:</b> the game sets one small cookie (<code>sh_dev</code>) containing a random code. It is not used for advertising or tracking across other sites. It is linked to your account only so that, if an account is suspended for breaking the rules, the same browser cannot immediately be used to create a new one. It lasts up to two years and you can delete it in your browser settings.</p>
     <h2>Retention and deletion</h2>
     <p>Account and leaderboard data is kept while your account is active. To delete your data, contact us{EMAIL ? <> at <a href={`mailto:${EMAIL}`}>{EMAIL}</a></> : ''} with your player name or guest code.</p>
     <h2>Children</h2>
@@ -50,12 +54,39 @@ function Privacy() {
   </>);
 }
 
+function Contact() {
+  const subject = encodeURIComponent('Spade Haven support');
+  return (<>
+    <h1>Contact us</h1>
+    <p>Questions, a missing purchase, a bug, or a problem with another player? We are happy to help.</p>
+    <h2>Email</h2>
+    <p><a href={`mailto:${EMAIL}?subject=${subject}`}>{EMAIL}</a></p>
+    <p>We usually reply within a few days.</p>
+    <h2>To help us help you, include</h2>
+    <ul>
+      <li>Your player name (or guest code) and the email you signed up with, if any.</li>
+      <li>What happened, and roughly when (date and time).</li>
+      <li>For a missing purchase: the time of the purchase and the email on the receipt.</li>
+      <li>A screenshot, if you can. Never send your password.</li>
+    </ul>
+    <h2>Other pages</h2>
+    <p>To delete your account and data, see <a href="/data-deletion">Delete your data</a>. See also our <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a>.</p>
+  </>);
+}
+
 function DeleteData() {
   const subject = encodeURIComponent('Delete my Spade Haven data');
   return (<>
     <h1>Delete your data</h1>
     <p>You can ask us to delete your Spade Haven account and the information we hold about you at any time.</p>
-    <h2>How to ask</h2>
+    <h2>Delete it yourself, right away</h2>
+    <ol>
+      <li>Open the game and tap the gear (Settings).</li>
+      <li>Open “Table &amp; cards, guest code and more”.</li>
+      <li>Choose “Delete my account”, type DELETE and confirm. Your account, progress, friends, picture and leaderboard entries are removed immediately.</li>
+    </ol>
+    <p>This works for guests and for accounts created with email, Google or Facebook.</p>
+    <h2>Or ask us to do it</h2>
     <ol>
       <li>Email <a href={`mailto:${EMAIL}?subject=${subject}`}>{EMAIL}</a> from the address you signed up with (or tell us your player name or guest code).</li>
       <li>Put “Delete my Spade Haven data” in the subject.</li>
@@ -86,7 +117,7 @@ function Terms() {
       <li>Profile photos must be appropriate for all players and must not show someone else without their permission. We remove photos that break this rule.</li>
       <li>Players who repeatedly miss turns are removed from the table automatically.</li>
     </ul>
-    <p>We may suspend accounts, remove coins or reset leaderboard positions that break these rules.</p>
+    <p>Foul language in typed chat is hidden automatically. We may turn off a player's chat, suspend accounts, remove coins or reset leaderboard positions that break these rules.</p>
     <h2>Accounts</h2>
     <p>Keep your guest code safe — it is the only way to restore a guest account on a new device.</p>
     <h2>The service</h2>

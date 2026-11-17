@@ -17,10 +17,14 @@ export interface Profile {
   friends: Friend[];
   card: { last5: string; nil: number; nilMade: number; blind: number; blindMade: number; rings: Record<string, number> };
   lastDaily: string | null;     // free gift (yyyy-mm-dd)
+  streak?: number;              // days in a row the daily gift was collected
+  muted?: { id: string; name: string }[];   // players this player has muted (their chat is hidden on this device)
+  missions?: { day: string; prog: number[]; claimed: boolean[] }; // today's 3 daily missions
+  tutorial?: 'done' | 'skipped'; // the 60-second tutorial: finished (reward paid once) or skipped
   lastSpin: number;             // ms
   lastAd: number;               // ms
   claimed: string[];            // achievement ids
-  settings: { sound: boolean; fast: boolean; vibrate: boolean; chatOff?: boolean; music?: boolean; track?: string };
+  settings: { sound: boolean; fast: boolean; vibrate: boolean; fourColor?: boolean; bigCards?: boolean; chatOff?: boolean; calm?: boolean; music?: boolean; track?: string };
   lastTable: { bet: number; minPoints: number; maxPoints: number } | null;
   chatUntil: number;            // Chat Pass: ms epoch it runs until, -1 = lifetime, 0 = none
   vipUntil: number;             // VIP Club: ms epoch it runs until (paid on Stripe), 0 = none
@@ -28,11 +32,78 @@ export interface Profile {
   guestCode: string | null;     // guest restore code shown to the player, e.g. K7QM-4XPT
   updatedAt: number;            // last local change (ms), used to sync with the server
   theme: string | null;         // chosen table & card theme (see themes.ts)
+  avatarOwned?: string[];       // avatar-designer parts bought with coins, e.g. 'hair:2'
 }
 
 // v2: every player starts over with a brand-new account (old v1 data is ignored and removed)
 const KEY = 'spade-royale-profile-v2';
 try { localStorage.removeItem('spade-royale-profile-v1'); } catch { /* storage unavailable */ }
+
+/** Daily gift: coins for each day of a 7-day streak (day 7 is the big one), then it starts over. */
+export const DAILY_REWARDS = [2000, 2500, 3000, 3500, 4000, 5000, 10000];
+/** The player's own calendar day (yyyy-mm-dd), so daily gifts, streaks and missions reset at their local midnight, not at UTC midnight. */
+export const dayStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const prevDay = (d: Date) => dayStr(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
+export function dailyState(p: { lastDaily: string | null; streak?: number }, now = new Date()) {
+  const today = dayStr(now);
+  const yesterday = prevDay(now);
+  // Dates saved before this change were UTC days, which can be one day ahead of local time: a date at or after today counts as already collected.
+  const can = !p.lastDaily || p.lastDaily < today;
+  const kept = !!p.lastDaily && p.lastDaily >= yesterday;            // collected today or yesterday: the streak is alive
+  const current = kept ? p.streak ?? 1 : 0;                           // days collected in a row so far
+  const next = can ? current + 1 : current;                           // the day the next/today's gift belongs to
+  const dayIdx = (Math.max(1, next) - 1) % DAILY_REWARDS.length;
+  return { today, can, current, next, dayIdx, reward: DAILY_REWARDS[dayIdx] };
+}
+
+/** Daily missions: 3 a day (one from each slot, rotating by date). Progress lives in the profile and is counted only when a game or trick ends. */
+export type MissionKind = 'play' | 'win' | 'online' | 'tricks' | 'nil';
+export interface MissionDef { kind: MissionKind; goal: number; reward: number; label: string }
+const SLOTS: MissionDef[][] = [
+  [{ kind: 'play', goal: 2, reward: 1500, label: 'Finish 2 games' }, { kind: 'play', goal: 3, reward: 2500, label: 'Finish 3 games' }],
+  [{ kind: 'win', goal: 1, reward: 2500, label: 'Win a game' }, { kind: 'online', goal: 1, reward: 2000, label: 'Finish an online game' }],
+  [{ kind: 'tricks', goal: 12, reward: 2000, label: 'Win 12 tricks' }, { kind: 'nil', goal: 1, reward: 3000, label: 'Make a nil bid' }],
+];
+export function missionDefs(day = dayStr(new Date())): MissionDef[] {
+  const n = Math.floor(Date.parse(day) / 86_400_000);
+  return SLOTS.map((s, i) => s[(n + i) % s.length]);
+}
+/** Today's mission day. Progress saved under a later (old UTC) date is kept, so nothing is lost or claimed twice when the switch to local days happens. */
+function missionDay(p: { missions?: Profile['missions'] }) {
+  const today = dayStr(new Date());
+  return p.missions && p.missions.day > today ? p.missions.day : today;
+}
+export function missionsToday(p: { missions?: Profile['missions'] }) {
+  const day = missionDay(p);
+  const m = p.missions?.day === day ? p.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
+  return missionDefs(day).map((d, i) => ({ ...d, i, prog: m.prog[i] ?? 0, done: (m.prog[i] ?? 0) >= d.goal, claimed: !!m.claimed[i] }));
+}
+export function claimableMissions(p: { missions?: Profile['missions'] }) { return missionsToday(p).filter((m) => m.done && !m.claimed).length; }
+/** Count progress toward today's missions. Does nothing (no re-render) when no mission uses this kind. */
+export function bumpMission(kind: MissionKind, n = 1) {
+  const day = missionDay(profile.get());
+  const defs = missionDefs(day);
+  if (!defs.some((d) => d.kind === kind)) return;
+  profile.set((x) => {
+    const m = x.missions?.day === day ? x.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
+    return { missions: { ...m, prog: m.prog.map((v, i) => (defs[i].kind === kind ? Math.min(defs[i].goal, v + n) : v)) } };
+  });
+}
+export function claimMission(i: number): number {
+  const day = missionDay(profile.get());
+  const row = missionsToday(profile.get())[i];
+  if (!row || !row.done || row.claimed) return 0;
+  profile.set((x) => {
+    const m = x.missions?.day === day ? x.missions : { day, prog: [0, 0, 0], claimed: [false, false, false] };
+    return { coins: x.coins + earnCoins('mission', row.reward, `${day}:${i}`), missions: { ...m, claimed: m.claimed.map((c, j) => (j === i ? true : c)) } };
+  });
+  return row.reward;
+}
+
+/** Mute list: a muted player's chat messages and speech bubbles are hidden for this player only. */
+export const isMutedId = (p: { muted?: Profile['muted'] }, id: string | undefined) => !!id && !!p.muted?.some((m) => m.id === id);
+export function mutePlayer(id: string, name: string) { profile.set((x) => ({ muted: [...(x.muted ?? []).filter((m) => m.id !== id), { id, name }].slice(-100) })); }
+export function unmutePlayer(id: string) { profile.set((x) => ({ muted: (x.muted ?? []).filter((m) => m.id !== id) })); }
 
 export function weekKey(d = new Date()) {
   const start = new Date(d);
@@ -91,6 +162,13 @@ const subs = new Set<() => void>();
 const beforeReset = new Set<(p: Profile) => void>();
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* ignore */ } }
 
+/** Server-side coins: when the server holds the balance, free coins and purchases are asked for from the server (it checks its limits and sends the new balance back). wallet.ts wires this up. */
+export const coinLink: { on: boolean; earn: (kind: string, amount: number, key: string) => void; spend: (amount: number) => void } = { on: false, earn: () => {}, spend: () => {} };
+/** Coins to add to the local balance for a free reward: all of it normally, none when the server pays it. */
+export const earnCoins = (kind: string, amount: number, key = '') => { if (!coinLink.on) return amount; coinLink.earn(kind, amount, key); return 0; };
+/** Coins to take off the local balance for something bought: the server is told too when it holds the balance (its answer corrects the figure). */
+export const spendCoins = (amount: number) => { if (coinLink.on) coinLink.spend(amount); return amount; };
+
 export const profile = {
   get: () => state,
   set(patch: Partial<Profile> | ((p: Profile) => Partial<Profile>)) {
@@ -138,7 +216,7 @@ export const CITY_TIERS: { city: string; min: number }[] = [
   { city: 'Seattle', min: 20_000 }, { city: 'Las Vegas', min: 100_000 }, { city: 'London', min: 500_000 }, { city: 'Monaco', min: 2_000_000 },
 ];
 export const cityForBet = (bet: number) => ([...CITY_TIERS].reverse().find((t) => bet >= t.min) ?? CITY_TIERS[0]).city;
-export const BET_STEPS = [100, 250, 500, 1_000, 2_500, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000];
+export const BET_STEPS = [100, 250, 500, 1_000, 2_500, 5_000, 10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000];
 export const MAX_STEPS = [100, 150, 200, 250, 300, 350, 400, 500];
 export const MIN_STEPS = [-100, -150, -200, -250, -300];
 export function suggestedBet(coins: number) {

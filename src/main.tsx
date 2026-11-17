@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initLang } from './lib/i18n';
 import '@fontsource/bebas-neue/latin-400.css';
 import '@fontsource/lobster/latin-400.css';
 import '@fontsource/rubik/latin-400.css';
@@ -9,11 +10,13 @@ import '@fontsource/rubik/latin-700.css';
 import '@fontsource/rubik/latin-800.css';
 import './styles.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+void initLang().then(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  );
+});
 
 // Offline support + installability (Windows / macOS / iPadOS / Android browsers)
 // (The Crows Haven site has no game server — VITE_OFFLINE=1 — but still installs and works offline, so it registers too.)

@@ -1,5 +1,6 @@
 // Spade Haven multiplayer server: public tables, private tables with invite codes,
 // table chat, bots filling empty seats, and turn timers. Run: npm run server
+import { randomBytes } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { readFileSync, existsSync, statSync } from 'fs';
@@ -7,32 +8,101 @@ import { join, extname, normalize } from 'path';
 import { TableRuntime } from '../shared/runtime';
 import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
-import { CITIES, prizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
-import { board, credit, initLeaderboard, touch } from './leaderboard';
-import { getRecord, putRecord, storageKind } from './storage';
+import { CITIES, prizeFor, secondPrizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
+import { board, credit, debit, initLeaderboard, touch } from './leaderboard';
+import { deleteRecord, getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
-import { checkName, createGuest, guestName, loadAccount, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
+import { productById } from '../shared/products';
+import { addCoins, balanceOf, earn, ensureWallet, escrowBet, initWallet, refundAllMine, refundEscrow, settleEscrow, spend, takeUpTo, walletClosing, walletOn } from './wallet';
+import { checkName, createGuest, guestName, loadAccount, savedCoins, renameAccount, restoreByCode, saveProgress, verifyKey } from './accounts';
 import * as friends from './friends';
 import { AuthError, authConfig, changePassword, facebookSignIn, forgotPassword, googleSignIn, resetPassword, signIn, signUp } from './auth';
+import { adminApi } from './admin';
+import { trackApi } from './analytics';
+import { deleteAccount } from './deleteAccount';
+import { mailConfigured, sendMail } from './mail';
+import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
+import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
-import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
+import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, isVip, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
 
 const PORT = Number(process.env.PORT || 8787);
 const DIST = join(process.cwd(), 'dist');
 // Public tables wait this long for real people before computer players take the empty seats.
-const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 15_000);
+const PUBLIC_FILL_MS = Number(process.env.FILL_MS || 8_000);
 const TURN_MS = Number(process.env.TURN_MS || 12000);
 const MAX_MISSED = Number(process.env.MAX_MISSED_TURNS || 3);
 
-interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>> }
+interface Room { id: string; code: string | null; hostId: string; rt: TableRuntime; clients: Set<Client>; createdAt: number; away?: Map<string, ReturnType<typeof setTimeout>>;
+  /** game over: who has asked for / agreed to a rematch, and when the offer ends */
+  rematch?: { votes: Set<string>; deadline: number; timer: ReturnType<typeof setTimeout>; done?: boolean };
+  /** a rematch table: each person who said yes has their old seat held until they sit down */
+  reserved?: Map<string, number>;
+  /** people watching this public game (they have no seat and never see a hand) */
+  watchers?: Set<Client>;
+  /** players whose bet the server is holding for this table (server-side coins) */
+  paid?: Set<string> }
+const MAX_WATCHERS = 30;
 /** A player whose connection drops mid-game keeps their seat this long (the turn timer plays for them meanwhile). */
 const REJOIN_MS = 45_000;
+/** A rematch offer stays open this long; a rematch table waits this long for everyone to sit before computer players take the held seats. */
+const REMATCH_MS = 20_000;
 /** Players who left (or were dropped from) a game in progress: their bet is lost, so a late return must not refund it. Only a table that vanished (server restart) refunds. */
 const forfeits = new Set<string>();
 const forfeit = (playerId: string, tableId: string) => { if (forfeits.size > 20_000) forfeits.clear(); forfeits.add(`${playerId}:${tableId}`); };
 const inProgress = (r: Room) => r.rt.g.phase !== 'waiting' && r.rt.g.phase !== 'gameOver';
+/** A player who leaves or drops out of a game in progress loses their bet on the boards too (their seat then goes to a computer player). */
+const forfeitBoards = (r: Room, playerId: string) => {
+  const g = r.rt.g;
+  const i = g.seats.findIndex((x) => x && !x.bot && x.id === playerId);
+  if (i < 0) return;
+  const nil = g.bids?.[i] === 0;   // bid nil or blind nil this round and walked away: 1.5x the bet comes off the boards
+  debit(g.seats[i]!, nil ? Math.round(g.settings.bet * 1.5) : g.settings.bet);
+};
+
+/** Tell every connection of this player what their server-side balance is. */
+function pushWallet(id: string, coins: number | null, note?: string) {
+  if (coins === null) return;
+  for (const c of clients) if (c.player?.id === id) send(c, { t: 'wallet', coins, ...(note ? { note } : {}) });
+}
+/** Work out (once, from their saved account) and send a player's balance. */
+async function walletHello(c: Client) {
+  const p = c.player;
+  if (!p || !walletOn()) return;
+  await c.auth;
+  if (c.player !== p || !c.verified) return;
+  const coins = await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+  pushWallet(p.id, coins);
+}
+/** A player leaves a table (or is dropped from it). Before the game starts their bet is handed back; after it started it is lost, plus half a bet more for walking out on a nil. */
+function walletLeave(r: Room, id: string) {
+  if (!r.paid?.has(id) || walletClosing()) return;
+  r.paid.delete(id);
+  const g = r.rt.g;
+  if (g.phase === 'gameOver') return;
+  const seat = g.seats.findIndex((x) => x && !x.bot && x.id === id);
+  const extra = g.phase !== 'waiting' && seat >= 0 && g.bids?.[seat] === 0 ? Math.round(g.settings.bet * 0.5) : 0;
+  const waiting = g.phase === 'waiting';
+  void (async () => {
+    if (waiting) pushWallet(id, await refundEscrow(id));
+    else { await settleEscrow(id); if (extra) pushWallet(id, await takeUpTo(id, extra)); }
+  })().catch((e) => console.error('wallet leave', e));
+}
+/** The game is over: pay the winners (and 2nd place in solo, who gets the bet back) and close the held bets. */
+function walletPayout(r: Room, winnerSeats: Set<number>, second: number) {
+  if (!r.paid?.size || walletClosing()) return;
+  const g = r.rt.g;
+  const ids = [...r.paid]; r.paid.clear();
+  for (const id of ids) void (async () => {
+    const seat = g.seats.findIndex((x) => x && !x.bot && x.id === id);
+    const prize = seat >= 0 && winnerSeats.has(seat) ? Math.round(prizeFor(g.settings) * (isVip(id) ? 1.1 : 1)) : seat >= 0 && seat === second ? secondPrizeFor(g.settings) : 0;
+    const coins = prize > 0 ? await addCoins(id, prize) : await balanceOf(id);
+    await settleEscrow(id);
+    pushWallet(id, coins);
+  })().catch((e) => console.error('wallet payout', e));
+}
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
-interface Client { ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[] }
+interface Client { watching?: { room: Room; unsub: () => void }; ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[]; seating?: boolean }
 
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
@@ -96,7 +166,7 @@ function summaries(): TableSummary[] {
 
 function sanitize(s: TableSettings): TableSettings {
   const mode: Mode = s.mode === 'solo' ? 'solo' : 'partners';
-  const bet = Math.max(100, Math.min(10_000_000, Math.round(Number(s.bet) || 100)));
+  const bet = Math.max(100, Math.min(2_000_000, Math.round(Number(s.bet) || 100)));
   const maxPoints = [100, 150, 200, 250, 300, 350, 400, 500].includes(s.maxPoints) ? s.maxPoints : 100;
   const minPoints = [-100, -150, -200, -250, -300].includes(s.minPoints) ? s.minPoints : -100;
   return { mode, bet, maxPoints, minPoints, city: String(s.city || 'New York').slice(0, 24), isPrivate: !!s.isPrivate };
@@ -112,7 +182,7 @@ function makeCode() {
 function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean): Room {
   const id = `t${++roomSeq}`;
   const rt = new TableRuntime({ ...settings, isPrivate }, {
-    hostId, fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
+    hostId, botSpeed: Number(process.env.BOT_SPEED || 1), fillBotsAfterMs: isPrivate ? null : PUBLIC_FILL_MS, turnTimeoutMs: TURN_MS, maxMissedTurns: MAX_MISSED,
     onInactive: (_seat, playerId) => {
       for (const c of room.clients) if (c.player?.id === playerId) {
         send(c, { t: 'kicked', reason: `You missed ${MAX_MISSED} turns this game, so you were disconnected from the table.` });
@@ -125,16 +195,69 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   rt.onGameOver = (g) => {
     // credit real winners on the weekly leaderboard (server-authoritative for online games)
     const prize = prizeFor(g.settings);
+    const winnerSeats = new Set<number>();
     for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
+      winnerSeats.add(seat);
       const s = g.seats[seat];
-      if (s && !s.bot) credit(s, prize);
+      if (s && !s.bot) credit(s, prize);   // the boards show the full prize a winner collects (a 50,000 partners game = 90,000)
     }
+    // real players on the losing side(s) lose their bet from the weekly and all-time totals
+    // solo: 2nd place gets their bet back (their client refunds it): no board credit and no board debit
+    const second = g.settings.mode === 'solo' && g.placements?.length > 1 && !winnerSeats.has(g.placements[1]) ? g.placements[1] : -1;
+    if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat) && seat !== second) debit(s, g.settings.bet); });
+    walletPayout(room, winnerSeats, second);
     setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);
   };
   return room;
 }
 
-function closeRoom(r: Room) { r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
+function stopWatching(c: Client, notify = false) {
+  const w = c.watching; if (!w) return;
+  w.unsub(); w.room.watchers?.delete(c); c.watching = undefined;
+  if (notify) send(c, { t: 'left' });
+}
+function closeRoom(r: Room) { for (const w of [...(r.watchers ?? [])]) { send(w, { t: 'tableGone' }); stopWatching(w); } if (r.rematch) clearTimeout(r.rematch.timer); r.rt.destroy(); rooms.delete(r.id); for (const t of r.away?.values() ?? []) clearTimeout(t); }
+
+/** The real players still on this finished table's screen, in seat order. */
+function presentHumans(r: Room) {
+  const seen = new Set<string>();
+  const out: { c: Client; id: string; seat: number }[] = [];
+  for (const c of r.clients) {
+    const id = c.player?.id;
+    if (!id || seen.has(id)) continue;
+    const seat = r.rt.g.seats.findIndex((s) => s?.id === id && !s.bot);
+    if (seat >= 0) { seen.add(id); out.push({ c, id, seat }); }
+  }
+  return out.sort((a, b) => a.seat - b.seat);
+}
+
+function broadcastRematch(r: Room, cancelled = false) {
+  const here = presentHumans(r);
+  const msg: ServerMsg = { t: 'rematch', votes: here.filter((h) => r.rematch?.votes.has(h.id)).map((h) => h.seat), humans: here.map((h) => h.seat), deadline: r.rematch?.deadline ?? 0, ...(cancelled ? { cancelled: true } : {}) };
+  for (const h of here) send(h.c, msg);
+}
+
+/** Everyone present said yes (or the offer ran out): build a private table with the same settings and hold each yes-voter's old seat. Computer players take the other seats. */
+function finishRematch(r: Room) {
+  if (!r.rematch || r.rematch.done) return;
+  clearTimeout(r.rematch.timer);
+  const voters = presentHumans(r).filter((h) => r.rematch!.votes.has(h.id));
+  if (voters.length < 2) { r.rematch = undefined; broadcastRematch(r, true); return; }
+  r.rematch.done = true;
+  // the deal moves on: the next yes-voter after the old host deals first
+  const oldHost = r.rt.g.seats.findIndex((s) => s?.id === r.hostId);
+  const order = voters.slice().sort((a, b) => ((a.seat - oldHost + 3) % 4) - ((b.seat - oldHost + 3) % 4));
+  const room2 = createRoom({ ...r.rt.g.settings, isPrivate: true }, order[0].id, true);
+  room2.reserved = new Map(voters.map((v) => [v.id, v.seat]));
+  room2.rt.seatBots([0, 1, 2, 3].filter((i) => !voters.some((v) => v.seat === i)));
+  for (const v of voters) send(v.c, { t: 'rematchTo', code: room2.code! });
+  // someone who never arrives: their held seat goes to a computer player so the others aren't left waiting; an empty table is dropped
+  setTimeout(() => {
+    room2.reserved = undefined;
+    if (room2.rt.humanCount() === 0) closeRoom(room2);
+    else if (room2.rt.g.phase === 'waiting') room2.rt.fillWithBots(400);
+  }, REMATCH_MS);
+}
 
 /** Connection dropped: during a game hold the seat for a while so the player can come back. */
 function dropped(c: Client) {
@@ -146,7 +269,7 @@ function dropped(c: Client) {
   clearTimeout(r.away.get(id));
   r.away.set(id, setTimeout(() => {
     r.away?.delete(id);
-    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) forfeit(id, r.id); r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
+    if (![...r.clients].some((x) => x.player?.id === id)) { if (inProgress(r)) { forfeit(id, r.id); forfeitBoards(r, id); } walletLeave(r, id); r.rt.removeHuman(id); if (r.rt.humanCount() === 0) closeRoom(r); }
   }, REJOIN_MS));
 }
 
@@ -158,19 +281,52 @@ function rejoin(c: Client, tableId: string) {
   clearTimeout(r.away?.get(id)); r.away?.delete(id);
   for (const other of [...r.clients]) if (other !== c && other.player?.id === id) { other.unsub?.(); r.clients.delete(other); other.room = null; }
   c.room = r; r.clients.add(c);
-  send(c, { t: 'joined', tableId: r.id, seat, code: r.code, host: r.hostId === id, settings: r.rt.g.settings });
+  send(c, { t: 'joined', tableId: r.id, seat, code: r.code, host: r.hostId === id, settings: r.rt.g.settings, ...(r.paid?.has(id) ? { wallet: true } : {}) });
   c.unsub = r.rt.subscribe(id, seat, (snap) => send(c, { t: 'snap', snap }));
+}
+
+/** Sits the player down. Returns the seat, or -1 (after telling them why). */
+function seatNow(c: Client, room: Room, paid: boolean): number {
+  const p = c.player!;
+  const held = room.reserved?.get(p.id);   // a rematch table keeps your old seat (and so your team) for you
+  // seats kept for the people from the last game are off limits to everyone else
+  const heldForOthers = held === undefined ? [...(room.reserved?.values() ?? [])] : [];
+  const seat = room.rt.addHuman(p, held, heldForOthers);
+  if (seat < 0) { send(c, { t: 'error', message: heldForOthers.length ? 'Those seats are being held for the players from the last game' : 'Table is full or already started' }); return -1; }
+  room.reserved?.delete(p.id);
+  if (paid) (room.paid ??= new Set()).add(p.id);
+  c.room = room;
+  room.clients.add(c);
+  send(c, { t: 'joined', tableId: room.id, seat, code: room.code, host: room.hostId === p.id, settings: room.rt.g.settings, ...(paid ? { wallet: true } : {}) });
+  c.unsub = room.rt.subscribe(p.id, seat, (snap) => send(c, { t: 'snap', snap }));
+  return seat;
 }
 
 function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
+  stopWatching(c);
   leave(c, false);
-  const seat = room.rt.addHuman(c.player);
-  if (seat < 0) return send(c, { t: 'error', message: 'Table is full or already started' });
-  c.room = room;
-  room.clients.add(c);
-  send(c, { t: 'joined', tableId: room.id, seat, code: room.code, host: room.hostId === c.player.id, settings: room.rt.g.settings });
-  c.unsub = room.rt.subscribe(c.player.id, seat, (snap) => send(c, { t: 'snap', snap }));
+  if (!walletOn()) { seatNow(c, room, false); return; }
+  // server-side coins: the bet is taken now and held until the game ends
+  if (c.seating) return;
+  c.seating = true;
+  const p = c.player;
+  void (async () => {
+    await c.auth;
+    if (c.player !== p || !c.verified) { send(c, { t: 'error', message: 'Your account could not be verified. Close and reopen the game, then try again.' }); return; }
+    const bet = room.rt.g.settings.bet;
+    await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+    const left = await escrowBet(p.id, bet, room.id);
+    if (left < 0) {
+      send(c, { t: 'error', message: left === -2 ? 'You are already sitting at a table' : 'You do not have enough coins for this table' });
+      pushWallet(p.id, await balanceOf(p.id));
+      return;
+    }
+    const ok = c.player === p && c.ws.readyState === WebSocket.OPEN && rooms.get(room.id) === room && room.rt.g.phase === 'waiting' && !c.room;
+    const seat = ok ? seatNow(c, room, true) : -1;
+    if (seat < 0) { pushWallet(p.id, await refundEscrow(p.id)); if (!ok) send(c, { t: 'error', message: 'That table is no longer available' }); return; }
+    pushWallet(p.id, left);
+  })().catch((e) => { console.error('seat', e); send(c, { t: 'error', message: 'Could not join the table. Try again.' }); }).finally(() => { c.seating = false; });
 }
 
 function leave(c: Client, notify = true) {
@@ -178,9 +334,10 @@ function leave(c: Client, notify = true) {
   if (!r) return;
   c.unsub?.(); c.unsub = null;
   r.clients.delete(c);
-  if (c.player) { if (inProgress(r)) forfeit(c.player.id, r.id); r.rt.removeHuman(c.player.id); }
+  if (c.player) { if (inProgress(r)) { forfeit(c.player.id, r.id); forfeitBoards(r, c.player.id); } walletLeave(r, c.player.id); r.rt.removeHuman(c.player.id); }
   c.room = null;
   if (r.rt.humanCount() === 0) closeRoom(r);
+  else if (r.rematch && !r.rematch.done) { const here = presentHumans(r); if (here.length >= 2 && here.every((h) => r.rematch!.votes.has(h.id))) finishRematch(r); else if (here.length < 2) { clearTimeout(r.rematch.timer); r.rematch = undefined; } }   // someone left the result screen: start if the rest already agreed
   if (notify) send(c, { t: 'left' });
 }
 
@@ -189,6 +346,7 @@ function handle(c: Client, m: ClientMsg) {
     case 'hello': {
       const prevId = c.player?.id;
       const p: PlayerHello = { id: String(m.player.id).slice(0, 64), name: String(m.player.name || 'Player').slice(0, 20), avatar: cleanAvatar(m.player.avatar), level: Number(m.player.level) || 1, chat: !!m.player.chat, stats: cleanStats(m.player.stats) };
+      if (isBanned(p.id)) { c.player = null; send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* already closed */ } }, 300); return; }
       c.player = p;
       c.verified = false;
       guestName(p.id).then((n) => { if (n && c.player === p) p.name = n; if (c.player === p) touch(p); });
@@ -206,13 +364,61 @@ function handle(c: Client, m: ClientMsg) {
       })().catch((e) => console.error('friends sign-in', e));
       c.auth = auth;
       if (prevId && prevId !== p.id) void presenceChanged(prevId); // this connection switched to another player
-      return send(c, { t: 'welcome', online: onlineCounts() });
+      void walletHello(c).catch((e) => console.error('wallet hello', e));
+      return send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() });
+    }
+    case 'wallet': return void walletHello(c).catch((e) => console.error('wallet', e));
+    case 'earn': case 'spend': {
+      const p = c.player;
+      if (!p || !walletOn() || walletClosing()) return;
+      void (async () => {
+        await c.auth;
+        if (c.player !== p || !c.verified) return;
+        await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+        if (m.t === 'earn') {
+          const r = await earn(p.id, String(m.kind), Number(m.amount), String(m.key ?? ''));
+          if ('error' in r) { pushWallet(p.id, await balanceOf(p.id), r.error); console.log(`wallet: refused ${m.kind} ${Number(m.amount)} for ${p.id.slice(0, 8)}: ${r.error}`); }
+          else pushWallet(p.id, r.coins);
+        } else {
+          const left = await spend(p.id, Number(m.amount));
+          pushWallet(p.id, left ?? await balanceOf(p.id), left === null ? 'Not enough coins' : undefined);
+        }
+      })().catch((e) => console.error('wallet op', e));
+      return;
     }
     case 'friendRequest': case 'friendRespond': case 'friendRemove': case 'friendCancel':
       void friendOp(c, m);
       return;
+    case 'rematch': {
+      const r = c.room, id = c.player?.id;
+      if (!r || !id || r.rt.g.phase !== 'gameOver' || r.rematch?.done) return;
+      if (!presentHumans(r).some((h) => h.id === id)) return;
+      if (!r.rematch) r.rematch = { votes: new Set(), deadline: Date.now() + REMATCH_MS, timer: setTimeout(() => finishRematch(r), REMATCH_MS) };
+      r.rematch.votes.add(id);
+      const here = presentHumans(r);
+      if (here.length >= 2 && here.every((h) => r.rematch!.votes.has(h.id))) return finishRematch(r);   // everyone said yes: start now
+      return broadcastRematch(r);
+    }
+    case 'ping':
+      return send(c, { t: 'pong' });
     case 'list':
       return send(c, { t: 'tables', tables: summaries(), online: onlineCounts() });
+    case 'watch': {
+      if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
+      const r = rooms.get(String(m.tableId));
+      // only public games that are under way; never a private table, never your own table
+      if (!r || r.code || r.rt.g.phase === 'waiting' || r.rt.humanCount() === 0) return send(c, { t: 'error', message: 'That game is not available to watch' });
+      if (c.room) return send(c, { t: 'error', message: 'Leave your table first' });
+      stopWatching(c);
+      r.watchers ??= new Set();
+      if (r.watchers.size >= MAX_WATCHERS) return send(c, { t: 'error', message: 'Too many people are watching this game' });
+      r.watchers.add(c);
+      send(c, { t: 'watching', tableId: r.id, settings: r.rt.g.settings });
+      // seat -1: the view has no hand and the other hands are never sent
+      c.watching = { room: r, unsub: r.rt.subscribe(`watch:${c.player.id}:${r.watchers.size}:${Date.now()}`, -1, (snap) => send(c, { t: 'snap', snap })) };
+      return;
+    }
+    case 'unwatch': return stopWatching(c, true);
     case 'quick': {
       const s = sanitize(m.settings);
       const match = [...rooms.values()].find((r) => !r.code && r.rt.g.phase === 'waiting' && r.rt.g.seats.some((x) => !x) &&
@@ -247,6 +453,7 @@ function handle(c: Client, m: ClientMsg) {
     }
     case 'chat': {
       if (!c.room || !c.player) return;
+      if (isMuted(c.player.id)) return send(c, { t: 'error', message: MUTED_MESSAGE });
       const isGift = String(m.text).startsWith('🎁:');
       // quick phrases and emoji are free; typed messages need a paid Chat Pass or VIP, checked against the server's purchase records
       const allowed = isGift || isFreeChat(String(m.text)) || hasChatPass(c.player.id) || (!paymentsEnabled() && process.env.ALLOW_TEST_PURCHASES === '1' && !!c.player.chat);
@@ -259,7 +466,16 @@ function handle(c: Client, m: ClientMsg) {
         c.chats.push(now);
       }
     }
-      return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), m.text);
+      let said = String(m.text);
+      if (!said.startsWith('🎁:') && !isFreeChat(said)) {
+        const f = cleanChat(said);
+        if (f.flagged) {
+          said = f.text;
+          if (strike(c.player.id, c.player.name, String(m.text))) return send(c, { t: 'error', message: MUTED_MESSAGE });
+          send(c, { t: 'error', message: 'Please keep the chat friendly — foul language is hidden, and repeating it turns your chat off' });
+        }
+      }
+      return c.room.rt.say(c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id), said);
     case 'gift': {
       if (!c.room || !c.player) return;
       const now = Date.now();
@@ -268,7 +484,13 @@ function handle(c: Client, m: ClientMsg) {
       c.gifts.push(now);
       const from = c.room.rt.g.seats.findIndex((s) => s?.id === c.player!.id);
       if (from < 0) return;
-      c.room.rt.gift(from, m.to === 'all' ? 'all' : Number(m.to), String(m.gift).slice(0, 30));
+      const send_ = () => { if (c.room) c.room.rt.gift(from, m.to === 'all' ? 'all' : Number(m.to), String(m.gift).slice(0, 30)); };
+      if (!walletOn()) { send_(); return; }
+      // server-side coins: the gift is paid for first (the price comes from the app, and only ever hurts the buyer)
+      const cost = Math.round(Number(m.cost));
+      if (!(cost >= 1)) return;
+      const me = c.player;
+      void (async () => { const left = await spend(me.id, cost); if (left === null) { pushWallet(me.id, await balanceOf(me.id), 'Not enough coins for that gift'); return; } pushWallet(me.id, left); send_(); })().catch((e) => console.error('gift', e));
       return;
     }
     case 'leave':
@@ -291,7 +513,7 @@ function cleanStats(v: unknown): PublicStats | undefined {
 }
 
 /** Only built-in avatar keys or uploaded photo ids are passed on to other players. */
-function cleanAvatar(v: unknown) { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : 'a1'; }
+function cleanAvatar(v: unknown) { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|u:[a-f0-9]{24}|c:[0-9a-z]{8})$/.test(s) ? s : 'a1'; }
 
 // ---- profile photos ----
 const photoCache = new Map<string, Buffer>();
@@ -328,6 +550,14 @@ async function photoApi(req: import('http').IncomingMessage, res: import('http')
 const MIME: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif', '.mp3': 'audio/mpeg', '.txt': 'text/plain', '.xml': 'application/xml', '.woff': 'font/woff', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 // ---- leaderboard API ----
 const lastReport = new Map<string, number>();
+/** A random cookie that tells browsers apart, so a suspended player can't simply start a new guest account. */
+function deviceOf(req: import('http').IncomingMessage, res: import('http').ServerResponse): string {
+  const have = /(?:^|;\s*)sh_dev=([a-f0-9]{32})/.exec(String(req.headers.cookie || ''))?.[1];
+  if (have) return have;
+  const dev = randomBytes(16).toString('hex');
+  res.setHeader('Set-Cookie', `sh_dev=${dev}; Max-Age=63072000; Path=/; HttpOnly; SameSite=Lax; Secure`);
+  return dev;
+}
 function json(res: import('http').ServerResponse, code: number, body: unknown) {
   res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET, POST, PUT, OPTIONS', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -335,12 +565,26 @@ function json(res: import('http').ServerResponse, code: number, body: unknown) {
 function api(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
   const url = new URL(req.url || '/', 'http://x');
   if (req.method === 'OPTIONS') return json(res, 204, null);
+  if (url.pathname.startsWith('/api/admin')) return void adminApi(req, res, url, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim(), (id) => { for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); send(c, { t: 'banned', message: SUSPENDED_MESSAGE }); setTimeout(() => { try { c.ws.close(); } catch { /* closed */ } }, 300); } }, () => { for (const c of clients) { send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() }); void walletHello(c).catch(() => {}); } }).catch(() => { try { res.writeHead(500); res.end(); } catch { /* ignore */ } });
+  if (req.method === 'POST' && url.pathname === '/api/report-player') return void reportPlayerApi(req, res);
+  if (url.pathname === '/api/track') return void trackApi(req, res, String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim());
   if (url.pathname.startsWith('/api/guest')) return guestApi(req, res, url);
   if (url.pathname.startsWith('/api/photo')) return photoApi(req, res, url);
   if (url.pathname.startsWith('/api/auth')) return authApi(req, res, url);
   if (url.pathname.startsWith('/api/referral')) return referralApi(req, res, url);
   if (req.method === 'GET' && url.pathname === '/api/payments') return json(res, 200, { enabled: paymentsEnabled(), provider: paymentProvider() });
-  if (req.method === 'GET' && url.pathname === '/api/purchases') return json(res, 200, claim(String(url.searchParams.get('id') || '').slice(0, 64)));
+  if (req.method === 'GET' && url.pathname === '/api/purchases') {
+    const id = String(url.searchParams.get('id') || '').slice(0, 64);
+    const out = claim(id) as { grants: { productId: string; session: string }[] };
+    // server-side coins: a coin pack is added to the wallet here (with the VIP bonus), so the device is only told about the other items
+    const packs = walletOn() ? out.grants.filter((g) => productById(g.productId)?.kind === 'coins') : [];
+    if (!packs.length) return json(res, 200, out);
+    const vip = isVip(id);
+    const total = packs.reduce((t, g) => { const c = productById(g.productId)?.coins ?? 0; return t + c + (vip ? Math.round(c * 0.2) : 0); }, 0);
+    addCoins(id, total).then((coins) => { pushWallet(id, coins); json(res, 200, { ...out, grants: out.grants.filter((g) => !packs.includes(g)), credited: total }); })
+      .catch((e) => { console.error(`wallet: could not add ${total} purchased coins to ${id} — add them by hand`, e); json(res, 500, { error: 'try again' }); });
+    return;
+  }
   if (req.method === 'POST' && (url.pathname === '/api/checkout' || url.pathname === '/api/stripe-webhook' || url.pathname === '/api/paypal/capture' || url.pathname === '/api/stripe/confirm')) {
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 200_000) req.destroy(); });
@@ -373,13 +617,15 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         const b = JSON.parse(raw);
         const id = String(b.id || '').slice(0, 64);
         const bet = Number(b.bet), prize = Number(b.prize);
+        const lost = b.lost === true;
         const mode: Mode = b.mode === 'solo' ? 'solo' : 'partners';
         const max = prizeFor({ mode, bet }) * 1.1 + 1;
         const now = Date.now();
-        if (!id || !(bet >= 100 && bet <= 5_000_000) || !(prize > 0 && prize <= max)) return json(res, 400, { error: 'invalid result' });
-        if (now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });
-        lastReport.set(id, now);
-        guestName(id).then((gn) => credit({ id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }, prize));
+        if (!id || !(bet >= 100 && bet <= 2_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
+        if (!lost && now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });   // wins are throttled; a loss or forfeit is always recorded
+        if (!lost) lastReport.set(id, now);
+        if (isBanned(id)) return json(res, 200, { ok: true });
+        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, b.leftNil === true ? Math.round(bet * 1.5) : bet); else credit(who, prize); });
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });
@@ -396,7 +642,17 @@ async function referralApi(req: import('http').IncomingMessage, res: import('htt
     const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
     if (url.pathname === '/api/referral/info') { const r = await referralInfo(b.id, b.key); return r ? json(res, 200, r) : json(res, 403, { error: 'Sign in again' }); }
     if (url.pathname === '/api/referral/redeem') return json(res, 200, await redeemInvite(b.id, b.key, b.code, ip));
-    if (url.pathname === '/api/referral/collect') { const r = await collectReferralCoins(b.id, b.key); return r ? json(res, 200, r) : json(res, 403, { error: 'Sign in again' }); }
+    if (url.pathname === '/api/referral/collect') {
+      const r = await collectReferralCoins(b.id, b.key);
+      if (!r) return json(res, 403, { error: 'Sign in again' });
+      // server-side coins: invite rewards and owner gifts go straight into the wallet
+      const sum = (r.coins ?? 0) + (r.gift ?? 0);
+      if (walletOn() && sum > 0) {
+        try { pushWallet(String(b.id), await addCoins(String(b.id), sum)); } catch (e) { console.error(`wallet: could not add ${sum} reward coins to ${b.id} — add them by hand`, e); return json(res, 500, { error: 'try again' }); }
+        return json(res, 200, { ...r, credited: true });
+      }
+      return json(res, 200, r);
+    }
     return json(res, 404, { error: 'not found' });
   } catch (e) { console.error('referral', e); return json(res, 500, { error: 'Invites are unavailable right now.' }); }
 }
@@ -418,7 +674,14 @@ async function authApi(req: import('http').IncomingMessage, res: import('http').
     };
     const fn = routes[url.pathname];
     if (!fn) return json(res, 404, { error: 'not found' });
-    return json(res, 200, await fn(b));
+    const dev = deviceOf(req, res);
+    const making = url.pathname === '/api/auth/signup';
+    if (making && isDeviceBanned(dev)) return json(res, 403, { error: SUSPENDED_MESSAGE });
+    const out = await fn(b) as { id?: string; createdAt?: number } | null;
+    const social = url.pathname === '/api/auth/google' || url.pathname === '/api/auth/facebook';
+    if (social && out?.id && isDeviceBanned(dev) && (out.createdAt ?? 0) > Date.now() - 120_000) return json(res, 403, { error: SUSPENDED_MESSAGE });   // a brand-new account from a suspended browser
+    if (out?.id) noteDevice(out.id, dev);
+    return json(res, 200, out);
   } catch (e) {
     if (e instanceof AuthError) return json(res, e.status, { error: e.message });
     console.error('auth', e);
@@ -438,20 +701,46 @@ function readBody(req: import('http').IncomingMessage, max = 40_000): Promise<st
     req.on('error', reject);
   });
 }
+async function reportPlayerApi(req: import('http').IncomingMessage, res: import('http').ServerResponse) {
+  try {
+    const b = JSON.parse((await readBody(req, 3000)) || '{}');
+    const id = String(b.id || '').slice(0, 64), key = String(b.key || '').slice(0, 80), target = String(b.target || '').slice(0, 64);
+    const me = id && key ? await verifyKey(id, key) : null;
+    if (!me) return json(res, 403, { error: 'Sign in again to send a report.' });
+    if (!target || target === id) return json(res, 400, { error: 'Pick another player.' });
+    const t = await getRecord<{ name?: string }>(`acct-${target.replace(/[^a-zA-Z0-9_-]/g, '')}`);
+    if (!t) return json(res, 404, { error: 'That player was not found.' });
+    const err = addReport({ byId: id, byName: me, targetId: target, targetName: String(t.name || 'Player'), reason: String(b.reason || 'Other'), note: String(b.note || '') });
+    if (!err && mailConfigured()) {
+      const esc = (x: string) => String(x).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+      const reason = String(b.reason || 'Other').slice(0, 60), note = String(b.note || '').slice(0, 300), tname = String(t.name || 'Player');
+      const text = `${me} reported ${tname}\nReason: ${reason}\nNote: ${note || '(none)'}\nReported player id: ${target}\n\nReview it in the admin tools (Reports).`;
+      void sendMail(process.env.REPORT_EMAIL || 'spades@sedigitaltransformation.com', `Spade Haven report: ${tname} (${reason})`, text,
+        `<p><b>${esc(me)}</b> reported <b>${esc(tname)}</b></p><p>Reason: ${esc(reason)}<br>Note: ${esc(note) || '(none)'}<br>Reported player id: ${esc(target)}</p><p>Review it in the admin tools (Reports).</p>`).catch(() => {});
+    }
+    return err ? json(res, 429, { error: err }) : json(res, 200, { ok: true });
+  } catch (e) { console.error('report player', e); return json(res, 500, { error: 'Could not send the report right now.' }); }
+}
 async function guestApi(req: import('http').IncomingMessage, res: import('http').ServerResponse, url: URL) {
   try {
     if (req.method === 'POST' && url.pathname === '/api/guest') {
       const b = JSON.parse((await readBody(req)) || '{}');
+      const dev = deviceOf(req, res);
+      if (isDeviceBanned(dev)) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const adopt = b.adoptId ? { id: String(b.adoptId).slice(0, 64), name: String(b.name || '') } : undefined;
       const a = await createGuest(adopt);
+      if (a) noteDevice(a.id, dev);
       return a ? json(res, 200, a) : json(res, 409, { error: 'This player is already registered' });
     }
     if (req.method === 'GET' && url.pathname === '/api/guest') {
+      if (isBanned(String(url.searchParams.get('id') || ''))) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const a = await loadAccount(String(url.searchParams.get('id') || ''), String(url.searchParams.get('key') || ''));
+      if (a) noteDevice(a.id, deviceOf(req, res));
       return a ? json(res, 200, a) : json(res, 404, { error: 'Guest account not found' });
     }
     if (req.method === 'PUT' && url.pathname === '/api/guest') {
       const b = JSON.parse(await readBody(req));
+      if (isBanned(String(b.id || ''))) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       const r = await saveProgress(String(b.id), String(b.key), b.profile || {}, Number(b.updatedAt) || 0);
       return json(res, r.status, r.ok ? { ok: true } : { error: r.status === 409 ? 'newer progress on server' : 'not allowed', account: 'account' in r ? r.account : undefined });
     }
@@ -474,6 +763,17 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
       nameTries.set(id, [...log, now]);
       return json(res, 200, await checkName(id, key, b.name));
     }
+    // a player deleting their own account: { id, key, confirm: 'DELETE' }
+    if (req.method === 'POST' && url.pathname === '/api/guest/delete') {
+      const b = JSON.parse((await readBody(req, 2000)) || '{}');
+      if (String(b.confirm) !== 'DELETE') return json(res, 400, { ok: false, message: 'Type DELETE to confirm.' });
+      const id = String(b.id || '').slice(0, 64);
+      const r = await deleteAccount(id, String(b.key || '').slice(0, 80));
+      if (!r.ok) return json(res, r.status, { ok: false, message: r.message });
+      for (const c of [...clients]) if (c.player?.id === id) { leave(c, false); try { c.ws.close(); } catch { /* closed */ } }
+      if (r.photo) { photoCache.delete(r.photo); await deleteRecord(`photo-${r.photo}`); }
+      return json(res, 200, { ok: true });
+    }
     if (req.method === 'POST' && url.pathname === '/api/guest/restore') {
       const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0];
       const t = restoreTries.get(ip);
@@ -482,6 +782,7 @@ async function guestApi(req: import('http').IncomingMessage, res: import('http')
       restoreTries.set(ip, t && now - t.t < 60_000 ? { n: t.n + 1, t: t.t } : { n: 1, t: now });
       const b = JSON.parse(await readBody(req));
       const a = await restoreByCode(String(b.code || ''));
+      if (a && isBanned(a.id)) return json(res, 403, { error: SUSPENDED_MESSAGE, suspended: true });
       return a ? json(res, 200, a) : json(res, 404, { error: 'No guest account with that code' });
     }
     return json(res, 404, { error: 'not found' });
@@ -523,7 +824,7 @@ wss.on('connection', (ws) => {
     try { handle(c, JSON.parse(String(raw))); } catch (e) { send(c, { t: 'error', message: 'Bad message' }); }
   });
   ws.on('close', () => {
-    dropped(c); clients.delete(c);
+    stopWatching(c); dropped(c); clients.delete(c);
     if (c.verified && c.player) void presenceChanged(c.player.id); // friends see them go offline
   });
 });
@@ -531,10 +832,12 @@ wss.on('connection', (ws) => {
 // Render stops the old server when a new version goes live: warn everyone first.
 process.on('SIGTERM', () => {
   for (const c of clients) send(c, { t: 'notice', message: c.room && c.room.rt.g.phase !== 'waiting' ? 'The game server is restarting for an update. This game will end and your bet will be refunded.' : 'The game server is restarting for an update — back in a moment.' });
-  setTimeout(() => process.exit(0), 1500);
+  // server-side coins: every bet that is being held goes back (the games end with this server)
+  const refunds = refundAllMine().then((ids) => ids.forEach((id) => void balanceOf(id).then((n) => pushWallet(id, n)).catch(() => {}))).catch(() => {});
+  setTimeout(() => { void Promise.race([refunds, new Promise((r) => setTimeout(r, 4000))]).then(() => process.exit(0)); }, 1500);
 });
 
-Promise.all([initLeaderboard(), initPayments(), initReferrals()]).then(() => {
+Promise.all([initLeaderboard(), initPayments(), initReferrals(), initModeration(), initWallet()]).then(() => {
   http.listen(PORT, () => console.log(`Spade Haven server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
 });
 

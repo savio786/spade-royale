@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { emailSignIn, emailSignUp, facebookSignIn, forgotPassword, loadAuthConfig, mountGoogleButton, resetPassword, showFacebook, type AuthConfig } from '../lib/auth';
 import { AVATAR_KEYS, AvatarPicker, Icon, Logo, Modal, Pill } from '../components/ui';
@@ -55,37 +56,37 @@ export function Login({ resetToken }: { resetToken?: string }) {
         <div className="login-buttons">
           {showFacebook(cfg) && (
             <button className="social fb" onClick={fb} disabled={busy}>
-              <span className="social-ico">f</span><span>Sign in with Facebook</span>
+              <span className="social-ico">f</span><span>{tr("Sign in with Facebook")}</span>
             </button>
           )}
           {cfg.google ? <div className="google-slot" ref={googleRef} /> : (
             <button className="social gp" onClick={() => { sfx.click(); setErr('Google sign-in is coming soon — sign in with email for now.'); }}>
               <span className="social-ico"><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="6" fill="#fff" /><path d="M7 10v4M5 12h4" stroke="#1a7f37" strokeWidth="2" strokeLinecap="round" /><circle cx="16" cy="11" r="1.2" fill="#1a7f37" /><circle cx="18" cy="13" r="1.2" fill="#1a7f37" /></svg></span>
-              <span>Google Play Games</span>
+              <span>{tr("Google Play Games")}</span>
             </button>
           )}
           <button className="social em" onClick={() => { sfx.click(); setErr(null); setEmailMode('in'); setStep('email'); }}>
-            <span className="social-ico"><Icon name="chat" size={24} /></span><span>Sign in with email</span>
+            <span className="social-ico"><Icon name="chat" size={24} /></span><span>{tr("Sign in with email")}</span>
           </button>
           <button className="social reg" onClick={() => { sfx.click(); setErr(null); setEmailMode('up'); setStep('email'); }}>
-            <span className="social-ico"><Icon name="star" size={24} /></span><span>New player? Register</span>
+            <span className="social-ico"><Icon name="star" size={24} /></span><span>{tr("New player? Register")}</span>
           </button>
         </div>
         {err && step === null && <p className="form-error login-err" role="alert">{err}</p>}
         <button className="guest-link" onClick={guest} disabled={busy}>
           {busy ? 'One moment…' : returningName ? `Continue as ${returningName}` : 'Continue as guest'}
         </button>
-        <button className="restore-link" onClick={() => { sfx.click(); setErr(null); setStep('restore'); }}>Have a guest code? Continue on this device</button>
+        <button className="restore-link" onClick={() => { sfx.click(); setErr(null); setStep('restore'); }}>{tr("Have a guest code? Continue on this device")}</button>
       </div>
 
       {step === 'guest-new' && (
-        <Modal title="Welcome to the table!" onClose={() => setStep(null)}>
+        <Modal title={tr("Welcome to the table!")} onClose={() => setStep(null)}>
           <form className="profile-form" onSubmit={(e) => { e.preventDefault(); finishNewGuest(avatar); sfx.coins(); }}>
-            <div className="field"><span>Your guest name</span>
+            <div className="field"><span>{tr("Your guest name")}</span>
               <div className="locked-name"><Icon name="lock" size={18} /><b>{guestName}</b></div>
               <small className="muted">Guest names are permanent. Whenever you come back as a guest on this device you'll be {guestName} again, with your coins, level and stats.</small>
             </div>
-            <div className="field"><span>Choose your avatar</span>
+            <div className="field"><span>{tr("Choose your avatar")}</span>
               <AvatarPicker value={avatar} onChange={setAvatar} />
             </div>
             <Pill type="submit" color="green" className="wide-btn"><Icon name="play" size={18} /> Start playing — 50,000 free coins</Pill>
@@ -94,11 +95,11 @@ export function Login({ resetToken }: { resetToken?: string }) {
       )}
 
       {step === 'restore' && (
-        <Modal title="Continue with a guest code" onClose={() => setStep(null)}>
+        <Modal title={tr("Continue with a guest code")} onClose={() => setStep(null)}>
           <form className="center-col" onSubmit={(e) => { e.preventDefault(); if (code.trim().length >= 8) restore(); }}>
-            <p>Find your code in <b>Settings</b> on the device you played on before. It looks like <b>K7QM-4XPT</b>.</p>
-            <label className="field"><span>Guest code</span>
-              <input className="code-input" value={code} maxLength={9} autoFocus onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX" /></label>
+            <p>Find your code in <b>{tr("Settings")}</b> on the device you played on before. It looks like <b>{tr("K7QM-4XPT")}</b>.</p>
+            <label className="field"><span>{tr("Guest code")}</span>
+              <input className="code-input" value={code} maxLength={9} autoFocus onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder={tr("XXXX-XXXX")} /></label>
             {err && <p className="form-error" role="alert">{err}</p>}
             <Pill type="submit" color="green" className="wide-btn" disabled={busy || code.trim().length < 8}>{busy ? 'Checking…' : 'Continue'}</Pill>
           </form>
@@ -132,28 +133,28 @@ export function EmailModal({ onClose, startMode = 'in' }: { onClose: () => void;
   return (
     <Modal title={mode === 'in' ? 'Sign in' : mode === 'forgot' ? 'Forgot password' : 'Create your account'} onClose={onClose}>
       <div className="tabs" role="tablist">
-        <button role="tab" aria-selected={mode === 'in'} className={`tab ${mode === 'in' || mode === 'forgot' ? 'on' : ''}`} onClick={() => { setMode('in'); setErr(null); }}>Sign in</button>
-        <button role="tab" aria-selected={mode === 'up'} className={`tab ${mode === 'up' ? 'on' : ''}`} onClick={() => { setMode('up'); setErr(null); }}>Create account</button>
+        <button role="tab" aria-selected={mode === 'in'} className={`tab ${mode === 'in' || mode === 'forgot' ? 'on' : ''}`} onClick={() => { setMode('in'); setErr(null); }}>{tr("Sign in")}</button>
+        <button role="tab" aria-selected={mode === 'up'} className={`tab ${mode === 'up' ? 'on' : ''}`} onClick={() => { setMode('up'); setErr(null); }}>{tr("Create account")}</button>
       </div>
       <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
         {mode === 'up' && (
-          <label className="field"><span>Player name</span>
-            <input value={name} maxLength={20} onChange={(e) => setName(e.target.value.replace(/[^\p{L}\p{N} _.-]/gu, ''))} placeholder="e.g. ApexSpadeOverlord" autoComplete="nickname" required /></label>
+          <label className="field"><span>{tr("Player name")}</span>
+            <input value={name} maxLength={20} onChange={(e) => setName(e.target.value.replace(/[^\p{L}\p{N} _.-]/gu, ''))} placeholder={tr("e.g. ApexSpadeOverlord")} autoComplete="nickname" required /></label>
         )}
-        <label className="field"><span>Email</span>
-          <input type="email" name="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete={mode === 'up' ? 'email' : 'username'} autoCapitalize="none" autoCorrect="off" spellCheck={false} required autoFocus={!("ontouchstart" in window)} /></label>
-        {mode !== 'forgot' && <label className="field"><span>Password</span>
+        <label className="field"><span>{tr("Email")}</span>
+          <input type="email" name="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tr("you@example.com")} autoComplete={mode === 'up' ? 'email' : 'username'} autoCapitalize="none" autoCorrect="off" spellCheck={false} required autoFocus={!("ontouchstart" in window)} /></label>
+        {mode !== 'forgot' && <label className="field"><span>{tr("Password")}</span>
           <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={mode === 'up' ? 'At least 6 characters' : ''} autoComplete={mode === 'up' ? 'new-password' : 'current-password'} required minLength={mode === 'up' ? 6 : 1} /></label>}
-        {mode === 'in' && <button type="button" className="linkish" onClick={() => { setMode('forgot'); setErr(null); setSent(false); }}>Forgot password?</button>}
-        {mode === 'forgot' && !sent && <p className="muted small center">Enter the email you signed up with and we’ll send you a link to choose a new password.</p>}
-        {mode === 'forgot' && sent && <p className="center" role="status">✓ If that email has an account, a reset link is on its way. It works for 30 minutes. Check your spam folder too.</p>}
+        {mode === 'in' && <button type="button" className="linkish" onClick={() => { setMode('forgot'); setErr(null); setSent(false); }}>{tr("Forgot password?")}</button>}
+        {mode === 'forgot' && !sent && <p className="muted small center">{tr("Enter the email you signed up with and we’ll send you a link to choose a new password.")}</p>}
+        {mode === 'forgot' && sent && <p className="center" role="status">{tr("✓ If that email has an account, a reset link is on its way. It works for 30 minutes. Check your spam folder too.")}</p>}
         {mode === 'up' && !guest && (
           <details className="field su-avatar"><summary><span>Choose your avatar (optional)</span></summary><AvatarPicker value={avatar} onChange={setAvatar} /></details>
         )}
-        {mode === 'up' && guest && <p className="muted small center">Your guest progress — coins, level and stats — moves into your new account.</p>}
+        {mode === 'up' && guest && <p className="muted small center">{tr("Your guest progress — coins, level and stats — moves into your new account.")}</p>}
         {err && <p className="form-error" role="alert">{err}</p>}
         <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : mode === 'forgot' ? (sent ? 'Send again' : 'Send reset link') : mode === 'in' ? 'Sign in' : guest ? 'Create account & keep my progress' : 'Create account — 50,000 free coins'}</Pill>
-        <p className="muted small center">{mode === 'forgot' ? <button type="button" className="linkish" onClick={() => { setMode('in'); setErr(null); }}>Back to sign in</button> : mode === 'in' ? <>New here? <button type="button" className="linkish" onClick={() => setMode('up')}>Create an account</button></> : 'Your coins, level and stats are saved to your account, so you can sign in on any phone or computer.'}</p>
+        <p className="muted small center">{mode === 'forgot' ? <button type="button" className="linkish" onClick={() => { setMode('in'); setErr(null); }}>{tr("Back to sign in")}</button> : mode === 'in' ? <>New here? <button type="button" className="linkish" onClick={() => setMode('up')}>{tr("Create an account")}</button></> : 'Your coins, level and stats are saved to your account, so you can sign in on any phone or computer.'}</p>
       </form>
     </Modal>
   );
@@ -165,17 +166,17 @@ function ResetModal({ token }: { token: string }) {
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const done = () => { window.location.hash = '#/play'; };
+  const done = () => { if (window.location.search) history.replaceState(null, '', window.location.pathname); window.location.hash = '#/play'; window.dispatchEvent(new HashChangeEvent('hashchange')); };
   const submit = async () => {
     setBusy(true); setErr(null);
     try { await resetPassword(token, pw); sfx.coins(); notifyReturning(profile.get().name); done(); }
     catch (e) { setErr((e as Error).message); setBusy(false); }
   };
   return (
-    <Modal title="Choose a new password" onClose={done}>
+    <Modal title={tr("Choose a new password")} onClose={done}>
       <form className="profile-form" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-        <label className="field"><span>New password</span>
-          <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="At least 6 characters" autoComplete="new-password" required minLength={6} /></label>
+        <label className="field"><span>{tr("New password")}</span>
+          <input type="password" name="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={tr("At least 6 characters")} autoComplete="new-password" required minLength={6} /></label>
         {err && <p className="form-error" role="alert">{err}</p>}
         <Pill type="submit" color="green" className="wide-btn" disabled={busy}>{busy ? 'One moment…' : 'Save new password & sign in'}</Pill>
       </form>

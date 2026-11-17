@@ -14,7 +14,7 @@ A complete Spades game with a marketing landing page, installable web app (Windo
 | Gameplay | Full rules: bidding 1–13 and Nil, follow suit, spades breaking, trick winner, 10 bags = −100, nil ±100, game-end at max/min points, round summary, victory/defeat, prize payout, XP |
 | Bots | Bid estimation, nil protection, covering partner's nil, ducking bags — fill any empty seat |
 | Chat | Table chat with quick phrases, emoji, free text, speech bubbles on seats, bots that reply; gifts you can send to players |
-| Leaderboard | Global / Friends / Wall of Fame, rank rewards (50K, 25K, 10K, …), countdown to week end, last-week results + reward claim |
+| Leaderboard | Global / Friends / Haven’s Fame, rank rewards (50K, 25K, 10K, …), countdown to week end, last-week results + reward claim |
 | Multiplayer | WebSocket server: quick-match public tables, live table list, private tables with 5-letter invite codes, server-side rules, turn timer (auto-play on timeout), disconnected players replaced by bots |
 | Offline | Everything except online/private multiplayer works offline against bots (service worker caches the app) |
 
@@ -52,7 +52,7 @@ The same `shared/` engine runs in the browser (offline play) and on the server (
 The live service runs on Render's free plan with two settings:
 
 - `KEEP_AWAKE=1` makes the server visit its own `/health` page every 10 minutes, so Render never puts it to sleep. One service running all month fits inside Render's 750 free hours.
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` store the leaderboard, Wall of Fame and purchases in a free Upstash Redis database, so restarts don't wipe them. Without these two settings the server saves to files in `DATA_DIR`, which is fine on your own computer or with a paid Render disk.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` store the leaderboard, Haven’s Fame and purchases in a free Upstash Redis database, so restarts don't wipe them. Without these two settings the server saves to files in `DATA_DIR`, which is fine on your own computer or with a paid Render disk.
 
 Free-plan limit: Render still restarts free services now and then, and on every deploy. Games in progress at that moment are interrupted, but saved data is kept.
 
@@ -106,7 +106,7 @@ Landscape-only and full-screen are set in `ios/App/App/Info.plist`.
 The site has a Privacy Policy (`#privacy`) and Terms of Service (`#terms`), linked from the landing-page footer and from Settings. Before you publish to Google Play or the App Store, add two environment variables in Render so the pages show who runs the game and how to reach you:
 
 - `VITE_OPERATOR_NAME` — your name or business name (default: SE Digital Transformation)
-- `VITE_SUPPORT_EMAIL` — the email players should use for help and data-deletion requests (default: support@sedigitaltransformation.com)
+- `VITE_SUPPORT_EMAIL` — the email players should use for help and data-deletion requests (default: spades@sedigitaltransformation.com)
 
 Then redeploy. The text is a sensible starting point, not legal advice — have it reviewed for your country. The store listings ask for the privacy page URL: `https://play.sedigitaltransformation.com/#privacy`.
 
@@ -134,7 +134,7 @@ The Online Lobby lists only public tables that have at least one real person at 
 
 ## Waiting for real players
 
-Every seat on a public table gets its own **15-second** countdown. When someone opens a table, player 2 has 15 seconds to join; if no real person takes the seat, a computer player sits down and a fresh 15 seconds starts for player 3, then again for player 4. A real player joining also starts a fresh countdown for the next seat. The table shows "Waiting for player N · a computer player joins in Xs". Anyone seated can tap **Start now** to fill all empty seats at once. Each table runs its own timers. Change the length with the `FILL_MS` environment variable in Render (milliseconds, default `15000`). Private tables never add computer players on their own — the host decides.
+Every seat on a public table gets its own countdown. When someone opens a table, player 2 has **8 seconds** to join; if no real person takes the seat, a computer player sits down and a shorter **4-second** countdown starts for player 3, then again for player 4, so an empty table is full in about 16 seconds. A real player joining also starts a fresh countdown for the next seat. The table shows "Waiting for player N · a computer player joins in Xs". Anyone seated can tap **Start now** to fill all empty seats at once. Each table runs its own timers. Change the length with the `FILL_MS` environment variable in Render (milliseconds, default `8000`; later seats use half of it, at least 2.5 s). Private tables never add computer players on their own — the host decides.
 
 ## Computer player skill
 
@@ -212,6 +212,7 @@ These are wired up in the UI but use placeholders until you add your own account
 - **Sign-in**: the Facebook and Google Play Games buttons create a local profile. For real accounts, add Firebase Authentication (web) or `@capacitor-firebase/authentication` (native), then send the verified user id in the server `hello` message.
 - **Payments in the phone apps**: Apple and Google require their own billing for coins and Chat Passes inside apps. Use Google Play Billing and StoreKit, for example through RevenueCat (`@revenuecat/purchases-capacitor`). Until then buying is switched off in the apps.
 - **Rewarded ads**: the “+100 coins AD” slot is a 5-second placeholder. Use `@capacitor-community/admob` on mobile.
+- **Losses on the boards**: when a real player loses a game their bet comes off both the weekly Global total and the all-time (Haven’s Fame) total; leaving or dropping out of a game in progress does the same. Winners are credited the full prize they collect (for example 90,000 for a 50,000 partners game), losers lose their bet. Totals never go below zero: a player who has lost more than they won stays on the board showing 0 and climbs again with their next wins (weekly rewards and the Haven’s Fame champion only go to players above 0). Games against computers are reported by the player's device (`/api/report`, `lost: true`), games at online tables are settled by the server.
 - **Wallet security**: coins, XP and stats are stored on the device (`src/lib/profile.ts`). Before launch, move the wallet and leaderboard into a database on the server (for example Postgres or Firestore), and settle bets and prizes there. That way players can't edit their own balance.
 - **Store policy**: coins are virtual and can't be cashed out. Google Play and Apple treat purchasable coins for card games as “simulated gambling”, so you'll need the matching age rating (17+ on iOS, an IARC rating on Play). Real-money tournaments like Skillz's need gambling licenses and a different integration.
 
@@ -241,3 +242,14 @@ Without these, the link says reset isn't set up yet. For testing on your own com
 - A friend who opens the link and plays their first game earns both players coins: 15,000 for the inviter, 10,000 for the friend plus 7 free Chat Pass days for the inviter for each friend (`INVITER_COINS` / `FRIEND_COINS` / `INVITER_CHAT_DAYS` in `server/referrals.ts`).
 - Limits: one reward per new player, never your own code, 20 rewarded invites per player, 5 rewards per network per day, and the friend's account must be under a week old. Rewards are held on the server (`referrals` record) until each device collects them.
 - Link previews (Messenger, WhatsApp, Facebook, X) use the tags in `index.html` and `public/og-image.png`. Search tags: title, description, canonical link, structured data, `robots.txt` and `sitemap.xml`. When the game moves to its own domain, replace `spade-haven.onrender.com` in `index.html`, `public/robots.txt` and `public/sitemap.xml`.
+
+## Owner-only players list
+`/admin` lists the players who signed up with an email (name, sign-in type, email, join date) and downloads them as a spreadsheet (CSV). It is locked by the `ADMIN_KEY` environment variable (16+ characters, set in Render, never in the code); without it the page and its `/api/admin/users` address answer "not found". Five wrong keys from one address lock that address out for 15 minutes. Passwords, secret keys and guest restore codes are never included. Use the list only to run the game and support players, and keep it private.
+**Chat moderation:** typed chat passes through a foul-language filter (`server/profanity.ts`): bad words are starred out and the sender is warned. Three offences within 10 minutes turn that player's chat off automatically (they can still play) and add a "Foul language" report. The owner can also **Turn off chat** / **Give chat back** for anyone from Players, Find a player or Reports, and the **Chat off** tab lists everyone muted.
+
+**Names and suspended browsers:** player names go through the same foul-language filter (a Google or Facebook name that fails becomes Player plus digits). Suspending an account also blocks its browser (a random `sh_dev` cookie) from making a new guest or email account, and a brand-new Google/Facebook account from it; existing accounts and sign-ins on that browser still work, and the block lifts when the owner lets the player back in. Clearing cookies or using another device gets around it, so it is a speed bump, not a wall.
+
+**Account deletion and backups:** a player can delete their own account from Settings (open “Table & cards, guest code and more”, then “Delete my account”, and type DELETE). It removes the account, email login, guest code, name, friends, picture, leaderboard entries and chat mute; payment records, reports and suspensions are kept. The owner page has a **Download backup** button (`GET /api/admin/backup`, owner key needed): one JSON file with every stored record except profile photos (add `&photos=1` for those). It contains password hashes and account keys, so keep it private.
+
+The same page lets the owner **suspend** a cheater (the account and its email can no longer sign in, connect to tables or sync progress; anyone playing is disconnected at once and sees "Account suspended"), **wipe winnings** (takes a player off the Global ranking and the Haven’s Fame), let a player back in, and read **reports** that players send from the player card ("⚑ REPORT PLAYER"). Coins are kept on each player's device, so they are not wiped.
+

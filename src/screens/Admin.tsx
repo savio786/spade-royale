@@ -1,0 +1,250 @@
+// Owner-only page: players who signed up, suspending cheaters, wiping winnings, player reports.
+// Needs the ADMIN_KEY secret (kept in memory only; it is never saved on this device).
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+interface Row { id: string; name: string; kind: string; email: string; joined: number; lastSaved: number; banned: boolean; muted?: boolean }
+interface Data { total: number; withEmail: number; byKind: Record<string, number>; rows: Row[] }
+interface Rep { n: number; at: number; byName: string; targetId: string; targetName: string; reason: string; note: string; targetBanned: boolean; targetMuted?: boolean }
+interface BanRow { id: string; name: string; reason: string; at: number; email?: string }
+interface MuteRow { id: string; name: string; reason: string; at: number; auto?: boolean }
+type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended' | 'stats' | 'coins';
+interface WalletInfo { on: boolean; saved: { players: number; total: number; top: { id: string; name: string; kind: string; coins: number }[] }; live: { players: number; total: number; top: { id: string; name: string; coins: number }[] } }
+interface Stats { days: { day: string; active: number; events: Record<string, number> }[]; cohort: { day: string; size: number; d1: number | null; d7: number | null }[]; note: string }
+const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
+const date = (t: number) => (t ? new Date(t).toLocaleString() : '');
+const KIND: Record<string, string> = { email: 'Email', google: 'Google', facebook: 'Facebook', guest: 'Guest' };
+const input: React.CSSProperties = { padding: '8px 10px', fontSize: 16, borderRadius: 8, border: '1px solid #6f7bd6', background: '#0b0d33', color: '#fff' };
+const th: React.CSSProperties = { padding: 6, textAlign: 'left' };
+const td: React.CSSProperties = { padding: 6, verticalAlign: 'top' };
+
+/** A button that asks "Sure?" before doing something serious: click twice. */
+function Confirm({ label, onGo, danger }: { label: string; onGo: () => void; danger?: boolean }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { if (!armed) return; const t = setTimeout(() => setArmed(false), 4000); return () => clearTimeout(t); }, [armed]);
+  return <button className={`pill small-pill ${armed || danger ? 'red' : ''}`} onClick={() => { if (armed) { setArmed(false); onGo(); } else setArmed(true); }}>{armed ? 'Sure? Click again' : label}</button>;
+}
+
+export function AdminPage() {
+  const [key, setKey] = useState('');
+  const [authed, setAuthed] = useState(false);
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<Tab>('players');
+  const [data, setData] = useState<Data | null>(null);
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState<Row[]>([]);
+  const [reports, setReports] = useState<Rep[]>([]);
+  const [bans, setBans] = useState<BanRow[]>([]);
+  const [mutes, setMutes] = useState<MuteRow[]>([]);
+  const [reason, setReason] = useState('');
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [guests, setGuests] = useState(false);   // list guests too (they have no email)
+  useEffect(() => {
+    document.title = 'Owner · Spade Haven';
+    const m = document.createElement('meta'); m.name = 'robots'; m.content = 'noindex,nofollow'; document.head.appendChild(m);
+    return () => { m.remove(); document.title = 'Spade Haven'; };
+  }, []);
+
+  const call = useCallback(async (path: string, body?: unknown) => {
+    const r = await fetch(path, { method: body === undefined ? 'GET' : 'POST', headers: { 'x-admin-key': key.trim(), ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 404 && path.includes('users') ? 'This page is not switched on yet: add ADMIN_KEY in Render.' : (j as { error?: string }).error || 'Something went wrong.');
+    return j as never;
+  }, [key]);
+
+  const refresh = useCallback(async (t: Tab = tab, query = q, guestsFlag?: boolean) => {
+    setBusy(true); setErr('');
+    try {
+      if (t === 'players') setData(await call(`/api/admin/users${guestsFlag ?? guests ? '?all=1' : ''}`));
+      if (t === 'find') setFound(query.trim().length >= 2 ? ((await call(`/api/admin/find?q=${encodeURIComponent(query.trim())}`)) as { rows: Row[] }).rows : []);
+      if (t === 'reports') setReports(((await call('/api/admin/reports')) as { rows: Rep[] }).rows);
+      if (t === 'stats') setStats(await call('/api/admin/analytics'));
+      if (t === 'coins') setWallet(await call('/api/admin/wallet'));
+      if (t === 'muted') setMutes(((await call('/api/admin/muted')) as { rows: MuteRow[] }).rows);
+      if (t === 'suspended') setBans(((await call('/api/admin/bans')) as { rows: BanRow[] }).rows);
+      setAuthed(true);
+    } catch (e) { setErr((e as Error).message); if (!authed) setAuthed(false); }
+    setBusy(false);
+  }, [call, tab, q, authed, guests]);
+
+  const act = async (path: string, body: unknown, done: string) => {
+    setErr(''); setMsg('');
+    try { await call(path, body); setMsg(done); await refresh(); } catch (e) { setErr((e as Error).message); }
+  };
+  const [gift, setGift] = useState('');
+  const go = (t: Tab) => { setTab(t); setMsg(''); void refresh(t); };
+  const download = async () => {
+    const r = await fetch('/api/admin/users?format=csv', { headers: { 'x-admin-key': key.trim() }, cache: 'no-store' });
+    if (!r.ok) { setErr('Could not download.'); return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a'); a.href = url; a.download = 'spade-haven-players.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+  const backup = async () => {
+    setErr(''); setMsg('');
+    const r = await fetch('/api/admin/backup', { headers: { 'x-admin-key': key.trim() }, cache: 'no-store' });
+    if (!r.ok) { setErr('Could not download the backup.'); return; }
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a'); a.href = url; a.download = `spade-haven-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setMsg('Backup downloaded. It holds private account data, so keep the file somewhere safe.');
+  };
+  const shown = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return data ? data.rows.filter((r) => !s || r.email.toLowerCase().includes(s) || r.name.toLowerCase().includes(s)) : [];
+  }, [data, q]);
+
+  const actions = (r: { id: string; name: string; banned: boolean; muted?: boolean }) => (
+    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      {r.banned
+        ? <button className="pill small-pill" onClick={() => void act('/api/admin/unban', { id: r.id }, `${r.name} can play again.`)}>Let back in</button>
+        : <Confirm label="Suspend" danger onGo={() => void act('/api/admin/ban', { id: r.id, reason }, `${r.name} is suspended.`)} />}
+      {r.muted
+        ? <button className="pill small-pill" onClick={() => void act('/api/admin/unmute', { id: r.id }, `${r.name} has their chat back.`)}>Give chat back</button>
+        : <Confirm label="Turn off chat" onGo={() => void act('/api/admin/mute', { id: r.id, reason }, `${r.name}'s chat is turned off.`)} />}
+      <Confirm label={`Give ${Number(gift) > 0 ? Number(gift).toLocaleString('en-US') : ''} coins`.replace('  ', ' ')} onGo={() => { if (!(Number(gift) >= 1)) { setErr('Type the gift amount first.'); return; } void act('/api/admin/gift', { id: r.id, coins: Number(gift) }, `${r.name} will get ${Number(gift).toLocaleString('en-US')} coins the next time they open the game.`); }} />
+      <Confirm label="Wipe winnings" onGo={() => void act('/api/admin/wipe', { id: r.id }, `${r.name} was taken off the leaderboards.`)} />
+    </span>
+  );
+  const reasonBox = (
+    <p><input style={{ ...input, width: 200, marginRight: 8 }} value={gift} inputMode="numeric" maxLength={9} onChange={(e) => setGift(e.target.value.replace(/\D/g, ''))} placeholder="Gift amount (coins)" /><input style={{ ...input, width: '100%', maxWidth: 420 }} value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="Reason when suspending (only you see it)" /></p>
+  );
+
+  return (
+    <div className="legal-page">
+      <header className="legal-top"><a href="/" className="legal-brand">♠ Spade Haven · Owner</a></header>
+      <article className="legal-body" style={{ maxWidth: 980 }}>
+        <h1>Owner tools</h1>
+        {!authed ? (
+          <form onSubmit={(e) => { e.preventDefault(); if (key.trim()) void refresh('players'); }}>
+            <p>Enter your owner key (the ADMIN_KEY you set in Render).</p>
+            <input type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder="Owner key" style={{ ...input, padding: '10px 12px', width: '100%', maxWidth: 360 }} />
+            <p><button type="submit" disabled={busy || !key.trim()} className="pill gold small-pill">{busy ? 'Checking…' : 'Open'}</button></p>
+            {err && <p style={{ color: '#ff8a8a' }}>{err}</p>}
+          </form>
+        ) : (
+          <>
+            <p style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended'], ['stats', 'Stats'], ['coins', 'Coins']] as [Tab, string][]).map(([t, l]) => (
+                <button key={t} className={`pill small-pill ${tab === t ? 'gold' : ''}`} onClick={() => go(t)}>{l}</button>
+              ))}
+              <button className="pill small-pill" onClick={() => void refresh()}>Refresh</button>
+              <button className="pill small-pill" onClick={() => void backup()}>Download backup</button>
+            </p>
+            {err && <p style={{ color: '#ff8a8a' }}>{err}</p>}
+            {msg && <p style={{ color: '#7dffb0' }}>{msg}</p>}
+
+            {tab === 'coins' && wallet && (
+              <>
+                <p>Server-side coins are <b style={{ color: wallet.on ? '#7dffb0' : '#ffd166' }}>{wallet.on ? 'ON' : 'OFF'}</b>. {wallet.on
+                  ? 'The server holds every player\'s coins: bets are taken when they sit down, prizes are paid when the game ends, and free coins are checked against fixed limits.'
+                  : 'Coins are still kept on each player\'s phone. Turning this on makes the server keep them, so nobody can change their own balance. Everyone starts from the balance saved in their account (listed below). Games against the computer then become practice (no coins won or lost).'}</p>
+                <p><Confirm danger={!wallet.on} label={wallet.on ? 'Turn OFF server-side coins' : 'Turn ON server-side coins'} onGo={() => void act('/api/admin/wallet', { on: !wallet.on }, wallet.on ? 'Server-side coins are off.' : 'Server-side coins are on.')} /></p>
+                <h3>Balances saved in accounts: {wallet.saved.players.toLocaleString('en-US')} players, {wallet.saved.total.toLocaleString('en-US')} coins in all</h3>
+                <p style={{ opacity: 0.8 }}>These are what wallets start from. Check the biggest ones look right before turning on.</p>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}><thead><tr><th style={th}>Player</th><th style={th}>Sign-in</th><th style={th}>Coins</th></tr></thead><tbody>
+                  {wallet.saved.top.map((r) => <tr key={r.id}><td style={td}>{r.name}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={td}>{r.coins.toLocaleString('en-US')}</td></tr>)}
+                </tbody></table>
+                {wallet.live.players > 0 && <>
+                  <h3>Live wallets: {wallet.live.players.toLocaleString('en-US')} players, {wallet.live.total.toLocaleString('en-US')} coins in all</h3>
+                  <table style={{ borderCollapse: 'collapse', width: '100%' }}><thead><tr><th style={th}>Player</th><th style={th}>Coins</th></tr></thead><tbody>
+                    {wallet.live.top.map((r) => <tr key={r.id}><td style={td}>{r.name}</td><td style={td}>{r.coins.toLocaleString('en-US')}</td></tr>)}
+                  </tbody></table>
+                </>}
+              </>
+            )}
+            {tab === 'stats' && stats && (() => {
+              const sum = (k: string) => stats.days.reduce((a, d) => a + (d.events[k] ?? 0), 0);
+              const rate = (a: string, b: string) => (sum(b) ? `${Math.round((sum(a) / sum(b)) * 100)}%` : '–');
+              const e = (d: Stats['days'][number], k: string) => d.events[k] ?? 0;
+              return (<>
+                <p>Last 14 days (UTC). Tutorial: {sum('tutorial_start')} started of {sum('tutorial_shown')} shown ({rate('tutorial_start', 'tutorial_shown')}), {sum('tutorial_done')} finished ({rate('tutorial_done', 'tutorial_start')} of those who started), {sum('tutorial_skip')} skipped. Rematch: {sum('rematch_request')} asked, {sum('rematch_start')} started. Table links opened: {sum('table_link_open')} · invite links opened: {sum('invite_link_open')}.</p>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                    <thead><tr>{['Day', 'Active', 'New', 'Opens', 'Games', 'Online', 'Tut shown', 'Tut start', 'Tut done', 'Tut skip', 'Rematch ask', 'Rematch go', 'Table link', 'Invite link', 'Shared', 'Gift', 'Mission', 'Review'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                    <tbody>{stats.days.map((d) => (
+                      <tr key={d.day} style={{ borderTop: '1px solid #2b3178' }}>
+                        {[d.day, d.active, e(d, 'new_player'), e(d, 'app_open'), e(d, 'game_start'), e(d, 'game_online'), e(d, 'tutorial_shown'), e(d, 'tutorial_start'), e(d, 'tutorial_done'), e(d, 'tutorial_skip'), e(d, 'rematch_request'), e(d, 'rematch_start'), e(d, 'table_link_open'), e(d, 'invite_link_open'), e(d, 'table_invite_share'), e(d, 'daily_gift'), e(d, 'mission_claim'), e(d, 'hand_review_open')].map((v, i) => <td key={i} style={td}>{v}</td>)}
+                      </tr>))}</tbody>
+                  </table>
+                </div>
+                <h3>Players who came back</h3>
+                <p>Of the new players on each day, how many played again 1 day later (D1) and 7 days later (D7). A dash means it is too soon to know.</p>
+                <table style={{ borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead><tr>{['Signup day', 'New players', 'D1', 'D7'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
+                  <tbody>{stats.cohort.map((c) => <tr key={c.day} style={{ borderTop: '1px solid #2b3178' }}><td style={td}>{c.day}</td><td style={td}>{c.size}</td><td style={td}>{pct(c.d1)}</td><td style={td}>{pct(c.d7)}</td></tr>)}</tbody>
+                </table>
+                <p style={{ opacity: 0.7 }}>{stats.note} Counting began when this was switched on, so early numbers are small.</p>
+              </>);
+            })()}
+
+            {tab === 'players' && data && (<>
+              <p>{data.withEmail} players with an email · {data.total} accounts in all ({Object.entries(data.byKind).map(([k, n]) => `${KIND[k] ?? k}: ${n}`).join(' · ')}). Guests have no email.</p>
+              <p style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input style={{ ...input, minWidth: 220 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name or email" />
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={guests} onChange={(e) => { setGuests(e.target.checked); void refresh('players', q, e.target.checked); }} /> Show guests too</label>
+                <button className="pill gold small-pill" onClick={() => void download()}>Download spreadsheet (CSV)</button>
+              </p>
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
+                <thead><tr style={{ borderBottom: '2px solid #6f7bd6' }}><th style={th}>Name</th><th style={th}>Email</th><th style={th}>Sign-in</th><th style={th}>Joined</th><th style={th}>Last saved</th><th style={th}></th></tr></thead>
+                <tbody>{shown.map((r) => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}{r.muted ? ' 🔇' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.joined)}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(r.lastSaved)}</td><td style={td}>{actions(r)}</td></tr>
+                ))}</tbody></table></div>
+            </>)}
+
+            {tab === 'find' && (<>
+              <p>Search any player by name or email (guests too).</p>
+              {reasonBox}
+              <form style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }} onSubmit={(e) => { e.preventDefault(); void refresh('find', q); }}>
+                <input style={{ ...input, minWidth: 240 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or email (2+ letters)" />
+                <button type="submit" className="pill gold small-pill">Search</button>
+              </form>
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15, marginTop: 10 }}>
+                <tbody>{found.map((r) => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}>{r.name}{r.banned ? ' 🚫' : ''}{r.muted ? ' 🔇' : ''}</td><td style={td}>{r.email || '—'}</td><td style={td}>{KIND[r.kind] ?? r.kind}</td><td style={td}>{actions(r)}</td></tr>
+                ))}</tbody></table></div>
+            </>)}
+
+            {tab === 'reports' && (<>
+              <p>Reports from players. “Suspend” keeps the person out of the game; “Wipe winnings” takes them off the Weekly Rankings and Haven’s Fame boards.</p>
+              {reasonBox}
+              {reports.length === 0 && <p style={{ opacity: .7 }}>No reports.</p>}
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
+                <tbody>{reports.map((r) => (
+                  <tr key={r.n} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}>
+                    <td style={td}><b>{r.targetName}</b>{r.targetBanned ? ' 🚫' : ''}<br /><small style={{ opacity: .7 }}>reported by {r.byName} · {date(r.at)}</small></td>
+                    <td style={td}>{r.reason}{r.note ? <><br /><i>“{r.note}”</i></> : null}</td>
+                    <td style={td}><span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {actions({ id: r.targetId, name: r.targetName, banned: r.targetBanned, muted: r.targetMuted })}
+                      <button className="pill small-pill" onClick={() => void act('/api/admin/reports/dismiss', { n: r.n }, 'Report dismissed.')}>Dismiss</button>
+                    </span></td></tr>
+                ))}</tbody></table></div>
+            </>)}
+
+            {tab === 'muted' && (<>
+              <p>Players whose chat is turned off. They can still play. The game also does this automatically after repeated foul language.</p>
+              {mutes.length === 0 && <p style={{ opacity: .7 }}>Nobody's chat is turned off.</p>}
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
+                <tbody>{mutes.map((m) => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}><b>{m.name}</b>{m.auto ? <><br /><small style={{ opacity: .7 }}>automatic</small></> : null}</td><td style={td}>{m.reason || '—'}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(m.at)}</td>
+                    <td style={td}><button className="pill small-pill" onClick={() => void act('/api/admin/unmute', { id: m.id }, `${m.name} has their chat back.`)}>Give chat back</button></td></tr>
+                ))}</tbody></table></div>
+            </>)}
+
+            {tab === 'suspended' && (<>
+              {bans.length === 0 && <p style={{ opacity: .7 }}>Nobody is suspended.</p>}
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
+                <tbody>{bans.map((b) => (
+                  <tr key={b.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}><td style={td}><b>{b.name}</b>{b.email ? <><br /><small style={{ opacity: .7 }}>{b.email}</small></> : null}</td><td style={td}>{b.reason || '—'}</td><td style={{ ...td, whiteSpace: 'nowrap' }}>{date(b.at)}</td>
+                    <td style={td}><button className="pill small-pill" onClick={() => void act('/api/admin/unban', { id: b.id }, `${b.name} can play again.`)}>Let back in</button></td></tr>
+                ))}</tbody></table></div>
+            </>)}
+            <p style={{ opacity: .7, fontSize: 14, marginTop: 24 }}>Private: use these details only to run the game and support players. Don’t share them.</p>
+          </>
+        )}
+      </article>
+    </div>
+  );
+}

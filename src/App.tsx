@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { captureRef, syncReferral } from './lib/referral';
+import React, { Fragment, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { track } from './lib/track';
+import './lib/wallet';
+import { captureJoin, captureRef, clearJoin, pendingJoin, syncReferral } from './lib/referral';
 import { Landing } from './screens/Landing';
 import { Login } from './screens/Login';
 import { Lobby } from './screens/Lobby';
@@ -7,6 +9,8 @@ import { OnlineLobby } from './screens/OnlineLobby';
 import { Table } from './screens/Table';
 import { CrowsApp, CrowsLanding } from './crows/CrowsSite';
 import { LegalPage } from './screens/Legal';
+import { useLang } from './lib/i18n';
+import { AdminPage } from './screens/Admin';
 import { InstallPage } from './screens/Install';
 import { StartRequest, StoreModal } from './screens/modals';
 import { afterCheckoutReturn, loadPaymentConfig, store, syncPurchases, useStoreRequest } from './lib/payments';
@@ -37,6 +41,18 @@ if (/[?&]purchase=/.test(window.location.search) && !window.location.hash) histo
 
 // an invite link (…/?ref=CODE): remember who invited this player, then tidy the address bar
 captureRef();
+captureJoin();
+// The installed app is set to reuse its open window, so a link tapped in an email (password reset, table invite) used to just bring that window forward and be ignored. Follow the link instead.
+try {
+  const lq = (window as unknown as { launchQueue?: { setConsumer: (f: (p: { targetURL?: string }) => void) => void } }).launchQueue;
+  lq?.setConsumer((p) => {
+    if (!p.targetURL) return;
+    const u = new URL(p.targetURL);
+    if (u.origin === window.location.origin && u.href !== window.location.href && (u.search || u.hash.length > 1)) window.location.href = u.href;
+  });
+} catch { /* not an installed app */ }   // a table link (…/?join=CODE): remember the table and open the game
+
+const Tutorial = lazy(() => import('./screens/Tutorial'));   // the 60-second tutorial: its own code chunk, downloaded only for new players
 
 const isAppShell = () => Capacitor.isNativePlatform() || window.matchMedia('(display-mode: standalone)').matches;
 
@@ -48,14 +64,29 @@ function useHashRoute() {
 
 export default function App() {
   const p = useProfile();
+  const lang = useLang();   // a language change redraws everything in the new language
+  useEffect(() => { document.body.classList.toggle('calm', p.settings.calm !== false); }, [p.settings.calm]);   // calm is the default (off only when a player turns it off): no pulsing / drifting table colours
   const hash = useHashRoute();
-  const resetToken = hash.match(/^#\/play\/reset\/([\w-]{20,60})$/)?.[1];
-  const inApp = hash.startsWith('#/play') || hash === '#play' || isAppShell();
+  // a reset link is /?reset=<token> (a redirect keeps the query, but can drop a #hash); the older #/play/reset/<token> form still works for emails already sent
+  const resetToken = hash.match(/^#\/play\/reset\/([\w-]{20,60})$/)?.[1] ?? new URLSearchParams(window.location.search).get('reset')?.match(/^[\w-]{20,60}$/)?.[0];
+  const inApp = !!resetToken || hash.startsWith('#/play') || hash === '#play' || isAppShell();
   const [screen, setScreen] = useState<Screen>('lobby');
   const [ctl, setCtl] = useState<TableController | null>(null);
   const [tableKey, setTableKey] = useState(0);
   const [lastReq, setLastReq] = useState<StartRequest | null>(null);
   const [bip, setBip] = useState<BIPEvent | null>(null);
+  const [tutOpen, setTutOpen] = useState(false);
+  const tutChecked = useRef(false);
+  const opened = useRef(false);
+  useEffect(() => { if (inApp && p.provider && !opened.current) { opened.current = true; track('app_open'); } }, [inApp, p.provider]);   // one count per visit
+  // brand-new players (no games yet, tutorial never seen) get the 60-second tutorial once; Settings can replay it
+  useEffect(() => {
+    if (tutChecked.current || !inApp || !p.provider) return;
+    tutChecked.current = true;
+    const q = profile.get();
+    if (!q.tutorial && q.stats.played === 0 && !pendingJoin()) setTutOpen(true);
+  }, [inApp, p.provider]);
+  useEffect(() => { const h = () => setTutOpen(true); window.addEventListener('spade-tutorial', h); return () => window.removeEventListener('spade-tutorial', h); }, []);
   const toasts = useToasts();
 
   useEffect(() => {
@@ -64,7 +95,8 @@ export default function App() {
     return () => window.removeEventListener('beforeinstallprompt', h);
   }, []);
   useEffect(() => { if (inApp && p.provider) net.connect(); }, [inApp, p.provider]);
-  useEffect(() => net.on((m) => { if (m.t === 'notice') toast(m.message); }), []);
+  const [banned, setBanned] = useState<string | null>(null);
+  useEffect(() => net.on((m) => { if (m.t === 'notice') toast(m.message); else if (m.t === 'banned') setBanned(m.message); }), []);
   useEffect(() => { if (inApp) void pullGuestProgress(); }, [inApp]);
   useEffect(() => { if (p.provider && net.status === 'online') net.hello(); }, [p.name, p.avatar, p.provider, p.chatUntil, p.vip]);
   useEffect(() => {
@@ -80,12 +112,13 @@ export default function App() {
   const installPrompt = bip ? () => { bip.prompt(); setBip(null); } : null;
 
   const start = useCallback((r: StartRequest) => {
-    if (r.via !== 'joinPrivate' && profile.get().coins < r.bet) { store.open({ tab: 'coins', need: r.bet }); return; }
+    if (r.via !== 'joinPrivate' && r.via !== 'watch' && profile.get().coins < r.bet) { store.open({ tab: 'coins', need: r.bet }); return; }
     const settings: TableSettings = { mode: r.mode, bet: r.bet, minPoints: r.minPoints, maxPoints: r.maxPoints, city: cityForBet(r.bet), isPrivate: r.via === 'createPrivate' || (r.via === 'local' && !!r.code) };
     let c: TableController;
     const online = net.status === 'online';
     if (r.via === 'quick' && online) c = new RemoteController({ kind: 'quick', settings });
     else if (r.via === 'table' && online && r.tableId) c = new RemoteController({ kind: 'table', tableId: r.tableId, settings });
+    else if (r.via === 'watch' && online && r.tableId) c = new RemoteController({ kind: 'watch', tableId: r.tableId, settings });
     else if (r.via === 'createPrivate' && online) c = new RemoteController({ kind: 'createPrivate', settings });
     else if (r.via === 'joinPrivate' && online && r.code) c = new RemoteController({ kind: 'joinPrivate', code: r.code, settings });
     else c = new LocalController(settings);
@@ -95,12 +128,23 @@ export default function App() {
     setScreen('table');
   }, []);
 
+  // someone opened a table link: once signed in and online, sit them at that table
+  const [netStatus, setNetStatus] = useState(net.status);
+  useEffect(() => net.onStatus(setNetStatus), []);
+  useEffect(() => {
+    const code = pendingJoin();
+    if (!code || !inApp || !p.provider || netStatus !== 'online' || ctl) return;
+    clearJoin();
+    start({ mode: 'partners', bet: 0, minPoints: -100, maxPoints: 100, via: 'joinPrivate', code });
+  }, [inApp, p.provider, netStatus, ctl, start]);
+
   // the install link: play.sedigitaltransformation.com/install (or #install)
   if (hash === '#install' || /^\/install\/?$/.test(window.location.pathname)) return <InstallPage installPrompt={installPrompt} />;
-  // plain addresses for Facebook / the stores: /privacy, /terms, /data-deletion (the #… links keep working)
+  // plain addresses for Facebook / the stores: /privacy, /terms, /contact, /data-deletion (the #… links keep working)
   const path = window.location.pathname.replace(/\/+$/, '');
   const legal = hash === '#privacy' || path === '/privacy' ? 'privacy'
     : hash === '#terms' || path === '/terms' ? 'terms'
+    : hash === '#contact' || path === '/contact' ? 'contact'
     : hash === '#data-deletion' || path === '/data-deletion' ? 'delete' : null;
   if (legal) return <LegalPage page={legal} />;
   if (CROWS_ON) {
@@ -114,25 +158,43 @@ export default function App() {
       </>
     );
   }
+  // owner-only players list (locked by the ADMIN_KEY secret; not linked from anywhere)
+  if (path === '/admin' || hash === '#admin') return <AdminPage />;
   let body;
-  if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
+  if (banned && inApp) body = <Suspended message={banned} />;
+  else if (!inApp) body = <Landing onPlay={() => { window.location.hash = '#play'; }} installPrompt={installPrompt} />;
   else if (resetToken) body = <Login resetToken={resetToken} />;
   else if (!p.provider) body = <Login />;
+  else if (tutOpen) body = <Suspense fallback={null}><Tutorial onClose={(playNow) => { setTutOpen(false); if (playNow) start({ mode: 'partners', bet: 250, minPoints: -100, maxPoints: 100, via: 'local' }); }} /></Suspense>;
   else if (screen === 'table' && ctl) body = (
     <Table key={tableKey} ctl={ctl}
       onExit={() => { setCtl(null); setScreen('lobby'); }}
-      onPlayAgain={() => { setCtl(null); if (lastReq) start(lastReq); else setScreen('lobby'); }} />
+      onPlayAgain={() => { setCtl(null); if (lastReq) start(lastReq); else setScreen('lobby'); }}
+      onRematch={(code) => start({ mode: 'partners', bet: 0, minPoints: -100, maxPoints: 100, via: 'joinPrivate', code })} />
   );
   else if (screen === 'online') body = <OnlineLobby onBack={() => setScreen('lobby')} onStart={start} />;
   else body = <Lobby onStart={start} onOnlineLobby={() => setScreen('online')} installPrompt={installPrompt} />;
 
   return (
-    <>
-      {inApp ? <Stage>{body}{p.provider && screen === 'lobby' && !ctl && <AddToHome installPrompt={installPrompt} />}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<HelpBot variant="page" /></>}
+    <Fragment key={lang}>
+      {inApp ? <Stage>{body}{p.provider && screen === 'lobby' && !ctl && <AddToHome installPrompt={installPrompt} />}<HelpBot variant="stage" />{storeReq && <StoreModal key={storeReq.tab + (storeReq.need ?? '')} tab={storeReq.tab} need={storeReq.need} onClose={() => store.close()} />}</Stage> : <>{body}<AddToHome landing installPrompt={installPrompt} /><HelpBot variant="page" /></>}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.kind}`}>{t.kind === 'coins' && <Coin size={18} />} {t.text}</div>)}
       </div>
-    </>
+    </Fragment>
+  );
+}
+
+/** Shown when the owner has suspended this account. */
+function Suspended({ message }: { message: string }) {
+  return (
+    <div className="screen" style={{ display: 'grid', placeItems: 'center', padding: 40, textAlign: 'center', color: '#fff' }}>
+      <div style={{ maxWidth: 560 }}>
+        <h1 style={{ fontFamily: 'var(--display)', fontSize: 54, margin: 0 }}>ACCOUNT SUSPENDED</h1>
+        <p style={{ fontSize: 24, lineHeight: 1.4 }}>{message}</p>
+        <p><a href="/contact" style={{ color: '#9cc4ff', fontSize: 22 }}>Contact support</a></p>
+      </div>
+    </div>
   );
 }
 

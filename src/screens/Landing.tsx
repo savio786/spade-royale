@@ -8,6 +8,7 @@ import { BoardRow, fetchBoard } from '../lib/api';
 const STORE_LINKS = {
   play: (import.meta.env.VITE_PLAY_STORE_URL as string) || '#download',
   apple: (import.meta.env.VITE_APP_STORE_URL as string) || '#download',
+  microsoft: (import.meta.env.VITE_MS_STORE_URL as string) || 'https://apps.microsoft.com/detail/9P7SG2MGTNQN',
 };
 
 const FEATURES = [
@@ -15,12 +16,12 @@ const FEATURES = [
   { icon: 'globe', title: 'Online lobby', text: 'Pick a city table by bet size and game-ending points, or hit Play Now for instant matchmaking.' },
   { icon: 'lock', title: 'Private tables', text: 'Create a table, share a 5-letter invite code, and play with friends. Bots fill any empty seat.' },
   { icon: 'chat', title: 'Table chat & gifts', text: 'Quick phrases, emoji and free text at every table — plus gifts you can send to other players.' },
-  { icon: 'podium', title: 'Weekly leaderboard', text: 'Climb the global board, compete with friends and land on the Wall of Fame. Top 100 earn rewards.' },
+  { icon: 'podium', title: 'Weekly leaderboard', text: 'Climb the Weekly Rankings, compete with friends and land on Haven’s Fame. Top 100 earn rewards.' },
   { icon: 'gift', title: 'Daily rewards', text: 'Daily gift, bonus wheel every 4 hours, trophies to unlock and a VIP Club with extra perks.' },
 ];
 
 const PLATFORMS = [
-  { icon: 'windows', name: 'Windows', how: 'Open in Edge or Chrome → Install app' },
+  { icon: 'windows', name: 'Windows', how: 'Microsoft Store, or Edge/Chrome → Install app' },
   { icon: 'apple', name: 'MacBook', how: 'Chrome/Edge → Install, or Safari → Add to Dock' },
   { icon: 'ipad', name: 'iPad & iPhone', how: 'App Store, or Safari → Share → Add to Home Screen' },
   { icon: 'android', name: 'Android', how: 'Google Play, or Chrome → Install app' },
@@ -55,6 +56,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
           <div className="store-row">
             <a className="store-badge" href={STORE_LINKS.play}><Icon name="android" size={26} /><span><small>GET IT ON</small>Google Play</span></a>
             <a className="store-badge" href={STORE_LINKS.apple}><Icon name="apple" size={26} /><span><small>Download on the</small>App Store</span></a>
+            <a className="store-badge" href={STORE_LINKS.microsoft} target="_blank" rel="noopener noreferrer"><Icon name="windows" size={26} /><span><small>Get it from</small>Microsoft Store</span></a>
           </div>
           <p className="hero-fine">Free to play with virtual coins · 50,000 coins to start · <a href="/install" style={{ color: 'inherit' }}>Install on your phone</a></p>
         </div>
@@ -106,7 +108,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
           <div className="mode-card static">
             <span className="mode-title">SOLO</span>
             <span className="mode-sub">Play against all other players</span>
-            <p>Four players, no partners. Every book counts for you alone, and the winner takes 3.6× the bet.</p>
+            <p>Four players, no partners. Every book counts for you alone, and the winner takes 3.6× the bet and second place gets their bet back and counts as a win.</p>
           </div>
         </div>
       </section>
@@ -135,7 +137,7 @@ export function Landing({ onPlay, installPrompt }: { onPlay: () => void; install
       <footer className="land-foot">
         <span><Icon name="spade" size={18} /> Spade Haven</span>
         <span>Virtual coins only — they have no cash value.</span>
-        <span className="land-legal"><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · 18+</span>
+        <span className="land-legal"><a href="#privacy">Privacy</a> · <a href="#terms">Terms</a> · <a href="#contact">Contact</a> · 18+</span>
         <span>© {new Date().getFullYear()}</span>
       </footer>
       {rules && <RulesModal onClose={() => setRules(false)} />}

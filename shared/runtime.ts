@@ -19,6 +19,8 @@ export interface Snapshot {
   fillAt: number | null;         // when computer players fill the empty seats (waiting tables)
   startAt: number | null;        // full table: when the game starts · round summary: when the next hand is dealt
   ready: boolean[];              // pressed Continue on the round summary
+  serverNow?: number;            // the server's clock when this was sent (so a device with a wrong clock can still count down correctly)
+  skew?: number;                 // filled in by the device on arrival: server clock minus this device's clock (ms)
 }
 
 export interface RuntimeOptions {
@@ -98,7 +100,8 @@ export class TableRuntime {
   }
 
   // ---------- seats ----------
-  addHuman(p: Omit<Seat, 'bot'>, preferredSeat?: number): number {
+  /** `held` are seats kept for other people (a rematch table): this player may not take them. */
+  addHuman(p: Omit<Seat, 'bot'>, preferredSeat?: number, held: number[] = []): number {
     const existing = this.g.seats.findIndex((s) => s?.id === p.id);
     if (existing >= 0) {
       const seats = this.g.seats.slice();
@@ -109,7 +112,7 @@ export class TableRuntime {
     if (this.g.phase !== 'waiting') return -1;
     // in Partners, the second person to join sits across from the first (as partner)
     const order = this.g.settings.mode === 'partners' ? [0, 2, 1, 3] : [0, 1, 2, 3];
-    let seat = preferredSeat !== undefined && !this.g.seats[preferredSeat] ? preferredSeat : (order.find((i) => !this.g.seats[i]) ?? -1);
+    let seat = preferredSeat !== undefined && !this.g.seats[preferredSeat] ? preferredSeat : (order.find((i) => !this.g.seats[i] && !held.includes(i)) ?? -1);
     if (seat < 0) return -1;
     const seats = this.g.seats.slice();
     seats[seat] = { ...p, bot: false };
@@ -137,9 +140,10 @@ export class TableRuntime {
   }
 
   /** Each empty seat gets its own countdown: if no real player takes it in time, one computer player sits down and the next seat's countdown starts. */
-  private armSeatTimer() {
+  private armSeatTimer(fast = false) {
     this.clearSeatTimer();
-    const ms = this.opts.fillBotsAfterMs;
+    const base = this.opts.fillBotsAfterMs;
+    const ms = base === null ? null : fast ? Math.max(2500, Math.round(base / 2)) : base; // once a computer player has sat down, the rest of the table fills quicker
     if (ms === null || this.destroyed || this.g.phase !== 'waiting' || !this.g.seats.some((s) => !s)) return;
     this.fillAt = Date.now() + ms;
     this.fillTimer = setTimeout(() => {
@@ -151,13 +155,22 @@ export class TableRuntime {
       seats[free] = makeBot(seats.filter(Boolean).map((s) => s!.name));
       this.g = { ...this.g, seats };
       if (Math.random() < 0.5) setTimeout(() => this.say(free, pick(BOT_LINES.greet)), 600 + Math.random() * 1500);
-      this.armSeatTimer();
+      this.armSeatTimer(true);
       this.changed();
     }, ms);
   }
   private clearSeatTimer() {
     if (this.fillTimer) { clearTimeout(this.fillTimer); this.fillTimer = null; }
     this.fillAt = null;
+  }
+
+  /** Seat computer players in exactly these empty seats (used to build a rematch table around the people who said yes). */
+  seatBots(seats: number[]) {
+    if (this.destroyed || this.g.phase !== 'waiting') return;
+    const list = this.g.seats.slice();
+    for (const i of seats) if (!list[i]) list[i] = makeBot(list.filter(Boolean).map((x) => x!.name));
+    this.g = { ...this.g, seats: list };
+    this.changed();
   }
 
   humanCount() { return this.g.seats.filter((s) => s && !s.bot).length; }
@@ -188,7 +201,7 @@ export class TableRuntime {
     return () => this.listeners.delete(key);
   }
   snapshot(seat: number): Snapshot {
-    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.turnMs ?? this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice() };
+    return { state: viewFor(this.g, seat), chat: this.chat.slice(-60), gifts: this.gifts.map((a) => a.slice()), turnDeadline: this.deadline, turnTotal: this.turnMs ?? this.opts.turnTimeoutMs, missed: this.missed.slice(), maxMissed: this.opts.maxMissedTurns ?? 3, fillAt: this.g.phase === 'waiting' ? this.fillAt : null, startAt: this.startAt, ready: this.ready.slice(), serverNow: Date.now() };
   }
   private emit() {
     for (const l of this.listeners.values()) l.fn(this.snapshot(l.seat));

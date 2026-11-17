@@ -14,11 +14,12 @@ const FACEBOOK_APP_SECRET = (process.env.FACEBOOK_APP_SECRET || '').trim();
 
 export const authConfig = () => ({ google: GOOGLE_CLIENT_ID || null, facebook: FACEBOOK_APP_ID && FACEBOOK_APP_SECRET ? FACEBOOK_APP_ID : null, resetMail: mailConfigured(), facebookPublic: (process.env.FACEBOOK_PUBLIC || '').trim() === '1' });
 
+import { SUSPENDED_MESSAGE, isBanned, isEmailBanned } from './moderation';
 export class AuthError extends Error { constructor(msg: string, public status = 400) { super(msg); } }
 
 const normEmail = (e: unknown) => String(e ?? '').trim().toLowerCase();
 const emailOk = (e: string) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(e);
-const emailRef = (e: string) => `login-email-${createHash('sha256').update(e).digest('hex').slice(0, 40)}`;
+export const emailRef = (e: string) => `login-email-${createHash('sha256').update(e).digest('hex').slice(0, 40)}`;
 
 async function hash(pw: string) { const salt = randomBytes(16).toString('hex'); return `${salt}:${(await scrypt(pw, salt, 64)).toString('hex')}`; }
 async function verify(pw: string, stored: string) {
@@ -43,10 +44,27 @@ async function ownedGuest(adopt: unknown): Promise<Account | null> {
   return a && a.key === String(o.key) && (a.kind ?? 'guest') === 'guest' ? a : null;
 }
 
+/** The address emails link to: always the live domain (the old onrender.com address is skipped even if PUBLIC_URL still names it). */
+function siteUrl() {
+  const env = process.env.PUBLIC_URL || '';
+  return (env && !/onrender\.com/.test(env) ? env : 'https://play.sedigitaltransformation.com').replace(/\/+$/, '');
+}
+
+/** One friendly email when an account is first created. Never blocks or fails the sign-up. */
+function welcomeMail(email: string | null | undefined, name: string) {
+  if (!email || !mailConfigured()) return;
+  const site = siteUrl();
+  const safe = name.replace(/[<>&]/g, '');
+  const text = `Welcome to Spade Haven, ${name}!\n\nYour account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.\n\nPlay now: ${site}\n\nNeed help? Reply to this email or write to spades@sedigitaltransformation.com.\n\n♠ Spade Haven`;
+  const html = `<p>Welcome to Spade Haven, ${safe}!</p><p>Your account is ready. Play Spades online with friends or against smart bots, climb the leaderboard and collect your daily bonus.</p><p><a href="${site}" style="display:inline-block;padding:12px 22px;background:#1a9d4a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Play now</a></p><p style="color:#666;font-size:13px">Need help? Write to spades@sedigitaltransformation.com.</p><p>♠ Spade Haven</p>`;
+  sendMail(email, 'Welcome to Spade Haven ♠', text, html).catch(() => {});
+}
+
 export async function signUp(b: Record<string, unknown>) {
   const email = normEmail(b.email), pw = String(b.password ?? '');
   if (!emailOk(email)) throw new AuthError('Enter a valid email address.');
   if (pw.length < 6) throw new AuthError('Use a password of at least 6 characters.');
+  if (isEmailBanned(email)) throw new AuthError(SUSPENDED_MESSAGE, 403);
   if (await getRecord(emailRef(email))) throw new AuthError('An account with this email already exists — sign in instead.', 409);
   // a guest upgrading keeps all their progress (and may keep their name, or choose a new one)
   const guest = await ownedGuest(b.adopt);
@@ -63,6 +81,7 @@ export async function signUp(b: Record<string, unknown>) {
   const took = await takeName(a.id, name, guest?.name);
   if (!took.ok) { name = await uniqueName(name, a.id); await takeName(a.id, name, guest?.name); a.name = name; if (a.profile) a.profile = { ...a.profile, name }; await putRecord(acctKey(a.id), a); }
   await putRecord(emailRef(email), { id: a.id });
+  welcomeMail(email, a.name);
   return pub(a);
 }
 
@@ -71,6 +90,7 @@ export async function signIn(b: Record<string, unknown>) {
   const ref = emailOk(email) ? await getRecord<{ id: string }>(emailRef(email)) : null;
   const a = ref ? await getRecord<Account>(acctKey(ref.id)) : null;
   if (!a || !a.pass || !(await verify(pw, a.pass))) throw new AuthError('Wrong email or password.', 401);
+  if (isBanned(a.id) || isEmailBanned(a.email)) throw new AuthError(SUSPENDED_MESSAGE, 403);
   return pub(a);
 }
 
@@ -84,7 +104,7 @@ export async function changePassword(b: Record<string, unknown>) {
 }
 
 // ---- forgot password: an emailed link that works once, for 30 minutes ----
-const SITE = () => (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || 'https://play.sedigitaltransformation.com').replace(/\/+$/, '');
+const SITE = siteUrl;
 const resetKey = (token: string) => `reset-${createHash('sha256').update(token).digest('hex').slice(0, 40)}`;
 const lastAsk = new Map<string, number>();
 
@@ -101,7 +121,7 @@ export async function forgotPassword(b: Record<string, unknown>) {
   if (a?.pass) {
     const token = randomBytes(24).toString('base64url');
     await putRecord(resetKey(token), { id: a.id, exp: now + 30 * 60_000 });
-    const link = `${SITE()}/#/play/reset/${token}`;
+    const link = `${SITE()}/?reset=${token}`;
     const text = `Hi ${a.name},\n\nSomeone asked to reset the password for your Spade Haven account. To choose a new password, open this link within 30 minutes:\n\n${link}\n\nIf this wasn’t you, ignore this email. Your password stays the same.\n\n♠ Spade Haven`;
     const html = `<p>Hi ${a.name.replace(/[<>&]/g, '')},</p><p>Someone asked to reset the password for your Spade Haven account. To choose a new password, use the button below within 30 minutes.</p><p><a href="${link}" style="display:inline-block;padding:12px 22px;background:#1a9d4a;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold">Choose a new password</a></p><p style="color:#666;font-size:13px">If the button doesn’t work, copy this link: ${link}<br>If this wasn’t you, ignore this email. Your password stays the same.</p><p>♠ Spade Haven</p>`;
     const sent = await sendMail(email, 'Reset your Spade Haven password', text, html);
@@ -126,7 +146,8 @@ export async function resetPassword(b: Record<string, unknown>) {
 async function socialAccount(kind: 'google' | 'facebook', subject: string, display: string, email: string | null, adopt: unknown) {
   const ref = `login-${kind}-${createHash('sha256').update(subject).digest('hex').slice(0, 40)}`;
   const known = await getRecord<{ id: string }>(ref);
-  if (known) { const a = await getRecord<Account>(acctKey(known.id)); if (a) return pub(a); }
+  if (isEmailBanned(email)) throw new AuthError(SUSPENDED_MESSAGE, 403);
+  if (known) { const a = await getRecord<Account>(acctKey(known.id)); if (a) { if (isBanned(a.id)) throw new AuthError(SUSPENDED_MESSAGE, 403); return pub(a); } }
   const guest = await ownedGuest(adopt);
   // the name from their Google / Facebook profile, with digits added if somebody already has it
   const name = await uniqueName(cleanName(display).length >= 3 ? cleanName(display) : 'Player', guest?.id ?? '');
@@ -135,6 +156,7 @@ async function socialAccount(kind: 'google' | 'facebook', subject: string, displ
   else a = await newAccount(kind, name, { email: email ?? undefined });
   await takeName(a.id, name, guest?.name);
   await putRecord(ref, { id: a.id });
+  welcomeMail(email, a.name);
   return pub(a);
 }
 

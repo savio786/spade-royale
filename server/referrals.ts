@@ -21,6 +21,7 @@ interface Store {
   stats: Record<string, { count: number; earned: number }>;
   pending: Record<string, number>;               // coins waiting to be collected
   pendingChat: Record<string, number>;           // free chat days just earned (so the device can say so)
+  gifts?: Record<string, number>;                // coins the owner gave to a player, waiting to be collected
   ips: Record<string, { day: string; n: number }>;
 }
 let store: Store = { codes: {}, byPlayer: {}, redeemed: {}, stats: {}, pending: {}, pendingChat: {}, ips: {} };
@@ -88,10 +89,18 @@ export async function redeemInvite(id: unknown, key: unknown, code: unknown, ip:
 }
 
 /** Hands over (once) the coins waiting for this player. */
+export const MAX_GIFT = 5_000_000;
+/** Owner gift: coins held here until the player's device collects them (once). */
+export function giftCoins(id: string, coins: number) {
+  store.gifts = store.gifts ?? {};
+  store.gifts[id] = (store.gifts[id] ?? 0) + coins;
+  save();
+}
+
 export async function collectReferralCoins(id: unknown, key: unknown) {
   const a = await authed(id, key);
   if (!a) return null;
-  const coins = store.pending[a.id] ?? 0, chatDays = store.pendingChat[a.id] ?? 0;
-  if (coins > 0 || chatDays > 0) { delete store.pending[a.id]; delete store.pendingChat[a.id]; save(); }
-  return { coins, chatDays };
+  const coins = store.pending[a.id] ?? 0, chatDays = store.pendingChat[a.id] ?? 0, gift = store.gifts?.[a.id] ?? 0;
+  if (coins > 0 || chatDays > 0 || gift > 0) { delete store.pending[a.id]; delete store.pendingChat[a.id]; if (store.gifts) delete store.gifts[a.id]; save(); }
+  return { coins, chatDays, gift };
 }

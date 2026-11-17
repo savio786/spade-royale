@@ -1,4 +1,4 @@
-// Real weekly leaderboard + Wall of Fame, stored on the server in data/leaderboard.json.
+// Real weekly leaderboard + Haven’s Fame, stored on the server in data/leaderboard.json.
 // Starts empty: only real players' winnings ever appear here.
 import { loadJSON, saveJSON } from './storage';
 
@@ -9,7 +9,7 @@ interface Store {
   players: Record<string, LbEntry>;
   lastWeek: { week: string; rows: LbEntry[] } | null;
   fame: FameEntry[];
-  allTime: Record<string, LbEntry>;   // everything each player has ever won: the Wall of Fame list
+  allTime: Record<string, LbEntry>;   // everything each player has ever won: the Haven’s Fame list
   seeded: boolean;
 }
 
@@ -29,6 +29,8 @@ let store: Store = empty();
 export async function initLeaderboard() {
   store = await loadJSON('leaderboard', { ...empty(), seeded: false });
   if (!store.allTime) store.allTime = {};
+  // totals never go below zero: lift any older negative total back to 0 (the player stays on the board, showing 0)
+  for (const e of [...Object.values(store.players), ...Object.values(store.allTime)]) if (e.earnings < 0) e.earnings = 0;
   if (!store.seeded) {
     // first start with the all-time list: start it from last week's results and this week so far (nothing is counted twice)
     for (const r of [...(store.lastWeek?.rows ?? []), ...Object.values(store.players)]) {
@@ -42,12 +44,13 @@ export async function initLeaderboard() {
 }
 const save = () => saveJSON('leaderboard', () => store);
 
-const sorted = (rows: LbEntry[]) => rows.filter((r) => r.earnings > 0).sort((a, b) => b.earnings - a.earnings);
+/** Everyone who has played a game this period is listed, highest first; a player who has lost more than they won sits at 0. */
+const sorted = (rows: LbEntry[]) => rows.filter((r) => r.earnings >= 0).sort((a, b) => b.earnings - a.earnings);
 
 function rollover() {
   const now = weekKey();
   if (store.week === now) return;
-  const rows = sorted(Object.values(store.players));
+  const rows = sorted(Object.values(store.players)).filter((r) => r.earnings > 0);   // weekly rewards and the Haven’s Fame champion only go to players who actually won something
   store.lastWeek = { week: store.week, rows: rows.slice(0, 100) };
   if (rows[0]) store.fame = [{ week: store.week, name: rows[0].name, avatar: rows[0].avatar, earnings: rows[0].earnings }, ...store.fame].slice(0, 52);
   store.players = {};
@@ -56,7 +59,7 @@ function rollover() {
 }
 
 /** Picture keys the game can show: drawn avatars and portraits, or an uploaded photo (u: + 24 hex). */
-const okAvatar = (v: unknown) => { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|b\d{1,2}|u:[a-f0-9]{24})$/.test(s) ? s : null; };
+const okAvatar = (v: unknown) => { const s = String(v ?? ''); return /^(a\d{1,2}|p\d{1,2}|b\d{1,2}|u:[a-f0-9]{24}|c:[0-9a-z]{8})$/.test(s) ? s : null; };
 
 /** Keeps a ranked player's name and picture up to date when they change them (not only when they next win). */
 export function touch(p: { id: string; name: string; avatar: string }) {
@@ -72,18 +75,30 @@ export function touch(p: { id: string; name: string; avatar: string }) {
   if (changed) save();
 }
 
-export function credit(p: { id: string; name: string; avatar: string }, amount: number) {
-  if (!p.id || !(amount > 0)) return;
+function adjust(p: { id: string; name: string; avatar: string }, delta: number) {
   rollover();
   const e = store.players[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
   e.name = String(p.name).slice(0, 20);
   e.avatar = okAvatar(p.avatar) ?? e.avatar;
-  e.earnings += Math.round(amount);
+  e.earnings = Math.max(0, e.earnings + delta);   // a total never goes below zero
   store.players[p.id] = e;
   const t = store.allTime[p.id] ?? { id: p.id, name: p.name, avatar: p.avatar, earnings: 0 };
-  t.name = e.name; t.avatar = e.avatar; t.earnings += Math.round(amount);
+  t.name = e.name; t.avatar = e.avatar; t.earnings = Math.max(0, t.earnings + delta);
   store.allTime[p.id] = t;
   save();
+}
+
+/** A win: the prize is added to the week's total and to the all-time (Haven’s Fame) total. */
+export function credit(p: { id: string; name: string; avatar: string }, amount: number) {
+  if (!p.id || !(amount > 0)) return;
+  adjust(p, Math.round(amount));
+}
+
+/** A loss: the bet is taken off the week's total and the all-time total, but never below zero
+    (the player stays on the board showing 0 and climbs again with their next wins). */
+export function debit(p: { id: string; name: string; avatar: string }, amount: number) {
+  if (!p.id || !(amount > 0)) return;
+  adjust(p, -Math.round(amount));
 }
 
 export function board(id?: string) {
@@ -96,13 +111,22 @@ export function board(id?: string) {
     week: store.week,
     endsAt: weekEndsAt(),
     rows: rows.slice(0, 100).map(strip),
-    me: { rank: rankOf(rows), earnings: id ? store.players[id]?.earnings ?? 0 : 0 },
+    me: { rank: rankOf(rows), earnings: id ? Math.max(0, store.players[id]?.earnings ?? 0) : 0 },
     lastWeek: store.lastWeek ? { week: store.lastWeek.week, rank: rankOf(store.lastWeek.rows), rows: store.lastWeek.rows.slice(0, 100).map(strip) } : null,
     fame: store.fame,
     allTime: all.slice(0, 100).map(strip),
-    meAllTime: { rank: rankOf(all), earnings: id ? store.allTime[id]?.earnings ?? 0 : 0 },
+    meAllTime: { rank: rankOf(all), earnings: id ? Math.max(0, store.allTime[id]?.earnings ?? 0) : 0 },
   };
 }
 
-/** Wipes every leaderboard and Wall of Fame entry. */
+/** Wipes every leaderboard and Haven’s Fame entry. */
 export function resetAll() { store = empty(); save(); }
+
+/** Takes a player off both boards completely (this week, all-time, last week, and any Haven’s Fame weeks under their name). */
+export function removePlayer(id: string, name?: string) {
+  const gone = store.players[id]?.name ?? store.allTime[id]?.name ?? name;
+  delete store.players[id]; delete store.allTime[id];
+  if (store.lastWeek) store.lastWeek.rows = store.lastWeek.rows.filter((r) => r.id !== id);
+  if (gone) store.fame = store.fame.filter((f) => f.name !== gone);
+  save();
+}

@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n';
 import { useEffect, useMemo, useState } from 'react';
 import { Avatar, Coin, Icon } from '../components/ui';
 import { TableShape } from '../components/TableShape';
@@ -7,7 +8,7 @@ import { net, NetStatus } from '../lib/net';
 import type { TableSummary } from '../../shared/protocol';
 import { sfx } from '../lib/sound';
 import { store } from '../lib/payments';
-import { themeById, themeVars } from '../lib/themes';
+import { highRoller, highRollerTheme, themeById, themeVars } from '../lib/themes';
 import { CreateTableModal, RoomTypeModal, StartRequest } from './modals';
 import type { OnlineCounts } from '../../shared/protocol';
 import { CityRing, lookFor } from '../components/CityRing';
@@ -45,6 +46,12 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
     return opts[(opts.indexOf(v) + dir + opts.length) % opts.length];
   };
 
+  const watch = (t: TableSummary) => {
+    sfx.click();
+    const s = t.settings;
+    onStart({ mode: s.mode, bet: s.bet, minPoints: s.minPoints, maxPoints: s.maxPoints, via: 'watch', tableId: t.id });
+  };
+
   const join = (t: TableSummary) => {
     if (t.phase !== 'waiting' || joinSeat(t) < 0) return;
     if (p.coins < t.settings.bet) { store.open({ tab: 'coins', need: t.settings.bet }); return; }
@@ -56,53 +63,57 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
   return (
     <div className="screen online-lobby city-bg">
       <header className="ol-head">
-        <button className="back-btn" onClick={() => { sfx.click(); onBack(); }} aria-label="Back to lobby"><Icon name="left" size={28} /></button>
+        <button className="back-btn" onClick={() => { sfx.click(); onBack(); }} aria-label={tr("Back to lobby")}><Icon name="left" size={28} /></button>
         <div className="ol-box">
-          <span className="ol-label">ROOM TYPE</span>
+          <span className="ol-label">{tr("ROOM TYPE")}</span>
           <div className="ol-ctl">
-            <button aria-label="Previous room type" onClick={() => setMode(mode === 'solo' ? 'partners' : 'solo')}><Icon name="left" size={18} /></button>
-            <b>{mode.toUpperCase()} {mode === 'partners' ? '♠♠' : '♠'}</b>
-            <button aria-label="Next room type" onClick={() => setMode(mode === 'solo' ? 'partners' : 'solo')}><Icon name="right" size={18} /></button>
+            <button aria-label={tr("Previous room type")} onClick={() => setMode(mode === 'solo' ? 'partners' : 'solo')}><Icon name="left" size={18} /></button>
+            <b><img className="ol-mode-img" src={`/ui/lobby/ol-${mode}.webp`} alt="" aria-hidden="true" />{mode.toUpperCase()}</b>
+            <button aria-label={tr("Next room type")} onClick={() => setMode(mode === 'solo' ? 'partners' : 'solo')}><Icon name="right" size={18} /></button>
           </div>
         </div>
         <div className="ol-box wide">
-          <span className="ol-label">GAME ENDING POINTS</span>
+          <span className="ol-label">{tr("GAME ENDING POINTS")}</span>
           <div className="ol-dual">
-            <div className="ol-ctl"><em>MIN</em>
-              <button aria-label="Previous minimum" onClick={() => setMinF(cycle(MIN_STEPS, minF, -1))}><Icon name="minus" size={16} /></button>
+            <div className="ol-ctl"><em>{tr("MIN")}</em>
+              <button aria-label={tr("Previous minimum")} onClick={() => setMinF(cycle(MIN_STEPS, minF, -1))}><Icon name="minus" size={16} /></button>
               <b>{minF ?? 'ANY'}</b>
-              <button aria-label="Next minimum" onClick={() => setMinF(cycle(MIN_STEPS, minF, 1))}><Icon name="plus" size={16} /></button></div>
-            <div className="ol-ctl"><em>MAX</em>
-              <button aria-label="Previous maximum" onClick={() => setMaxF(cycle(MAX_STEPS, maxF, -1))}><Icon name="minus" size={16} /></button>
+              <button aria-label={tr("Next minimum")} onClick={() => setMinF(cycle(MIN_STEPS, minF, 1))}><Icon name="plus" size={16} /></button></div>
+            <div className="ol-ctl"><em>{tr("MAX")}</em>
+              <button aria-label={tr("Previous maximum")} onClick={() => setMaxF(cycle(MAX_STEPS, maxF, -1))}><Icon name="minus" size={16} /></button>
               <b>{maxF ?? 'ANY'}</b>
-              <button aria-label="Next maximum" onClick={() => setMaxF(cycle(MAX_STEPS, maxF, 1))}><Icon name="plus" size={16} /></button></div>
+              <button aria-label={tr("Next maximum")} onClick={() => setMaxF(cycle(MAX_STEPS, maxF, 1))}><Icon name="plus" size={16} /></button></div>
           </div>
         </div>
         <div className="coins-pill small"><Coin size={26} /><span className="coins-num">{fmt(p.coins)}</span></div>
       </header>
 
       <div className="lt-row">
-        <button className="lt-create" onClick={() => { sfx.click(); setCreating('pick'); }} aria-label="Create a table">
-          <CreateTableArt />
-          <span className="lt-create-txt">CREATE TABLE</span>
+        <button className="lt-create" onClick={() => { sfx.click(); setCreating('pick'); }} aria-label={tr("Create a table")}>
+          <img className="lt-create-img" src="/ui/lobby/ol-create.webp" alt="" aria-hidden="true" draggable={false} />
+          <span className="lt-create-txt">{tr("CREATE TABLE")}</span>
         </button>
-        {tables.map((t) => <LobbyTable key={t.id} t={t} poor={p.coins < t.settings.bet} onJoin={() => join(t)} />)}
+        {tables.map((t) => <LobbyTable key={t.id} t={t} poor={p.coins < t.settings.bet} onJoin={() => join(t)} onWatch={() => watch(t)} />)}
         {tables.length === 0 && (
           <div className="lt-empty" role="status">
+            <img className="lt-empty-img" src="/ui/lobby/ol-empty.webp" alt="" aria-hidden="true" draggable={false} />
+            <div className="lt-empty-txt">
             {status !== 'online' ? (
-              <><b>Can’t reach the game server</b><p>Live tables appear here when you’re online. You can still play against the computer from PLAY NOW.</p></>
+              <><b>{tr("Can’t reach the game server")}</b><p>{tr("Live tables appear here when you’re online. You can still play against the computer from PLAY NOW.")}</p></>
             ) : live === null ? (
-              <b>Looking for tables…</b>
+              <b>{tr("Looking for tables…")}</b>
             ) : (
               <><b>No one is playing {mode === 'partners' ? 'Partners' : 'Solo'} right now</b>
-                <p>Tables with real players show up here as soon as someone sits down. Create one and others can join you.</p></>
+                <p>{tr("Tables with real players show up here as soon as someone sits down. Create one and others can join you.")}</p></>
             )}
+            {status === 'online' && live !== null && <button className="lt-empty-btn" onClick={() => { sfx.click(); setCreating('pick'); }}>{tr("CREATE A TABLE")}</button>}
+            </div>
           </div>
         )}
       </div>
 
       {creating === 'pick' && (
-        <RoomTypeModal title="CHOOSE YOUR TABLE" online={status === 'online' ? online : null} onClose={() => setCreating(null)} onPick={(m) => { setMode(m); setCreating(m); }} />
+        <RoomTypeModal title={tr("CHOOSE YOUR TABLE")} online={status === 'online' ? online : null} onClose={() => setCreating(null)} onPick={(m) => { setMode(m); setCreating(m); }} />
       )}
       {(creating === 'solo' || creating === 'partners') && (
         <CreateTableModal mode={creating} onClose={() => setCreating(null)}
@@ -112,9 +123,10 @@ export function OnlineLobby({ onBack, onStart }: { onBack: () => void; onStart: 
   );
 }
 
-function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoin: () => void }) {
+function LobbyTable({ t, poor, onJoin, onWatch }: { t: TableSummary; poor: boolean; onJoin: () => void; onWatch: () => void }) {
   const city = t.settings.city || cityForBet(t.settings.bet);
   const look = lookFor(city);
+  const hr = highRoller(t.settings.bet);
   const waiting = t.phase === 'waiting';
   const mine = joinSeat(t);
   // show the table from the seat you'd take: that seat is the PLAY button at the bottom
@@ -123,7 +135,8 @@ function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoi
   const partners = t.settings.mode === 'partners';
   const humans = t.seats.filter((s) => s && !s.bot).length;
   return (
-    <div className={`lt ${poor ? 'poor' : ''} ${waiting ? '' : 'busy'}`} style={themeVars(themeById(look.theme))}>
+    <div className={`lt ${poor ? 'poor' : ''} ${waiting ? '' : 'busy'}${hr ? ` hr hr-${hr}` : ''}`} style={themeVars(hr ? highRollerTheme(hr) : themeById(look.theme))}>
+      {hr > 0 && <span className="lt-hr-badge">{hr === 2 ? '◆ DIAMOND' : '♛ HIGH ROLLER'}</span>}
       <TableShape scale={0.62} emblem={false} />
       <div className="lt-felt">
         <div className="lt-city"><span>{city}</span><CityRing gem={look.gem} /></div>
@@ -147,10 +160,10 @@ function LobbyTable({ t, poor, onJoin }: { t: TableSummary; poor: boolean; onJoi
       })}
       {waiting && mine >= 0 ? (
         <button className="lt-play" onClick={onJoin} aria-label={`Play at ${city} table, bet ${fmt(t.settings.bet)}`}>
-          <span className="lt-arrow">↑</span><b>PLAY</b>
+          <span className="lt-arrow">↑</span><b>{tr("PLAY")}</b>
         </button>
       ) : (
-        <span className="lt-live" aria-label="Game in progress">● LIVE</span>
+        <button className="lt-live lt-watch" onClick={onWatch} aria-label={`Watch the ${city} game, bet ${fmt(t.settings.bet)}`}>{tr("👁 WATCH")}</button>
       )}
     </div>
   );

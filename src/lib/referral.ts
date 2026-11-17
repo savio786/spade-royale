@@ -1,12 +1,13 @@
 // Invite friends: your invite link, the share message, and collecting the coins you and your friends earn.
 // A friend who opens your link (…/?ref=CODE) and plays their first game earns coins for both of you.
 import { useSyncExternalStore } from 'react';
-import { serverOrigin } from './config';
+import { LIVE_SERVER, serverOrigin } from './config';
 import { fmt, profile } from './profile';
 import { toast } from './toast';
 import { sfx } from './sound';
 import { pullGuestProgress } from './guest';
 import { syncPurchases } from './payments';
+import { track } from './track';
 
 const REF_KEY = 'spade-haven-ref';
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -18,6 +19,7 @@ export function captureRef() {
     const url = new URL(window.location.href);
     const code = (url.searchParams.get('ref') || '').toUpperCase();
     if (!url.searchParams.has('ref')) return;
+    track('invite_link_open');
     if (/^[A-Z0-9]{4,10}$/.test(code) && !read(REF_KEY)) write(REF_KEY, code);
     url.searchParams.delete('ref');
     history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
@@ -70,9 +72,14 @@ export async function syncReferral() {
     if (r && (r.ok || !r.retry)) write(REF_KEY, null);
     else if (r?.retry && retries++ < 4) setTimeout(() => void syncReferral(), 20_000); // the game result is still being saved
   }
-  const got = await call<{ coins: number; chatDays?: number }>('collect', a);
+  const got = await call<{ coins: number; chatDays?: number; gift?: number; credited?: boolean }>('collect', a);   // credited: the server already put the coins in your server-side balance
+  if (got && (got.gift ?? 0) > 0) {
+    if (!got.credited) profile.addCoins(got.gift!);
+    toast(`+${fmt(got.gift!)} coins — a gift from Spade Haven. Thanks for your patience!`, 'coins');
+    sfx.coins();
+  }
   if (got && (got.coins > 0 || (got.chatDays ?? 0) > 0)) {
-    if (got.coins > 0) profile.addCoins(got.coins);
+    if (got.coins > 0 && !got.credited) profile.addCoins(got.coins);
     if (got.chatDays) void syncPurchases();       // the server already extended the Chat Pass; this brings it to the device
     toast(`${got.coins > 0 ? `+${fmt(got.coins)} coins` : 'Invite reward'}${got.chatDays ? ` and ${got.chatDays} days of free chat` : ''} — invite reward!`, 'coins');
     sfx.coins();
@@ -80,6 +87,27 @@ export async function syncReferral() {
   }
 }
 
-export const inviteLink = (code: string) => `${window.location.origin}/?ref=${code}`;
+/** Always the public address, so a link shared from the Render address or the Android/Windows app still works for friends. */
+export const inviteLink = (code: string) => `${LIVE_SERVER}/?ref=${code}`;
 export const inviteText = (code: string) =>
   `Come play Spades with me on Spade Haven — free online Spades with live tables, tournaments and chat. Use my link and we both get bonus coins: ${inviteLink(code)}`;
+
+// ---- table invite links: …/?join=ABCDE opens the game and sits you at that private table ----
+const JOIN_KEY = 'spade-haven-join';
+export const tableLink = (code: string) => `${LIVE_SERVER}/?join=${code}`;
+export const tableInviteText = (code: string) => `Join my Spades table on Spade Haven! Tap to sit down: ${tableLink(code)} (table code ${code})`;
+
+/** Remember a table code from the link the player arrived with, tidy the address bar and open the game. */
+export function captureJoin() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('join')) return;
+    track('table_link_open');
+    const code = (url.searchParams.get('join') || '').toUpperCase().trim();
+    if (/^[A-Z0-9]{4,8}$/.test(code)) { try { sessionStorage.setItem(JOIN_KEY, code); } catch { /* storage unavailable */ } }
+    url.searchParams.delete('join');
+    history.replaceState(null, '', url.pathname + (url.search || '') + '#play');
+  } catch { /* ignore */ }
+}
+export const pendingJoin = () => { try { return sessionStorage.getItem(JOIN_KEY); } catch { return null; } };
+export const clearJoin = () => { try { sessionStorage.removeItem(JOIN_KEY); } catch { /* ignore */ } };

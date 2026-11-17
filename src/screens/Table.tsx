@@ -1,27 +1,34 @@
+import { t as tr } from '../lib/i18n';
+import { rich } from '../lib/rich';
 import { SpadesBroken } from '../components/SpadesBroken';
 import { TableShape } from '../components/TableShape';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
-import { Card, legalCards, prizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
+import { Card, legalCards, prizeFor, secondPrizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
 import type { CtlView, TableController } from '../lib/controller';
-import { fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
-import { PlayerCard } from '../components/PlayerCard';
+import { cityForBet, fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
+import { PlayerCard, ReportDialog } from '../components/PlayerCard';
 import { music, sfx, vibrate } from '../lib/sound';
 import { MusicPicker } from '../components/MusicPicker';
 import { toast } from '../lib/toast';
 import { reportWin } from '../lib/api';
 import { helpBot } from '../lib/helpbot';
+import { observe as logHand } from '../lib/handlog';
+import { bumpMission, coinLink, isMutedId, mutePlayer, spendCoins } from '../lib/profile';
+import { track } from '../lib/track';
+import { tableInviteText, tableLink } from '../lib/referral';
 import { ThemeModal, VipModal } from './modals';
-import { activeTheme, newlyUnlocked, themeVars } from '../lib/themes';
+import { FOUR_COLOR_VARS, activeTheme, highRoller, highRollerTheme, newlyUnlocked, themeVars } from '../lib/themes';
 import { canChat, chatPassLabel, store } from '../lib/payments';
 
+const HandReview = lazy(() => import('./HandReview'));   // its own code chunk: only downloaded when someone opens the history
 const POS = ['bottom', 'left', 'top', 'right'] as const;
 import { FREE_EMOJI, QUICK_PHRASES } from '../../shared/chat';
 import { GIFTS, GIFT_BY_ID, type Gift } from '../../shared/gifts';
 import type { SeatGift } from '../../shared/runtime';
 
-export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onExit: () => void; onPlayAgain: () => void }) {
+export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableController; onExit: () => void; onPlayAgain: () => void; onRematch: (code: string) => void }) {
   const p = useProfile();
   const [view, setView] = useState<CtlView | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -29,6 +36,8 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [themesOpen, setThemesOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const gid = useRef(Math.random().toString(36).slice(2, 8));   // identifies this game in the hand history
   const [vip, setVip] = useState(false);
   const [giftFor, setGiftFor] = useState<number | null>(null);
   const [cardSeat, setCardSeat] = useState<number | null>(null);
@@ -36,38 +45,57 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
   const [unread, setUnread] = useState(0);
   const [now, setNow] = useState(Date.now());
   const charged = useRef(false);
+  const boardsDone = useRef(false);
   const settled = useRef(false);
   const lastChatId = useRef(0);
   // when each chat line first reached THIS device (a phone's clock can be minutes off the server's, so the server's time stamp can't decide how long a line stays up)
   const chatSeen = useRef<{ map: Map<number, number>; first: boolean }>({ map: new Map(), first: true });
   const lastTurn = useRef<string>('');
+  const lastRound = useRef(-1);
+  const rematched = useRef(false);
+  const wonKey = useRef('');
 
   useEffect(() => ctl.subscribe(setView), [ctl]);
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, []);
+  // countdowns use the server's clock: a device whose own clock is a few seconds off would otherwise show a wrong or frozen count
+  const skew = useRef(0);
+  skew.current = view?.snap?.skew ?? 0;
+  useEffect(() => { const t = setInterval(() => setNow(Date.now() + skew.current), 500); return () => clearInterval(t); }, []);
 
   const st = view?.snap?.state ?? null;
+  const coinsOnServer = view ? (view.online ? !!view.wallet : coinLink.on) : false;   // server-side coins: the server holds the bet and pays the prize (games against the computers then change no coins)
   const me = st?.mySeat ?? 0;
   const rel = (seat: number) => POS[(seat - me + 4) % 4];
 
   // --- side effects on state changes: coins, sounds, chat counter ---
   useEffect(() => {
     if (!st || !view) return;
-    if (!charged.current && st.phase !== 'waiting') {
+    if (!charged.current && st.phase !== 'waiting' && !view.watching) {   // watchers pay nothing and earn nothing
       charged.current = true;
-      profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));
+      track('game_start'); if (view.online) track('game_online');
+      if (!coinsOnServer) profile.set((x) => ({ coins: Math.max(0, x.coins - st.settings.bet) }));   // with server-side coins the server already took the bet when you sat down
       sfx.deal();
     }
+    if (st.phase === 'bidding' && st.round !== lastRound.current) { if (lastRound.current >= 0) sfx.deal(); lastRound.current = st.round; }   // every new round is dealt with the sound (the first one is heard when the game starts)
+    if (st.phase === 'trickEnd' && st.lastTrickWinner === me && !view.watching) {
+      const k = `${st.round}-${st.trick.map((t) => `${t.card.s}${t.card.r}`).join('')}`;
+      if (wonKey.current !== k) { wonKey.current = k; sfx.trickWon(); vibrate([30, 40, 30]); bumpMission('tricks'); }   // you took the trick
+    }
+    if (!view.watching && (st.phase === 'trickEnd' || st.phase === 'roundEnd' || st.phase === 'gameOver')) logHand(st, gid.current);   // write down the trick / the scored hand (a few small numbers)
     const turnKey = `${st.phase}-${st.turn}-${st.round}-${st.trick.length}`;
     if (turnKey !== lastTurn.current) {
       lastTurn.current = turnKey;
-      if ((st.phase === 'bidding' || st.phase === 'playing') && st.turn === me) { sfx.turn(); vibrate(25); }
+      if ((st.phase === 'bidding' || st.phase === 'playing') && st.turn === me && !view.watching) { sfx.turn(); vibrate(25); }
       if (st.phase === 'playing' || st.phase === 'trickEnd') if (st.trick.length) sfx.card();
     }
     if (st.phase === 'gameOver' && !settled.current && charged.current) {
       settled.current = true;
+      track('game_end');
+      bumpMission('play'); if (view.online) bumpMission('online');
       const mySide = sideOf(st.settings.mode, me);
       const won = st.winners.includes(mySide);
-      const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : 0;
+      const second = !won && st.settings.mode === 'solo' && st.placements.indexOf(mySide) === 1;   // solo: 2nd place gets the bet back
+      const prize = won ? Math.round(prizeFor(st.settings) * (profile.get().vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;
+      const practice = coinLink.on && !view.online;   // server-side coins: a game against the computers is practice (no coins won or lost)
       const nils = st.history.filter((h) => h.nilResults[me] === true).length;
       const pens = st.history.filter((h) => h.bagPenalty[mySide]).length;
       const myNils = st.history.filter((h) => h.bids[me] === 0);
@@ -75,31 +103,32 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       const city = st.settings.city;
       profile.set((x) => ({
         card: {
-          last5: ((x.card?.last5 ?? '') + (won ? 'W' : 'L')).slice(-5),
+          last5: ((x.card?.last5 ?? '') + (won || second ? 'W' : 'L')).slice(-5),   // 2nd place in solo counts as a win in the record
           nil: (x.card?.nil ?? 0) + myNils.length, nilMade: (x.card?.nilMade ?? 0) + myNils.filter((h) => h.nilResults[me]).length,
           blind: (x.card?.blind ?? 0) + blinds.length, blindMade: (x.card?.blindMade ?? 0) + blinds.filter((h) => h.nilResults[me]).length,
           rings: won ? { ...(x.card?.rings ?? {}), [city]: ((x.card?.rings ?? {})[city] ?? 0) + 1 } : (x.card?.rings ?? {}),
         },
-        coins: x.coins + prize,
+        coins: x.coins + (coinsOnServer ? 0 : prize),   // with server-side coins the server pays the prize and sends the new balance
         xp: x.xp + 40 + (won ? 80 : 0),
-        weekEarnings: x.weekEarnings + prize,
+        weekEarnings: x.weekEarnings + (second || practice ? 0 : prize),   // a refunded bet is not earnings
         stats: {
-          ...x.stats, played: x.stats.played + 1, won: x.stats.won + (won ? 1 : 0),
+          ...x.stats, played: x.stats.played + 1, won: x.stats.won + (won || second ? 1 : 0),
           soloWins: x.stats.soloWins + (won && st.settings.mode === 'solo' ? 1 : 0),
           partnersWins: x.stats.partnersWins + (won && st.settings.mode === 'partners' ? 1 : 0),
-          nilsMade: x.stats.nilsMade + nils, biggestWin: Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
+          nilsMade: x.stats.nilsMade + nils, biggestWin: second || practice ? x.stats.biggestWin : Math.max(x.stats.biggestWin, prize), bagsPenalties: x.stats.bagsPenalties + pens,
         },
       }));
-      won ? (sfx.win(), sfx.coins()) : sfx.lose();
+      if (won || second) bumpMission('win'); if (nils) bumpMission('nil', nils);
+      won ? (sfx.win(), sfx.coins()) : second ? sfx.coins() : sfx.lose();
       { const before = levelFromXp(profile.get().xp - (40 + (won ? 80 : 0))), after = levelFromXp(profile.get().xp);
         for (const t of newlyUnlocked(before, after)) setTimeout(() => toast(`Level ${after}! New table & cards unlocked: ${t.name} (Menu → Table & cards)`), 1800); }
       // games vs computer are reported to the server leaderboard; online games are credited by the server itself
-      if (won && !view.online) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize }); }
+      if (!view.online && !second && !practice) { const me2 = profile.get(); reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize, lost: !won }); }   // a loss takes the bet off the boards
     }
     const msgs = view.snap?.chat ?? [];
     const newest = msgs[msgs.length - 1];
     if (newest && newest.id !== lastChatId.current) {
-      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !m.text.startsWith('🎁:'));
+      const fresh = msgs.filter((m) => m.id > lastChatId.current && !m.system && m.seat !== me && !m.text.startsWith('🎁:') && !isMutedId(profile.get(), st.seats[m.seat]?.id));
       lastChatId.current = newest.id;
       if (fresh.length && !profile.get().settings.chatOff) { sfx.chat(); if (!chatOpen) setUnread((u) => u + fresh.length); }
       // a gift announces itself with a hidden chat line "🎁:<seat>:<gift id>": make it fly to that player
@@ -112,10 +141,20 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     }
     if (view.online && view.conn === 'gone' && charged.current && !settled.current && st.phase !== 'gameOver') {
       settled.current = true;
-      if (!view.forfeited) profile.set((x) => ({ coins: x.coins + st.settings.bet }));   // a table that vanished (server update) refunds; leaving or being away too long does not
+      if (!view.forfeited && !coinsOnServer) profile.set((x) => ({ coins: x.coins + st.settings.bet }));   // a table that vanished (server update) refunds; leaving or being away too long does not
     }
     if (view.error) toast(view.error, 'error');
   }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // everyone agreed to a rematch: move to the new table (your old seat is held for you there)
+  useEffect(() => {
+    const to = view?.rematch?.to;
+    if (!to || rematched.current) return;
+    rematched.current = true;
+    track('rematch_start');
+    ctl.leave();
+    onRematch(to);
+  }, [view?.rematch?.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (chatOpen) setUnread(0); }, [chatOpen]);
   // "SPADES BROKEN!" splash: once per round, the moment the first spade is played on another suit (not when joining a round that's already broken)
@@ -153,39 +192,74 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
     const t = setTimeout(() => setSent(null), 2500);
     return () => clearTimeout(t);
   }, [sent, st?.hand, view?.error]);
-  const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Halloween rooms this table uses
+  // the last card of a round has no choice in it: play it for the player after a short beat (so they still see it go)
+  useEffect(() => {
+    if (!st || st.phase !== 'playing' || st.turn !== st.mySeat || st.hand.length !== 1 || sent) return;
+    const c = st.hand[0];
+    if (!c) return;
+    const lone = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [st.mySeat]: st.hand }) } as never, st.mySeat);
+    if (!lone.some((l) => sameCard(l, c))) return;
+    const t = setTimeout(() => {
+      setSent(c.s + c.r); vibrate(10);
+      const h = document.querySelector(`.fan [data-card="${c.s}${c.r}"]`); if (h) Object.assign(playedFrom, screenCenter(h), { at: Date.now() });
+      ctl.act({ type: 'play', seat: st.mySeat, card: c });
+    }, 900);
+    return () => clearTimeout(t);
+  }, [st?.phase, st?.turn, st?.round, st?.hand, sent]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [fall] = useState(() => 1 + Math.floor(Math.random() * 4));   // which of the four fall / Thanksgiving rooms this table uses
   useEffect(() => { if (p.settings.music !== false) music.start(p.settings.track); else music.stop(); }, [p.settings.music, p.settings.track]);
   useEffect(() => { music.atTable = true; return () => { music.atTable = false; music.stop(); }; }, []);
 
   const leave = () => {
+    // leaving a game after it started is a loss on your record, and forfeits the bet
+    if (view && st && charged.current && !settled.current && st.phase !== 'waiting' && st.phase !== 'gameOver') {
+      settled.current = true;
+      profile.set((x) => ({ card: { ...x.card, last5: ((x.card?.last5 ?? '') + 'L').slice(-5) } as typeof x.card, stats: { ...x.stats, played: x.stats.played + 1 } }));
+      // walking out on a Nil / Blind Nil bid: 1.5x the bet in total, so another half a bet on top of the bet already paid (never below 0 coins)
+      if (st.bids?.[me] === 0) {
+        const extra = Math.round(st.settings.bet * 0.5);
+        if (!coinsOnServer) profile.set((x) => ({ coins: Math.max(0, x.coins - extra) }));
+        toast(`You left on a Nil bid: ${fmt(Math.round(st.settings.bet * 1.5))} coins lost in total`, 'error');
+      }
+    }
+    // ...and against computers the bet also comes off the boards (online games do that on the server)
+    if (view && !view.online && !coinLink.on && st && charged.current && st.phase !== 'waiting' && st.phase !== 'gameOver' && !boardsDone.current) {
+      boardsDone.current = true;
+      const me2 = profile.get();
+      reportWin({ id: me2.id, name: me2.name, avatar: me2.avatar, mode: st.settings.mode, bet: st.settings.bet, prize: 0, lost: true, leftNil: st.bids?.[me] === 0 });   // walking out on a nil / blind nil bid costs 1.5x the bet
+    }
     ctl.leave();
     onExit();
   };
 
   if (!view || !st) {
-    return <div className={`screen table-screen felt-bg fall-${fall}`}><div className="connecting">Connecting to table…</div>
-      <Pill color="ghost" onClick={leave}>Back</Pill></div>;
+    return <div className={`screen table-screen felt-bg fall-${fall}`}><div className="connecting">{tr("Connecting to table…")}</div>
+      <Pill color="ghost" onClick={leave}>{tr("Back")}</Pill></div>;
   }
 
+  const hr = highRoller(st.settings.bet);   // 1M gold / 2M diamond tables look the same for everyone
   const mode = st.settings.mode;
   const deadline = view.snap!.turnDeadline;
   const secsLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
   const missedMine = view.snap!.missed?.[me] ?? 0;
   const maxMissed = view.snap!.maxMissed ?? 3;
-  const myTurn = st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
+  const watching = !!view?.watching;
+  const myTurn = !watching && st.turn === me && (st.phase === 'bidding' || st.phase === 'playing');
   const legal = legalCards({ ...st, hands: Object.assign([[], [], [], []], { [me]: st.hand }) } as never, me);
   const lastBySeat = new Map<number, { text: string; ts: number }>();
-  for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me)) lastBySeat.set(m.seat, m);
+  for (const m of view.snap!.chat) if (!m.system && !m.text.startsWith('🎁:') && (!p.settings.chatOff || m.seat === me) && !isMutedId(p, st.seats[m.seat]?.id)) lastBySeat.set(m.seat, m);
 
   return (
-    <div className={`screen table-screen felt-bg fall-${fall}`} style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
+    <div className={`screen table-screen felt-bg fall-${fall}${hr ? ` hr hr-${hr}` : ''}${p.settings.bigCards ? ' big-cards' : ''}`} style={{ ...themeVars(hr ? highRollerTheme(hr) : activeTheme(p.theme, levelFromXp(p.xp))), ...(p.settings.fourColor ? FOUR_COLOR_VARS : {}) }}>
+      <div className="table-scene" style={{ backgroundImage: `url(/ui/city/${(st.settings.city || cityForBet(st.settings.bet)).toLowerCase().replace(/\s+/g, '')}.webp)` }} aria-hidden="true" />
       <div className="tbl-top-left">
-        <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>BUY COINS</button>
-        <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">VIP</span><small>CLUB</small></button>
+        <button className="buy-coins small" onClick={() => store.open({ tab: 'coins' })}>{tr("BUY COINS")}</button>
+        <button className="vip-mini" onClick={() => setVip(true)}><span className="gold-text">{tr("VIP")}</span><small>{tr("CLUB")}</small></button>
       </div>
       <div className="tbl-top-right">
-        <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label="Open chat"><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>
-        <button className="round-ui" onClick={() => { sfx.click(); setMenuOpen(true); }} aria-label="Menu"><Icon name="menu" size={26} /></button>
+        {watching && <span className="watch-pill" role="status">{tr("👁 WATCHING")}</span>}
+        {!watching && <button className="round-ui" onClick={() => { sfx.click(); setChatOpen(true); }} aria-label={tr("Open chat")}><Icon name="chat" size={26} />{unread > 0 && <span className="badge">{unread}</span>}</button>}
+        <button className="round-ui" onClick={() => { sfx.click(); setMenuOpen(true); }} aria-label={tr("Menu")}><Icon name="menu" size={26} /></button>
       </div>
 
       <div className="felt-wrap">
@@ -193,38 +267,39 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         <div className="felt">
           <InfoPanel st={st} />
           <ScorePanel st={st} />
+          {hr > 0 && <div className="hr-plate" aria-hidden="true"><span>{hr === 2 ? '◆ DIAMOND TABLE ◆' : '♛ HIGH ROLLER ♛'}</span></div>}
           <div className="felt-center">
             {st.phase === 'waiting' && view.snap!.startAt && (
               <div className="center-msg" role="timer">
-                <b>GAME WILL START IN</b>
-                <span className="cm-big" key={Math.ceil((view.snap!.startAt - now) / 1000)}>{Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}</span>
+                <b>{tr("GAME WILL START IN")}</b>
+                <span className="cm-big" key={Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}>{Math.max(1, Math.ceil((view.snap!.startAt - now) / 1000))}</span>
               </div>
             )}
             {st.phase === 'bidding' && st.turn !== me && (
-              <div className="center-msg"><b>CHOOSE YOUR BID</b><span className="cm-name">{st.seats[st.turn]?.name}</span></div>
+              <div className="center-msg"><b>{tr("CHOOSE YOUR BID")}</b><span className="cm-name">{st.seats[st.turn]?.name}</span></div>
             )}
             {st.phase === 'waiting' && !view.snap!.startAt && (
               <div className="waiting">
-                <div className="waiting-text">WAITING FOR PLAYERS<span className="dots3"><i>.</i><i>.</i><i>.</i></span></div>
+                <div className="waiting-text">{tr("WAITING FOR PLAYERS")}<span className="dots3"><i>.</i><i>.</i><i>.</i></span></div>
                 {(view.snap!.fillAt || (view.online && view.host && view.settings.isPrivate)) && (
                   <div className="waiting-actions">
                     {view.snap!.fillAt
-                      ? <span className="fill-wait" role="timer">Waiting for player {st.seats.filter(Boolean).length + 1} · a computer player joins in <b>{Math.min(15, Math.max(0, Math.ceil((view.snap!.fillAt - Date.now()) / 1000)))}s</b></span>
-                      : <span className="fill-wait">Waiting for friends to join</span>}
+                      ? <span className="fill-wait" role="timer">{tr('Waiting for player {n} · a computer player joins in {s}s', { n: st.seats.filter(Boolean).length + 1, s: Math.min(30, Math.max(0, Math.ceil((view.snap!.fillAt - Date.now()) / 1000))) })}</span>
+                      : <span className="fill-wait">{tr("Waiting for friends to join")}</span>}
                     {view.online && <button className="fill-now" onClick={() => ctl.fillBots()}>{view.settings.isPrivate ? 'Fill with bots' : 'Start now'}</button>}
                   </div>
                 )}
                 {view.code && (
                   <div className="invite">
-                    <span>Invite code</span>
-                    <button className="code" onClick={() => { navigator.clipboard?.writeText(view.code!).then(() => toast('Invite code copied'), () => toast(`Invite code: ${view.code}`)); }} aria-label={`Copy invite code ${view.code}`}>{view.code} <Icon name="copy" size={18} /></button>
+                    <button className="invite-share" onClick={() => { sfx.click(); inviteToTable(view.code!); }}><Icon name="copy" size={20} /> INVITE FRIENDS</button>
+                    <button className="code" onClick={() => { navigator.clipboard?.writeText(view.code!).then(() => toast(tr('Table code copied')), () => toast(tr('Table code: {c}', { c: view.code! }))); }} aria-label={`Copy table code ${view.code}`}>Code {view.code} <Icon name="copy" size={18} /></button>
                   </div>
                 )}
 
               </div>
             )}
             <TrickCards st={st} rel={rel} />
-            {st.phase === 'playing' && st.trick.length === 0 && st.turn === me && <div className="status-line you">Your lead{!st.spadesBroken ? ' — spades not broken yet' : ''}</div>}
+            {!watching && st.phase === 'playing' && st.trick.length === 0 && st.turn === me && <div className="status-line you">Your lead{!st.spadesBroken ? ' — spades not broken yet' : ''}</div>}
           </div>
         </div>
 
@@ -232,14 +307,14 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
           <SeatView key={seat} st={st} seat={seat} pos={rel(seat)} me={me} deadline={view.snap!.turnDeadline} total={view.snap!.turnTotal} now={now}
             bubble={null}
             gifts={view.snap!.gifts?.[seat] ?? []}
-            onGift={() => setGiftFor(seat)} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
+            onGift={() => (watching ? toast(tr('Spectators can’t send gifts')) : setGiftFor(seat))} onProfile={() => { sfx.click(); setCardSeat(seat); }} myVip={p.vip} />
         ))}
         {(() => {
           // chat shown on the table too (same lines as the chat box), each for 12 seconds, also while the chat box is open
           const cs = chatSeen.current, t0 = Date.now();
           for (const m of view.snap!.chat) if (!cs.map.has(m.id)) cs.map.set(m.id, cs.first ? 0 : t0);   // lines already there when the table opened are old news
           cs.first = false;
-          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me)).slice(-3);
+          const live = view.snap!.chat.filter((m) => !m.system && !m.text.startsWith('🎁:') && !st.seats[m.seat]?.bot && t0 - (cs.map.get(m.id) ?? 0) < 12000 && (!p.settings.chatOff || m.seat === me) && !isMutedId(p, st.seats[m.seat]?.id)).slice(-3);
           return live.length > 0 && (
             <div className="tbl-chat" aria-live="polite">
               {live.map((m) => (
@@ -273,9 +348,9 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
                   if (ok) { setSent(c.s + c.r); vibrate(10); { const h = document.querySelector(`.fan [data-card="${c.s}${c.r}"]`); if (h) Object.assign(playedFrom, screenCenter(h), { at: Date.now() }); } ctl.act({ type: 'play', seat: me, card: c }); return; }
                   // explain why this card can't be played right now
                   if (st.phase !== 'playing') return;
-                  if (!myTurn) return toast(`Wait for your turn — ${st.seats[st.turn]?.name ?? 'another player'} is playing`);
-                  if (st.trick.length) return toast(`Follow suit: play a ${({ S: '♠ spade', H: '♥ heart', D: '♦ diamond', C: '♣ club' })[st.trick[0].card.s]}`);
-                  toast('Spades aren’t broken yet — lead a different suit');
+                  if (!myTurn) return toast(tr('Wait for your turn — {n} is playing', { n: st.seats[st.turn]?.name ?? tr('another player') }));
+                  if (st.trick.length) return toast(tr('Follow suit: play a {s}', { s: tr(({ S: '♠ spade', H: '♥ heart', D: '♦ diamond', C: '♣ club' })[st.trick[0].card.s]) }));
+                  toast(tr('Spades aren’t broken yet — lead a different suit'));
                 }} />;
             })}
           </div>
@@ -287,7 +362,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       {missedBanner && missedMine > 0 && st.phase !== 'gameOver' && !view.kicked && (
         <div className="missed-warning" role="alert"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2h6" /></svg> Time ran out and the game played for you ({missedMine}/{maxMissed}). Miss {maxMissed} turns this game and you'll be disconnected.</div>
       )}
-      {st.phase === 'bidding' && st.turn === me && st.bids[me] === null && (st.hand.length === 0
+      {!watching && st.phase === 'bidding' && st.turn === me && st.bids[me] === null && (st.hand.length === 0
         ? <SeeCards secsLeft={secsLeft} onSee={() => { sfx.click(); ctl.act({ type: 'reveal', seat: me }); }} onBlind={() => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: 0, blind: true }); }} />
         : <BidPanel st={st} secsLeft={secsLeft} onBid={(b) => { sfx.click(); ctl.act({ type: 'bid', seat: me, bid: b }); }} />)}
       {view.online && view.conn === 'lost' && !view.kicked && (
@@ -295,29 +370,30 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
       )}
       {view.online && view.conn === 'gone' && st.phase !== 'gameOver' && (
         <div className="modal-backdrop">
-          <div className="modal kicked" role="alertdialog" aria-label="Game interrupted">
+          <div className="modal kicked" role="alertdialog" aria-label={tr("Game interrupted")}>
             <h2 className="modal-title">{view.forfeited ? 'You left the game' : 'Game interrupted'}</h2>
             {view.forfeited
               ? <p className="center">You were away from the table for too long, so a computer player took your seat. Your {fmt(st.settings.bet)} coin bet was forfeited.</p>
-              : <p className="center">This table closed before the game finished — usually because the game server restarted for an update.</p>}
+              : <p className="center">{tr("This table closed before the game finished — usually because the game server restarted for an update.")}</p>}
             {!view.forfeited && charged.current && <p className="center gold-text">Your {fmt(st.settings.bet)} coin bet has been refunded.</p>}
-            <div className="btn-row"><Pill color="green" onClick={leave}>Back to lobby</Pill></div>
+            <div className="btn-row"><Pill color="green" onClick={leave}>{tr("Back to lobby")}</Pill></div>
           </div>
         </div>
       )}
       {view.kicked && (
         <div className="modal-backdrop">
-          <div className="modal kicked" role="alertdialog" aria-label="Disconnected for inactivity">
-            <h2 className="modal-title">Disconnected</h2>
+          <div className="modal kicked" role="alertdialog" aria-label={tr("Disconnected for inactivity")}>
+            <h2 className="modal-title">{tr("Disconnected")}</h2>
             <p className="center">{view.kicked}</p>
             <p className="center muted small">A computer player took your seat, and your bet for this table was lost. Bid and play within {Math.round((view.snap?.turnTotal ?? 12000) / 1000)} seconds to stay in the game.</p>
-            <div className="btn-row"><Pill color="blue" onClick={leave}>Back to lobby</Pill></div>
+            <div className="btn-row"><Pill color="blue" onClick={leave}>{tr("Back to lobby")}</Pill></div>
           </div>
         </div>
       )}
-      {st.phase === 'roundEnd' && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
-      {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">Next hand in {Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000))}s · waiting for the other players</div>}
-      {st.phase === 'gameOver' && <GameOver st={st} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
+      {st.phase === 'roundEnd' && !watching && !view.snap!.ready?.[me] && <RoundSummary st={st} nextAt={view.snap!.startAt} now={now} onContinue={() => { sfx.click(); ctl.act({ type: 'ready', seat: me }); }} />}
+      {st.phase === 'roundEnd' && view.snap!.ready?.[me] && view.snap!.startAt && <div className="center-toast">{tr('Next hand in {s}s · waiting for the other players', { s: Math.max(0, Math.ceil((view.snap!.startAt - now) / 1000)) })}</div>}
+      {st.phase === 'gameOver' && watching && <WatchOver st={st} onLeave={leave} />}
+      {st.phase === 'gameOver' && !watching && <GameOver st={st} practice={coinLink.on && !view.online} onReview={() => setReviewOpen(true)} rematch={view.online ? view.rematch : undefined} onRematch={() => { if (profile.get().coins < st.settings.bet) store.open({ tab: 'coins', need: st.settings.bet }); else { track('rematch_request'); ctl.rematch(); } }} onLobby={leave} onAgain={() => { ctl.leave(); onPlayAgain(); }} />}
 
       {chatOpen && (
         <ChatPanel view={view} me={me} onClose={() => setChatOpen(false)} onSend={(t) => ctl.chat(t)} />
@@ -326,12 +402,15 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         <TableMenu
           onClose={() => { setMenuOpen(false); setConfirmLeave(false); }}
           onRules={() => { setRulesOpen(true); setMenuOpen(false); }}
+          onHistory={() => { setReviewOpen(true); setMenuOpen(false); }}
           onBot={() => { setMenuOpen(false); helpBot.open(); }}
           onThemes={() => { setMenuOpen(false); setThemesOpen(true); }}
+          players={view.online ? st.seats.flatMap((s, i) => (s && !s.bot && i !== me ? [{ id: s.id, name: s.name, avatar: s.avatar }] : [])) : []}
           confirmLeave={confirmLeave} bet={st.settings.bet}
           onExit={() => { if (st.phase === 'waiting' || st.phase === 'gameOver' || confirmLeave) leave(); else setConfirmLeave(true); }} />
       )}
       {rulesOpen && <RulesModal onClose={() => setRulesOpen(false)} />}
+      {reviewOpen && <Suspense fallback={null}><HandReview gid={gid.current} onClose={() => setReviewOpen(false)} /></Suspense>}
       {themesOpen && <ThemeModal onClose={() => setThemesOpen(false)} />}
       {vip && <VipModal onClose={() => setVip(false)} />}
       {cardSeat !== null && st.seats[cardSeat] && (() => {
@@ -345,9 +424,10 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
         <GiftShop toName={st.seats[giftFor]?.name ?? null} players={st.seats.filter(Boolean).length} coins={p.coins} onClose={() => setGiftFor(null)}
           onBuy={(g, round) => {
             const n = round ? st.seats.filter(Boolean).length : 1, cost = g.cost * n;
-            if (p.coins < cost) { toast('Not enough coins for that gift', 'error'); return; }
-            profile.addCoins(-cost); sfx.coins();
-            ctl.gift(round ? 'all' : giftFor, g.id);
+            if (p.coins < cost) { toast(tr('Not enough coins for that gift'), 'error'); return; }
+            if (!view?.online) spendCoins(cost);
+            profile.addCoins(-cost); sfx.coins();   // with server-side coins the server charges the same price and sends the real balance
+            ctl.gift(round ? 'all' : giftFor, g.id, cost);
             setGiftFor(null);
             toast(round ? `${g.e} ${g.name} for everyone at the table!` : `${g.e} ${g.name} sent to ${st.seats[giftFor]?.name ?? 'the player'}`);
           }} />
@@ -360,7 +440,7 @@ export function Table({ ctl, onExit, onPlayAgain }: { ctl: TableController; onEx
 /** The gift shop: one row per gift, "buy round" = everyone at the table, "buy one" = the player whose gift button you tapped. */
 function GiftShop({ toName, players, coins, onBuy, onClose }: { toName: string | null; players: number; coins: number; onBuy: (g: Gift, round: boolean) => void; onClose: () => void }) {
   return (
-    <Modal title="GIFTS" onClose={onClose} className="gs-modal">
+    <Modal title={tr("GIFTS")} onClose={onClose} className="gs-modal">
       <p className="gs-sub">Your coins: <b><Coin size={18} /> {fmt(coins)}</b>{toName ? <> · Buy one is for <b>{toName}</b></> : null} · A round is for all {players} players</p>
       <ul className="gs-list">
         {GIFTS.map((g) => (
@@ -405,9 +485,9 @@ function InfoPanel({ st }: { st: PublicState }) {
   return (
     <div className="info-panel">
       <div className="ip-city">{st.settings.city}</div>
-      <div className="ip-row"><span>PRIZE:</span><Coin size={22} /><b>{short(prizeFor(st.settings))}</b></div>
-      <div className="ip-row"><span>BET:</span><b>{short(st.settings.bet)}</b></div>
-      <div className="ip-end">ENDING POINTS:<b>{st.settings.minPoints}/{st.settings.maxPoints}</b></div>
+      <div className="ip-row"><span>{tr("PRIZE:")}</span><img className="ip-coins" src="/ui/lobby/coins.webp" alt="" aria-hidden="true" /><b>{short(prizeFor(st.settings))}</b></div>
+      <div className="ip-row"><span>{tr("BET:")}</span><b>{short(st.settings.bet)}</b></div>
+      <div className="ip-end">{tr("ENDING POINTS:")}<b>{st.settings.minPoints}/{st.settings.maxPoints}</b></div>
     </div>
   );
 }
@@ -422,15 +502,15 @@ function ScorePanel({ st }: { st: PublicState }) {
     const sides = [opp, mySide];
     return (
       <div className="score-panel">
-        <div className="sp-title">PARTNERS ♠♠</div>
+        <div className="sp-title">{tr("PARTNERS ♠♠")}</div>
         <div className="sp-grid">
-          <span className="team red">THEM</span><span className="team blue">US</span>
-          {sides.map((s) => <b key={`p${s}`}>{st.scores[s]}</b>)}
-          <span className="sp-lbl">PTS.</span>
+          <span className="team red">{tr("THEM")}</span><span className="team blue">{tr("US")}</span>
+          {sides.map((s) => <b key={`p${s}`} className={st.scores[s] > st.scores[1 - s] ? 'sp-lead' : ''}>{st.scores[s]}</b>)}
+          <span className="sp-lbl">{tr("PTS.")}</span>
           {sides.map((s) => <b key={`b${s}`}>{st.bags[s]}</b>)}
-          <span className="sp-lbl">BAGS</span>
+          <span className="sp-lbl">{tr("BAGS")}</span>
           {st.phase !== 'waiting' && sides.map((s) => <b key={`t${s}`} className="sp-bid">{trOf(s)}/{bidOf(s)}</b>)}
-          {st.phase !== 'waiting' && <span className="sp-lbl">BOOKS/BID</span>}
+          {st.phase !== 'waiting' && <span className="sp-lbl">{tr("BOOKS/BID")}</span>}
         </div>
         <div className={`sp-spade ${st.spadesBroken ? 'broken' : ''}`} title={st.spadesBroken ? 'Spades broken' : 'Spades not broken'}>♠{'︎'}</div>
       </div>
@@ -438,9 +518,9 @@ function ScorePanel({ st }: { st: PublicState }) {
   }
   return (
     <div className="score-panel solo">
-      <div className="sp-title">SOLO ♠</div>
+      <div className="sp-title">{tr("SOLO ♠")}</div>
       <table className="sp-table">
-        <thead><tr><th>Player</th><th>Pts</th><th>Bags</th><th>Bk/Bid</th></tr></thead>
+        <thead><tr><th>{tr("Player")}</th><th>{tr("Pts")}</th><th>{tr("Bags")}</th><th>{tr("Bk/Bid")}</th></tr></thead>
         <tbody>
           {[0, 1, 2, 3].map((s) => (
             <tr key={s} className={s === me ? 'me' : ''}>
@@ -516,12 +596,16 @@ function TrickCards({ st, rel }: { st: PublicState; rel: (seat: number) => strin
       collected.current = key;
       const winner = seatEl(rel(st.lastTrickWinner));
       if (winner) { winner.classList.remove('won-trick'); void winner.offsetWidth; winner.classList.add('won-trick'); }
+      const wc = winner ? screenCenter(winner) : null;
       els.forEach((el) => {
         const end = translationOf(el);
+        // sweep toward the winner's seat (about 85% of the way) while shrinking and fading; same function list at both ends so it interpolates smoothly
+        const d = wc ? local()(wc.x - screenCenter(el).x, wc.y - screenCenter(el).y) : { x: 0, y: 0 };
         el.animate([
-          { transform: end.t, opacity: 1 },
-          { transform: `translate(${end.x * 0.25}px, ${end.y * 0.25}px) scale(.82)`, opacity: 0 },
-        ], { duration: 380, delay: 700, easing: 'ease-in', fill: 'forwards' });
+          { transform: `translate(0px, 0px) ${end.t === 'none' ? '' : end.t} scale(1)`, opacity: 1 },
+          { offset: 0.15, transform: `translate(0px, 0px) ${end.t === 'none' ? '' : end.t} scale(1)`, opacity: 1 },
+          { transform: `translate(${d.x * 0.85}px, ${d.y * 0.85}px) ${end.t === 'none' ? '' : end.t} scale(.55)`, opacity: 0 },
+        ], { duration: 420, delay: 680, easing: 'cubic-bezier(.5,0,.75,.4)', fill: 'forwards' });
       });
     }
   }, [st.trick, st.phase, st.round, st.lastTrickWinner, rel]);
@@ -548,7 +632,7 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, gifts, onGi
         {remain !== null && <span className="timer-ring" aria-hidden="true" />}
         <button className="gift-mini" onClick={onGift} aria-label={`Send a gift to ${s?.name ?? 'seat'}`}><Icon name="gift" size={16} /></button>
         <SeatGifts gifts={gifts} />
-        {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title="Dealer">D</span>}
+        {st.dealer === seat && st.phase !== 'waiting' && <span className="dealer" title={tr("Dealer")}>D</span>}
       </div>
       {s && <div className="seat-name" onClick={onProfile} role="button" tabIndex={-1}>{s.name} <small>Lv {s.level}</small></div>}
       {s && st.phase !== 'waiting' && (
@@ -563,11 +647,11 @@ function SeatView({ st, seat, pos, me, deadline, total, now, bubble, gifts, onGi
 
 function SeeCards({ onSee, onBlind, secsLeft }: { onSee: () => void; onBlind: () => void; secsLeft: number | null }) {
   return (
-    <div className="dlg see-cards" role="dialog" aria-label="See your cards">
+    <div className="dlg see-cards" role="dialog" aria-label={tr("See your cards")}>
       <div className="dlg-title">SEE YOUR CARDS?{secsLeft !== null && <span className={`bid-clock ${secsLeft <= 4 ? 'hurry' : ''}`}> {secsLeft}s</span>}</div>
       <div className="sc-row">
-        <button className="sc-btn green" onClick={onSee}>SEE CARDS</button>
-        <button className="sc-btn blue" onClick={onBlind} title="Bid nil without looking: +200 if you take no tricks, −200 if you take any">BID BLIND NIL<small>±200 points</small></button>
+        <button className="sc-btn green" onClick={onSee}>{tr("SEE CARDS")}</button>
+        <button className="sc-btn blue" onClick={onBlind} title={tr("Bid nil without looking: +200 if you take no tricks, −200 if you take any")}>{tr("BID BLIND NIL")}<small>{tr("±200 points")}</small></button>
       </div>
     </div>
   );
@@ -581,11 +665,11 @@ function BidPanel({ st, onBid, secsLeft }: { st: PublicState; onBid: (b: number)
   const mySide = sideOf(mode, me);
   const oppSide = mode === 'partners' ? 1 - mySide : null;
   return (
-    <div className="dlg bid-dlg" role="dialog" aria-label="Select your bid">
+    <div className="dlg bid-dlg" role="dialog" aria-label={tr("Select your bid")}>
       <div className="dlg-title">SELECT YOUR BID{secsLeft !== null && <span className={`bid-clock ${secsLeft <= 4 ? 'hurry' : ''}`}> {secsLeft}s</span>}</div>
       <div className="bd-pts">
-        {oppSide !== null && <span className="bd-box red"><em>PTS.</em><b>{st.scores[oppSide]} / {st.bags[oppSide]}<i className="bag" aria-label="bags">💰</i></b></span>}
-        <span className="bd-box blue"><em>PTS.</em><b>{st.scores[mySide]} / {st.bags[mySide]}<i className="bag" aria-label="bags">💰</i></b></span>
+        {oppSide !== null && <span className="bd-box red"><em>{tr("PTS.")}</em><b>{st.scores[oppSide]} / {st.bags[oppSide]}<i className="bag" aria-label={tr("bags")}>💰</i></b></span>}
+        <span className="bd-box blue"><em>{tr("PTS.")}</em><b>{st.scores[mySide]} / {st.bags[mySide]}<i className="bag" aria-label={tr("bags")}>💰</i></b></span>
       </div>
       <div className="bd-grid">
         {Array.from({ length: 14 }, (_, n) => (
@@ -618,13 +702,13 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
   if (mode !== 'partners') {
     return (
       <div className="modal-backdrop soft">
-        <div className="rs rs-solo" role="dialog" aria-label="Round summary">
-          <div className="rs-head">ROUND {st.round}</div>
+        <div className="rs rs-solo" role="dialog" aria-label={tr("Round summary")}>
+          <div className="rs-head">{tr("ROUND {n}", { n: st.round })}</div>
           <table className="rs-grid">
             <thead><tr><th />{sides.map((s) => <th key={s} className={s === me ? 'me' : ''}><Avatar k={st.seats[s]?.avatar ?? 'a1'} size={54} /><span>{st.seats[s]?.name}</span></th>)}</tr></thead>
-            <tbody>{ROWS.map(([k, l]) => <tr key={k} className={strong.has(k) ? 'strong' : ''}><td className="rs-lbl">{l}</td>{sides.map((s) => <td key={s}>{sideRow(s)[k]}</td>)}</tr>)}</tbody>
+            <tbody>{ROWS.map(([k, l]) => <tr key={k} className={strong.has(k) ? 'strong' : ''}><td className="rs-lbl">{tr(l)}</td>{sides.map((s) => <td key={s}>{sideRow(s)[k]}</td>)}</tr>)}</tbody>
           </table>
-          <div className="rs-foot"><button className="rs-continue" onClick={onContinue}>CONTINUE</button>{left !== null && <span>Next hand in {left}s</span>}</div>
+          <div className="rs-foot"><button className="rs-continue" onClick={onContinue}>{tr("CONTINUE")}</button>{left !== null && <span>Next hand in {left}s</span>}</div>
         </div>
       </div>
     );
@@ -648,18 +732,18 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
           </div>
         ))}
       </div>
-      {color === 'blue' && <button className="rs-continue" onClick={onContinue}>CONTINUE</button>}
+      {color === 'blue' && <button className="rs-continue" onClick={onContinue}>{tr("CONTINUE")}</button>}
     </div>
   );
   return (
     <div className="modal-backdrop soft">
-      <div className="rs" role="dialog" aria-label="Round summary">
+      <div className="rs" role="dialog" aria-label={tr("Round summary")}>
         {team(red, 'red')}
         <div className="rs-center">
-          <div className="rs-title">ROUND</div>
+          <div className="rs-title">{tr("ROUND")}</div>
           <div className="rs-vs">
             <div className="rs-sc red"><b>{R.total}</b><small>💰 {R.totalBags}</small></div>
-            <span className="rs-vs-badge">VS</span>
+            <span className="rs-vs-badge">{tr("VS")}</span>
             <div className="rs-sc blue"><b>{B.total}</b><small>💰 {B.totalBags}</small></div>
           </div>
           <div className="rs-hand">HAND {st.round}</div>
@@ -667,7 +751,7 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
             <tbody>
               {ROWS.map(([k, l]) => (
                 <tr key={k} className={strong.has(k) ? 'strong' : ''}>
-                  <td className="v red">{R[k]}</td><td className="rs-lbl">{l}</td><td className="v blue">{B[k]}</td>
+                  <td className="v red">{R[k]}</td><td className="rs-lbl">{tr(l)}</td><td className="v blue">{B[k]}</td>
                 </tr>
               ))}
             </tbody>
@@ -680,19 +764,57 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
   );
 }
 
-function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => void; onAgain: () => void }) {
+const GAME_OVER_SECONDS = 10;   // the result screen takes everyone back to the lobby after this long
+/** What a spectator sees when the game ends: the result, and a way out. Nothing is charged or paid. */
+function WatchOver({ st, onLeave }: { st: PublicState; onLeave: () => void }) {
+  const mode = st.settings.mode;
+  return (
+    <div className="modal-backdrop">
+      <div className="modal gameover" role="dialog" aria-label={tr("Game over")}>
+        <div className="go-title">{tr("GAME OVER")}</div>
+        <ol className="go-places">
+          {st.placements.map((side, i) => (
+            <li key={side}>
+              <span>{i + 1}.</span>
+              <span className="grow">{seatsOfSide(mode, side).map((s) => st.seats[s]?.name).join(' & ')}</span>
+              <b>{st.scores[side]}</b>
+            </li>
+          ))}
+        </ol>
+        <button className="pill gold" onClick={() => { sfx.click(); onLeave(); }}>{tr("BACK TO LOBBY")}</button>
+      </div>
+    </div>
+  );
+}
+
+function GameOver({ st, practice, onReview, rematch, onRematch, onLobby, onAgain }: { st: PublicState; practice?: boolean; rematch?: CtlView['rematch']; onReview: () => void; onRematch: () => void; onLobby: () => void; onAgain: () => void }) {
+  const [left, setLeft] = useState(GAME_OVER_SECONDS);
+  const [held, setHeld] = useState(false);   // opening the coin store stops the countdown
+  const lobbyRef = useRef(onLobby); lobbyRef.current = onLobby;
+  const humans = st.seats.filter((x) => x && !x.bot).length;
+  const offer = !!rematch && !rematch.cancelled && !rematch.to && rematch.humans.length > 0;   // a rematch offer is open: the countdown to the lobby waits
+  const hold = held || offer;
+  useEffect(() => {
+    if (hold) return;
+    const t = window.setInterval(() => setLeft((n) => n - 1), 1000);
+    return () => window.clearInterval(t);
+  }, [hold]);
+  useEffect(() => { if (left === 0 && !hold) lobbyRef.current(); }, [left, hold]);
   const mode = st.settings.mode;
   const me = st.mySeat;
   const mySide = sideOf(mode, me);
   const won = st.winners.includes(mySide);
   const vip = profile.get().vip;
-  const prize = won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : 0;
   const place = st.placements.indexOf(mySide) + 1;
+  const second = !won && mode === 'solo' && place === 2;
+  const prize = practice ? 0 : won ? Math.round(prizeFor(st.settings) * (vip ? 1.1 : 1)) : second ? secondPrizeFor(st.settings) : 0;   // practice = server-side coins and a game against the computers
   return (
     <div className="modal-backdrop">
-      <div className={`modal gameover ${won ? 'win' : 'lose'}`} role="dialog" aria-label="Game over">
+      <div className={`modal gameover ${won || second ? 'win' : 'lose'} ${humans >= 2 ? 'has-rm' : ''}`} role="dialog" aria-label={tr("Game over")}>
+        <img className="go-art" src={won || second ? '/ui/go-win.webp' : '/ui/go-lose.webp'} alt="" aria-hidden="true" draggable={false} />
         <div className="go-title">{won ? 'VICTORY!' : mode === 'solo' ? `${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE` : 'DEFEAT'}</div>
-        {won && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
+        {practice && <p className="center" style={{ opacity: 0.8 }}>Practice game — no coins won or lost</p>}
+        {prize > 0 && <div className="go-prize"><Coin size={44} /> +{fmt(prize)}{vip && <small> incl. VIP +10%</small>}</div>}
         <ol className="go-places">
           {st.placements.map((side, i) => (
             <li key={side} className={side === mySide ? 'me' : ''}>
@@ -703,12 +825,31 @@ function GameOver({ st, onLobby, onAgain }: { st: PublicState; onLobby: () => vo
           ))}
         </ol>
         <p className="muted small">+{40 + (won ? 80 : 0)} XP · Level {levelFromXp(profile.get().xp)}</p>
+        {humans >= 2 && (() => {
+          const iVoted = !!rematch?.votes.includes(st.mySeat);
+          const others = (rematch?.votes ?? []).filter((v) => v !== st.mySeat);
+          const waiting = (rematch?.humans ?? []).filter((h) => !rematch!.votes.includes(h));
+          const names = (xs: number[]) => xs.map((i) => st.seats[i]?.name.split(' ')[0]).filter(Boolean).join(', ');
+          return (
+            <div className="go-rematch">
+              <Pill color="gold" disabled={iVoted && !rematch?.cancelled} onClick={() => { sfx.click(); onRematch(); }}>{iVoted && !rematch?.cancelled ? tr('WAITING FOR FRIENDS…') : others.length ? tr('ACCEPT REMATCH') : tr('REMATCH')}</Pill>
+              <small className="muted">
+                {rematch?.cancelled ? tr('Nobody else joined the rematch.')
+                  : iVoted ? tr('Waiting for {n}', { n: names(waiting) || tr('everyone') })
+                  : others.length ? tr('{n} wants to play again!', { n: names(others) })
+                  : tr('Same players, same seats')}
+              </small>
+            </div>
+          );
+        })()}
         <div className="btn-row">
-          <Pill color="blue" onClick={onLobby}>Lobby</Pill>
-          {profile.get().coins < st.settings.bet
-            ? <Pill color="gold" onClick={() => store.open({ tab: 'coins', need: st.settings.bet })}>Buy coins to play again</Pill>
-            : <Pill color="green" onClick={onAgain}>Play again</Pill>}
+          <Pill color="blue" onClick={onLobby}>{tr("Lobby")}</Pill>
+          {!practice && profile.get().coins < st.settings.bet
+            ? <Pill color="gold" onClick={() => { setHeld(true); store.open({ tab: 'coins', need: st.settings.bet }); }}>{tr("Buy coins to play again")}</Pill>
+            : <Pill color="green" onClick={onAgain}>{tr("Play again")}</Pill>}
         </div>
+        <button className="go-review" onClick={() => { sfx.click(); setHeld(true); onReview(); }}>{tr("Review the hands")}</button>
+        {!hold && left > 0 && <p className="muted small go-count">Back to the lobby in {left}s</p>}
       </div>
     </div>
   );
@@ -721,27 +862,42 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
   const pass = chatPassLabel(p);
   const chatOn = !p.settings.chatOff;
   const ownKeys = useOwnKeyboard();
-  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me)).slice(-40);
+  const seatOf = (i: number) => view.snap?.state.seats[i];
+  const msgs = (view.snap?.chat ?? []).filter((m) => !m.system && !m.text.startsWith('🎁:') && (chatOn || m.seat === me) && !isMutedId(p, seatOf(m.seat)?.id)).slice(-40);
+  const [menuFor, setMenuFor] = useState<number | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [msgs.length, ownKeys]);
   // the box stays open after sending so the player sees their message and the replies; BACK closes it
   const send = (t: string) => { if (t.trim()) { onSend(t); sfx.click(); } };
   return (
-    <div className={`chat-overlay ${ownKeys ? 'own-keys' : ''}`} role="dialog" aria-label="Table chat">
+    <div className={`chat-overlay ${ownKeys ? 'own-keys' : ''}`} role="dialog" aria-label={tr("Table chat")}>
       <div className="chat-dim" onClick={onClose} />
+      {reportId && <ReportDialog id={reportId} onClose={() => setReportId(null)} />}
       <aside className="chat-phrases">
         <div className="chat-scroll">
           {QUICK_PHRASES.map((q) => <button key={q} className="speech" onClick={() => send(q)}>{q}</button>)}
         </div>
-        <button className="chat-back" onClick={() => { sfx.click(); onClose(); }}>BACK</button>
+        <button className="chat-back" onClick={() => { sfx.click(); onClose(); }}>{tr("BACK")}</button>
       </aside>
       <div className="chat-mid">
-      <div className="chat-log" ref={logRef} aria-live="polite" aria-label="Messages at this table">
-        {msgs.length === 0 && <p className="cl-empty">No messages yet. Tap a phrase or an emoji to say something.</p>}
+      <div className="chat-log" ref={logRef} aria-live="polite" aria-label={tr("Messages at this table")}>
+        {msgs.length === 0 && <div className="cl-empty-wrap"><img className="cl-empty-img" src="/ui/chat-bubbles.webp" alt="" aria-hidden="true" draggable={false} /><p className="cl-empty">{tr("No messages yet. Tap a phrase or an emoji to say something.")}</p></div>}
         {msgs.map((m) => (
           <div key={m.id} className={`cl-line ${m.seat === me ? 'mine' : ''}`}>
             <Avatar k={view.snap?.state.seats[m.seat]?.avatar ?? 'a1'} size={44} />
             <span className="cl-body"><b className="cl-name">{m.name}:</b> <span className="cl-text">{m.text}</span></span>
+            {m.seat !== me && seatOf(m.seat) && !seatOf(m.seat)!.bot && (
+              <span className="cl-more">
+                <button className="cl-dots" aria-label={tr('Mute or report {n}', { n: m.name })} onClick={() => { sfx.click(); setMenuFor(menuFor === m.id ? null : m.id); }}>⋯</button>
+                {menuFor === m.id && (
+                  <span className="cl-menu" role="menu">
+                    <button role="menuitem" onClick={() => { sfx.click(); mutePlayer(seatOf(m.seat)!.id, m.name); setMenuFor(null); toast(tr('{n} is muted. You can undo this in Settings.', { n: m.name })); }}>{tr('Mute {n}', { n: m.name })}</button>
+                    {p.guestKey && <button role="menuitem" onClick={() => { sfx.click(); setReportId(seatOf(m.seat)!.id); setMenuFor(null); }}>{tr('Report {n}', { n: m.name })}</button>}
+                  </span>
+                )}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -749,22 +905,23 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
         {unlocked && ownKeys ? (
           <div className="ck-wrap">
             <div className="ck-bar">
-              <div className="ck-field" aria-label="Your message">{text ? <span>{text}</span> : <span className="ph">Type your own message…</span>}<i className="ck-caret" /></div>
-              <button type="button" className="chat-send" onClick={() => { send(text); setText(''); }}>SEND</button>
+              <div className="ck-field" aria-label={tr("Your message")}>{text ? <span>{text}</span> : <span className="ph">{tr("Type your own message…")}</span>}<i className="ck-caret" /></div>
+              <button type="button" className="chat-send" onClick={() => { send(text); setText(''); }}>{tr("SEND")}</button>
             </div>
             <GameKeyboard onText={(fn) => setText((t) => fn(t).slice(0, 140))} onEnter={() => { send(text); setText(''); }} />
           </div>
         ) : unlocked ? (
           <form onSubmit={(e) => { e.preventDefault(); send(text); setText(''); }}>
-            <label className="sr-only" htmlFor="chat-in">Message</label>
-            <input id="chat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder="Type your own message…" autoComplete="off" autoFocus />
-            <button type="submit" className="chat-send">SEND</button>
+            <label className="sr-only" htmlFor="chat-in">{tr("Message")}</label>
+            <input id="chat-in" value={text} maxLength={140} onChange={(e) => setText(e.target.value)} placeholder={tr("Type your own message…")} autoComplete="off" autoFocus />
+            <button type="submit" className="chat-send">{tr("SEND")}</button>
             {pass && <small className="chat-pass-left">{pass}</small>}
           </form>
         ) : (
           <>
-            <span className="cc-txt">GET A <b>CHAT PASS</b> TO TYPE YOUR OWN MESSAGES</span>
-            <button className="cc-buy" onClick={() => { sfx.click(); store.open({ tab: 'chat' }); }}>BUY NOW</button>
+            <img className="cc-ticket" src="/ui/chat-pass.webp" alt="" aria-hidden="true" draggable={false} />
+            <span className="cc-txt">GET A <b>{tr("CHAT PASS")}</b> TO TYPE YOUR OWN MESSAGES</span>
+            <button className="cc-buy" onClick={() => { sfx.click(); store.open({ tab: 'chat' }); }}>{tr("BUY NOW")}</button>
           </>
         )}
       </div>
@@ -774,7 +931,7 @@ function ChatPanel({ view, me, onClose, onSend }: { view: CtlView; me: number; o
           {FREE_EMOJI.map((e) => <button key={e} onClick={() => send(e)} aria-label={`Send ${e}`}>{e}</button>)}
         </div>
         <label className="chat-toggle">
-          <span>CHAT</span>
+          <span>{tr("CHAT")}</span>
           <input type="checkbox" checked={chatOn} onChange={() => { sfx.click(); profile.set((x) => ({ settings: { ...x.settings, chatOff: chatOn } })); }} />
           <span className="ct-switch" aria-hidden="true"><i>{chatOn ? 'ON' : 'OFF'}</i></span>
         </label>
@@ -797,18 +954,18 @@ function GameKeyboard({ onText, onEnter }: { onText: (fn: (t: string) => string)
   const rows = nums ? NUM_ROWS : KEY_ROWS;
   const show = (c: string) => (shift && !nums ? c.toUpperCase() : c);
   return (
-    <div className="ck" role="group" aria-label="Keyboard">
+    <div className="ck" role="group" aria-label={tr("Keyboard")}>
       {rows.map((r, i) => (
         <div key={i} className={`ck-row r${i}`}>
-          {i === 2 && !nums && <button type="button" className={`ck-key wide ${shift ? 'on' : ''}`} onClick={() => { sfx.click(); setShift((v) => !v); }} aria-label="Shift">⇧</button>}
+          {i === 2 && !nums && <button type="button" className={`ck-key wide ${shift ? 'on' : ''}`} onClick={() => { sfx.click(); setShift((v) => !v); }} aria-label={tr("Shift")}>⇧</button>}
           {r.split('').map((c) => <button type="button" key={c} className="ck-key" onClick={() => type(show(c))}>{show(c)}</button>)}
-          {i === 2 && <button type="button" className="ck-key wide" onClick={() => { sfx.click(); onText((t) => t.slice(0, -1)); }} aria-label="Delete">⌫</button>}
+          {i === 2 && <button type="button" className="ck-key wide" onClick={() => { sfx.click(); onText((t) => t.slice(0, -1)); }} aria-label={tr("Delete")}>⌫</button>}
         </div>
       ))}
       <div className="ck-row r3">
         <button type="button" className="ck-key wide2" onClick={() => { sfx.click(); setNums((v) => !v); }}>{nums ? 'ABC' : '123'}</button>
-        <button type="button" className="ck-key space" onClick={() => type(' ')}>space</button>
-        <button type="button" className="ck-key wide2 go" onClick={onEnter}>SEND</button>
+        <button type="button" className="ck-key space" onClick={() => type(' ')}>{tr("space")}</button>
+        <button type="button" className="ck-key wide2 go" onClick={onEnter}>{tr("SEND")}</button>
       </div>
     </div>
   );
@@ -826,52 +983,80 @@ function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle:
   );
 }
 
-function TableMenu({ onClose, onRules, onBot, onThemes, onExit, confirmLeave, bet }: {
-  onClose: () => void; onRules: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number;
+function TableMenu({ onClose, onRules, onHistory, onBot, onThemes, onExit, confirmLeave, bet, players }: {
+  onClose: () => void; onRules: () => void; onHistory: () => void; onBot: () => void; onThemes: () => void; onExit: () => void; confirmLeave: boolean; bet: number; players: { id: string; name: string; avatar: string }[];
 }) {
   const p = useProfile();
-  const set = (k: 'sound' | 'music' | 'vibrate') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : !x.settings[k] } }));
+  const [picking, setPicking] = useState(false);
+  const [target, setTarget] = useState<string | null>(null);
+  const set = (k: 'sound' | 'music' | 'vibrate' | 'calm' | 'fourColor' | 'bigCards') => profile.set((x) => ({ settings: { ...x.settings, [k]: k === 'music' ? x.settings.music === false : k === 'calm' ? x.settings.calm === false : !x.settings[k] } }));
   useEffect(() => { const h = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [onClose]);
   return (
-    <div className="tm-overlay" role="dialog" aria-modal="true" aria-label="Table menu">
+    <div className="tm-overlay" role="dialog" aria-modal="true" aria-label={tr("Table menu")}>
       <div className="tm-dim" onClick={onClose} />
       <aside className="tm-panel">
-        <button className="tm-close" onClick={() => { sfx.click(); onClose(); }} aria-label="Close menu"><Icon name="close" size={26} /></button>
+        <button className="tm-close" onClick={() => { sfx.click(); onClose(); }} aria-label={tr("Close menu")}><Icon name="close" size={26} /></button>
         <div className="tm-scroll">
           <button className="tm-btn exit" onClick={() => { sfx.click(); onExit(); }}>
             <span className="tm-ico"><Icon name="exit" size={24} /></span>{confirmLeave ? 'TAP TO CONFIRM' : 'EXIT TABLE'}
           </button>
           {confirmLeave && <p className="tm-warn">Leaving now forfeits your {fmt(bet)} coin bet.</p>}
           <div className="tm-rule" />
-          <button className="tm-btn blue" onClick={() => { sfx.click(); onRules(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>HOW TO PLAY</button>
-          <button className="tm-btn purple" onClick={() => { sfx.click(); onBot(); }}><span className="tm-ico"><Icon name="chat" size={22} /></span>ASK SPADE BOT</button>
+          <button className="tm-btn blue" onClick={() => { sfx.click(); onRules(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>{tr("HOW TO PLAY")}</button>
+          <button className="tm-btn blue" onClick={() => { sfx.click(); onHistory(); }}><span className="tm-ico"><Icon name="book" size={22} /></span>{tr("HAND HISTORY")}</button>
+          <button className="tm-btn purple" onClick={() => { sfx.click(); onBot(); }}><span className="tm-ico"><Icon name="chat" size={22} /></span>{tr("ASK SPADE BOT")}</button>
           <button className="tm-btn gold" onClick={() => { sfx.click(); onThemes(); }}><span className="tm-ico"><Icon name="star" size={22} /></span>TABLE & CARDS</button>
+          {players.length > 0 && p.guestKey && (
+            <>
+              <button className="tm-btn report" onClick={() => { sfx.click(); setPicking((v) => !v); }}><span className="tm-ico">⚑</span>{tr("REPORT A PLAYER")}</button>
+              {picking && players.map((x) => (
+                <button key={x.id} className="tm-pick" onClick={() => { sfx.click(); setTarget(x.id); }}><Avatar k={x.avatar} size={34} name={x.name} /><span>{x.name}</span></button>
+              ))}
+            </>
+          )}
           <div className="tm-rule" />
-          <Switch label="SOUND" on={p.settings.sound} onToggle={() => set('sound')} />
+          <Switch label={tr("SOUND")} on={p.settings.sound} onToggle={() => set('sound')} />
           <div className="tm-rule" />
-          <Switch label="MUSIC" on={p.settings.music !== false} onToggle={() => set('music')} />
+          <Switch label={tr("MUSIC")} on={p.settings.music !== false} onToggle={() => set('music')} />
           <MusicPicker compact />
           <div className="tm-rule" />
-          <Switch label="VIBRATION" on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+          <Switch label={tr("VIBRATION")} on={p.settings.vibrate} onToggle={() => set('vibrate')} />
+          <div className="tm-rule" />
+          <Switch label={tr("CALM TABLE")} on={p.settings.calm !== false} onToggle={() => set('calm')} />
+          <Switch label={tr("FOUR-COLOR SUITS")} on={!!p.settings.fourColor} onToggle={() => set('fourColor')} />
+          <Switch label={tr("BIGGER CARDS")} on={!!p.settings.bigCards} onToggle={() => set('bigCards')} />
         </div>
       </aside>
+      {target && <ReportDialog id={target} onClose={() => { setTarget(null); setPicking(false); }} />}
     </div>
   );
 }
 
 export function RulesModal({ onClose }: { onClose: () => void }) {
   return (
-    <Modal title="How to play Spades" onClose={onClose} wide>
+    <Modal title={tr("How to play Spades")} onClose={onClose} wide>
       <div className="rules">
-        <p><b>Goal.</b> Win the number of tricks (“books”) you bid. Spades are always trump.</p>
-        <p><b>Partners</b>: you sit across from your partner and your bids are added together. <b>Solo</b>: every player is on their own.</p>
-        <p><b>Bidding.</b> Your cards are dealt face down: tap <b>See cards</b> on your turn, then bid 1–13 or <b>0 = Nil</b> (promising to win zero tricks). The game suggests a bid from your hand. Feeling brave? <b>Bid Blind Nil</b> before looking — worth ±200.</p>
-        <p><b>Play.</b> Follow the suit that was led if you can. If you can't, you may play any card — a spade wins unless a higher spade is played. Spades can't be led until they've been “broken” (played on another suit), unless you have only spades.</p>
-        <p><b>Scoring.</b> Make your bid: 10 × bid, plus 1 point per extra trick (a “bag”). Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points.</p>
-        <p><b>Winning.</b> The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize.</p>
+        <p>{rich(tr("**Goal.** Win the number of tricks (“books”) you bid. Spades are always trump."))}</p>
+        <p>{rich(tr("**Partners**: you sit across from your partner and your bids are added together. **Solo**: every player is on their own."))}</p>
+        <p>{rich(tr("**Bidding.** Your cards are dealt face down: tap **See cards** on your turn, then bid 1–13 or **0 = Nil** (promising to win zero tricks). The game suggests a bid from your hand. Feeling brave? **Bid Blind Nil** before looking — worth ±200."))}</p>
+        <p>{rich(tr("**Play.** Follow the suit that was led if you can. If you can't, you may play any card — a spade wins unless a higher spade is played. Spades can't be led until they've been “broken” (played on another suit), unless you have only spades."))}</p>
+        <p>{rich(tr("**Scoring.** Make your bid: 10 × bid. Extra tricks are “bags” and add no points. Miss it: −10 × bid. Nil: +100 if you take no tricks, −100 if you take any (Blind Nil ±200). Every 10 bags costs 100 points."))}</p>
+        <p>{rich(tr("**Winning.** The game ends when a side reaches the table's max points or drops to the min points. Highest score takes the prize; if two sides are level, the side with fewer bags wins."))}</p>
       </div>
     </Modal>
   );
 }
 
 export type { Card };
+
+/** One tap: the phone's share sheet (WhatsApp, Messages…) with a link that seats your friend at this table; otherwise the link is copied. */
+async function inviteToTable(code: string) {
+  track('table_invite_share');
+  const url = tableLink(code);
+  const text = tableInviteText(code);
+  if (typeof navigator.share === 'function') {
+    try { await navigator.share({ title: 'Spade Haven', text, url }); return; } catch (e) { if ((e as Error)?.name === 'AbortError') return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast(tr('Invite link copied: send it to a friend')); }
+  catch { window.prompt('Copy this link and send it to a friend:', url); }
+}

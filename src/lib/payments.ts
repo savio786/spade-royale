@@ -106,14 +106,15 @@ export async function syncPurchases() {
   try {
     const r = await fetch(`${base}/api/purchases?id=${encodeURIComponent(profile.get().id)}`);
     if (!r.ok) return 0;
-    const j = (await r.json()) as { grants: { productId: string }[]; chatUntil: number; vipUntil?: number };
+    const j = (await r.json()) as { grants: { productId: string }[]; chatUntil: number; vipUntil?: number; credited?: number };   // credited: coins the server already put in your server-side balance
     for (const g of j.grants) { const p = productById(g.productId); if (p && p.kind === 'coins') apply(p); }
     // the server's record of what was paid is the truth for Chat Pass and VIP
     const vipUntil = j.vipUntil ?? 0, vip = vipUntil === -1 || vipUntil > Date.now(), cur = profile.get();
     if (cur.chatUntil !== j.chatUntil || cur.vipUntil !== vipUntil || cur.vip !== vip) profile.set({ chatUntil: j.chatUntil, vipUntil, vip });
     if (j.grants.some((g) => productById(g.productId)?.kind === 'chat')) toast('Chat unlocked');
     if (j.grants.some((g) => productById(g.productId)?.kind === 'vip')) toast('Welcome to the VIP Club!');
-    return j.grants.length;
+    if (j.credited) { toast(`+${fmt(j.credited)} coins`, 'coins'); sfx.coins(); }
+    return j.grants.length + (j.credited ? 1 : 0);
   } catch { return 0; }
 }
 

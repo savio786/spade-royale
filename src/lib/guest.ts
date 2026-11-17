@@ -174,3 +174,17 @@ export async function changeName(name: string): Promise<NameResult> {
   }
   return r;
 }
+
+/** Permanently deletes this player's account on the server, then clears everything saved on this device. */
+export async function deleteMyAccount(): Promise<{ ok: boolean; message?: string }> {
+  const base = serverOrigin(), p = profile.get();
+  if (!base || !p.guestKey) return { ok: false, message: 'Deleting an account needs the game server. Check your connection and try again.' };
+  try {
+    const r = await fetch(`${base}/api/guest/delete`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: p.id, key: p.guestKey, confirm: 'DELETE' }) });
+    const j = (await r.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+    if (!r.ok || !j.ok) return { ok: false, message: j.message || 'Could not delete the account. Please try again.' };
+  } catch { return { ok: false, message: 'Can’t reach the game server right now. Check your connection and try again.' }; }
+  profile.reset();                                       // back to the start screen
+  try { localStorage.removeItem(VAULT); } catch { /* ignore */ }   // and forget the guest copy kept on this device
+  return { ok: true };
+}

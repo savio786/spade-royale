@@ -47,10 +47,142 @@ function beats(card: Card, g: GameState): boolean {
 }
 const lowest = (cs: Card[]) => cs.reduce((a, b) => (b.r < a.r || (b.r === a.r && b.s !== 'S') ? b : a));
 const highest = (cs: Card[]) => cs.reduce((a, b) => (b.r > a.r ? b : a));
+const lowestRank = (cs: Card[]) => cs.reduce((a, b) => (b.r < a.r ? b : a));
 const lowestNonSpadeFirst = (cs: Card[]) => {
   const ns = cs.filter((c) => c.s !== 'S');
   return ns.length ? ns.reduce((a, b) => (b.r < a.r ? b : a)) : cs.reduce((a, b) => (b.r < a.r ? b : a));
 };
+
+
+// ---------------- Covering a partner's Nil ----------------
+/** n(U-k choose n) / (U choose n): the chance that n cards dealt from U contain none of k particular cards. */
+function noneOf(U: number, k: number, n: number): number {
+  if (n <= 0) return 1;
+  if (U - k < n) return 0;
+  let p = 1;
+  for (let i = 0; i < n; i++) p *= (U - k - i) / (U - i);
+  return p;
+}
+
+/**
+ * How likely is it that my Nil partner is forced to win this trick if the card `c` is the best one on the table afterwards?
+ * Partner must follow suit, so they win only when they hold cards of the led suit and every one of them is higher than the best card.
+ * Counted from the cards nobody has shown yet; a Nil hand is low, so the chance is scaled down a little.
+ */
+function partnerForcedToWin(g: GameState, seat: number, partner: number, c: Card): number {
+  const after = [...g.trick, { seat, card: c }];
+  const led = after[0].card.s;
+  const winSeat = trickWinner(after);
+  const win = after.find((t) => t.seat === winSeat)!;
+  if (win.card.s !== led) return 0;                    // trumped: partner can only follow suit with a lower card, or is void and may discard anything
+  const unseen = unseenCards(g, seat);
+  const U = unseen.length, n = g.hands[partner].length;
+  if (!n || !U) return 0;
+  const suit = unseen.filter((u) => u.s === led);
+  const lower = suit.filter((u) => u.r < win.card.r);
+  const risk = noneOf(U, lower.length, n) - noneOf(U, suit.length, n);   // no lower card of the suit, but at least one card of it
+  return Math.max(0, risk) * 0.75;
+}
+
+/** Cheapest card that keeps the Nil partner safe: weigh the danger to partner against the value of the card (aces, kings and spades are worth saving). */
+function coverChoice(g: GameState, seat: number, partner: number, legal: Card[]): Card {
+  const WEIGHT = 6;
+  let best = legal[0], bestV = Infinity;
+  for (const c of legal) {
+    const cost = (c.r - 2) / 12 + (c.s === 'S' ? 0.35 : 0);
+    const v = WEIGHT * partnerForcedToWin(g, seat, partner, c) + cost;
+    if (v < bestV - 1e-9 || (Math.abs(v - bestV) <= 1e-9 && c.r < best.r)) { bestV = v; best = c; }
+  }
+  return best;
+}
+
+let inSearch = false;   // true while a look-ahead is playing the rest of the round out (those plays use the plain rules, no nested search)
+
+/**
+ * Look ahead for a Nil, either to cover my partner's or to break an opponent's: deal the cards nobody has shown to the other players many times (the Nil partner's hand
+ * leans low, because a Nil bid is made from low cards), play the round out with the plain rules, and choose the card that keeps the Nil
+ * alive most often (cover) or break it most often (opponent): the round's result for my side decides, and the small cost of spending a
+ * high card breaks ties.
+ */
+/** Look-ahead tuning (exported so a simulation can try other values). decay: how strongly a Nil hand leans low; spade: weight of a spade in it; cost: how much saving a high card matters. */
+export const NIL_TUNING = { decay: 9, spade: 0.8, cost: 0.15, samples: 36 };
+
+function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): Card | null {
+  const unseen = unseenCards(g, seat);
+  const others = [0, 1, 2, 3].filter((x) => x !== seat);
+  const sizes = others.map((x) => g.hands[x].length);
+  if (unseen.length !== sizes.reduce((a, b) => a + b, 0)) return null;
+  const SAMPLES = NIL_TUNING.samples;
+  const blindNil = !!g.blind?.[partner];   // a blind Nil is bid before looking, so the hand is not specially low
+  const total = new Map<string, number>(legal.map((c) => [c.s + c.r, 0]));
+  inSearch = true;
+  try {
+    for (let k = 0; k < SAMPLES; k++) {
+      // the Nil bidder draws first, favouring low cards (and few spades) unless the Nil was blind
+      const pool = unseen.slice();
+      const pIdx = others.indexOf(partner), pn = sizes[pIdx];
+      const pHand: Card[] = [];
+      for (let i = 0; i < pn && pool.length; i++) {
+        let sum = 0;
+        const w = pool.map((c) => { const x = blindNil ? 1 : Math.exp(-(c.r - 2) / NIL_TUNING.decay) * (c.s === 'S' ? NIL_TUNING.spade : 1); sum += x; return x; });
+        let r = Math.random() * sum, j = 0;
+        while (j < pool.length - 1 && (r -= w[j]) > 0) j++;
+        pHand.push(pool.splice(j, 1)[0]);
+      }
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      const hands = g.hands.map((h) => h.slice());
+      let o = 0;
+      others.forEach((x, idx) => { if (x === partner) hands[x] = pHand; else { hands[x] = pool.slice(o, o + sizes[idx]); o += sizes[idx]; } });
+      for (const c of legal) {
+        const after = applyAction({ ...g, hands }, { type: 'play', seat, card: c });
+        total.set(c.s + c.r, total.get(c.s + c.r)! + rollout(after, seat) - NIL_TUNING.cost * ((c.r - 2) / 12 + (c.s === 'S' ? 0.35 : 0)));
+      }
+    }
+  } catch { return null; } finally { inSearch = false; }
+  let best = legal[0], bestV = -Infinity;
+  for (const c of legal) { const v = total.get(c.s + c.r)!; if (v > bestV + 1e-9) { bestV = v; best = c; } }
+  return best;
+}
+
+/**
+ * Fixed rules for protecting my partner's Nil (a broken Nil costs 100, a bag costs 1, so this beats bags and my own bid):
+ *  1. Partner has not played yet, or played a card of 9+ that is winning: take the trick with my highest winning card (a spade when void). Never duck.
+ *  2. Last to play and partner is winning: overtake them with a higher card in the suit, or a spade when void.
+ *  3. Leading: unplayed Aces, then protected Kings, in plain suits; high spades (A/K/Q) to pull trumps; never a low card (2-7) if a higher lead exists.
+ *  4. Void and partner at risk: ruff with the spade that is needed to win; partner already safe: slough a low card.
+ * Returns null when no rule decides (the look-ahead search takes over).
+ */
+function nilCover(g: GameState, seat: number, partner: number, legal: Card[], leading: boolean): Card | null {
+  const hand = g.hands[seat];
+  if (leading) {
+    const played = new Set((g.played ?? []).map((c) => c.s + c.r));
+    const aces = legal.filter((c) => c.s !== 'S' && c.r === 14);
+    if (aces.length) return aces[0];
+    const kings = legal.filter((c) => c.s !== 'S' && c.r === 13 && (played.has(c.s + 14) || hand.some((x) => x.s === c.s && x.r === 14)));
+    if (kings.length) return kings[0];
+    const highSpades = legal.filter((c) => c.s === 'S' && c.r >= 12);
+    if (highSpades.length) return highest(highSpades);
+    return null;   // the look-ahead picks among the top cards of each suit, never a low (2-7) card when a higher lead exists
+  }
+  const led = g.trick[0].card.s;
+  const hasLed = legal.some((c) => c.s === led);
+  const partnerCard = g.trick.find((t) => t.seat === partner)?.card;
+  const best = currentBest(g);
+  const winners = legal.filter((c) => beats(c, g));
+  const takeOver = () => {
+    if (!winners.length) return null;
+    if (hasLed) return highest(winners);                                   // highest winning card in the suit
+    const spades = winners.filter((c) => c.s === 'S');
+    return spades.length ? lowestRank(spades) : null;                       // void: the spade that is needed to win
+  };
+  if (!partnerCard) return takeOver() ?? lowestNonSpadeFirst(legal);        // rule 1 (partner still to play), rule 4 (void ruff)
+  if (best === partner) {
+    if (partnerCard.r >= 9 || g.trick.length === 3) return takeOver() ?? lowestNonSpadeFirst(legal);   // rules 1 and 2
+    if (winners.length) { const plain = winners.filter((c) => c.s !== 'S'); return lowestRank(plain.length ? plain : winners); }
+    return lowestNonSpadeFirst(legal);
+  }
+  return hasLed ? null : lowestNonSpadeFirst(legal);                        // rule 4: partner already safe, slough
+}
 
 export function botPlay(g: GameState, seat: number): Card {
   const legal = legalCards(g, seat);
@@ -71,13 +203,37 @@ export function botPlay(g: GameState, seat: number): Card {
 
   // 2) Cover partner's nil
   const partnerNil = partners && g.bids[partner] === 0 && g.tricks[partner] === 0;
+  if (partnerNil && !inSearch) {
+    const forced = nilCover(g, seat, partner, legal, leading);
+    if (forced) return forced;
+  }
+  if (partnerNil && !inSearch) {
+    // leading: a low lead leaves my Nil partner forced to win (they must follow suit with whatever they hold), so only the top card of each suit is a candidate
+    let cands = leading ? (['S', 'H', 'D', 'C'] as Suit[]).map((su) => legal.filter((c) => c.s === su)).filter((a) => a.length).map((a) => highest(a)) : legal;
+    if (leading && cands.some((c) => c.r >= 8)) { const hi = cands.filter((c) => c.r >= 8); cands.length = 0; cands.push(...hi); }
+    const searched = nilSearch(g, seat, partner, cands);
+    if (searched) return searched;
+  }
   if (partnerNil) {
     const partnerPlayed = g.trick.some((t) => t.seat === partner);
     const best = currentBest(g);
-    if (leading) return highest(legal.filter((c) => c.s !== 'S').length ? legal.filter((c) => c.s !== 'S') : legal);
-    if (best === partner || !partnerPlayed) {
-      const winners = legal.filter((c) => beats(c, g));
-      if (winners.length) return highest(winners);
+    const winners = legal.filter((c) => beats(c, g));
+    if (leading) return coverChoice(g, seat, partner, legal);   // protect partner with the cheapest safe lead, not always the highest card
+    if (partnerPlayed && best === partner) {
+      // partner is about to take the trick: beat their card with the cheapest card that does it (a plain suit card before a trump)
+      if (winners.length) { const plain = winners.filter((c) => c.s !== 'S'); return lowestRank(plain.length ? plain : winners); }
+      return lowestNonSpadeFirst(legal);   // cannot beat them: nothing to save, keep the good cards
+    }
+    if (!partnerPlayed) return coverChoice(g, seat, partner, legal);   // partner plays after me: raise the trick only as high as needed
+    // partner already played and somebody else is winning: partner is safe, play on normally
+  }
+
+  // 2b) An opponent's Nil is alive: try to make them take a trick
+  if (!inSearch) {
+    const nilSeat = [0, 1, 2, 3].find((x) => x !== seat && sideOf(mode, x) !== sideOf(mode, seat) && g.bids[x] === 0 && g.tricks[x] === 0);
+    if (nilSeat !== undefined) {
+      const searched = nilSearch(g, seat, nilSeat, legal);
+      if (searched) return searched;
     }
   }
 
@@ -160,7 +316,12 @@ export function skilledBid(g: GameState, seat: number, skill: BotSkill): number 
   if (Math.random() < 0.3) return Math.max(1, Math.min(13, best + (Math.random() < 0.5 ? -1 : 1)));
   return best;
 }
+/** Is any seat playing for a Nil that is still alive? Computer players never play loosely then. */
+function nilAlive(g: GameState, _seat: number): boolean {
+  return [0, 1, 2, 3].some((x) => g.bids[x] === 0 && g.tricks[x] === 0);   // anybody's: partners cover it, opponents try to break it
+}
 export function skilledPlay(g: GameState, seat: number, skill: BotSkill): Card {
+  if (nilAlive(g, seat)) return skill === 'expert' ? expertPlay(g, seat) : botPlay(g, seat);
   if (skill === 'expert') return expertPlay(g, seat);
   if (skill === 'high' || Math.random() >= 0.22) return botPlay(g, seat);
   const legal = legalCards(g, seat);
@@ -220,7 +381,7 @@ export function expertPlay(g: GameState, seat: number): Card {
   if (legal.length === 1) return legal[0];
   const myNil = g.bids[seat] === 0 && g.tricks[seat] === 0;
   const partners = g.settings.mode === 'partners';
-  if (myNil || (partners && g.bids[(seat + 2) % 4] === 0 && g.tricks[(seat + 2) % 4] === 0)) return botPlay(g, seat);
+  if (nilAlive(g, seat)) return botPlay(g, seat);
   const unseen = unseenCards(g, seat);
   const others = [0, 1, 2, 3].filter((x) => x !== seat);
   const sizes = others.map((x) => g.hands[x].length);
