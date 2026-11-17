@@ -252,3 +252,13 @@ body.crows-site { background: var(--wine-3, #16020b); }
 .crows-name { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .crows-name p { margin: 0; }
 .crows-name input { width: min(360px, 100%); padding: 12px 16px; border-radius: 12px; border: 2px solid rgba(255,255,255,.5); background: rgba(0,0,0,.3); color: #fff; font: 600 22px system-ui, sans-serif; text-align: center; }
+
+/* a crow flying round the earth on the Online Lobby button */
+.crow-orbit { position: relative; width: 100%; height: 100%; pointer-events: none; }
+.crow-fly { position: absolute; left: 50%; top: 50%; width: 62px; height: 42px; margin: -21px 0 0 -31px; will-change: transform;
+  filter: drop-shadow(0 0 2px rgba(255,236,170,.9)) drop-shadow(0 3px 3px rgba(0,0,0,.55)); }
+.crow-fly svg { display: block; fill: #15121d; overflow: visible; }
+.cf-wing { transform-box: fill-box; transform-origin: 30% 100%; animation: crowFlap .42s ease-in-out infinite alternate; }
+.cf-wing.back { fill: #2a2436; animation-delay: -.06s; }
+@keyframes crowFlap { from { transform: scaleY(1) skewX(-6deg); } to { transform: scaleY(-.75) skewX(8deg); } }
+@media (prefers-reduced-motion: reduce) { .cf-wing { animation: none; } }

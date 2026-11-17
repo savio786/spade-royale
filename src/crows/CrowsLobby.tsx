@@ -1,7 +1,7 @@
 // Crows Haven lobby and online lobby, built like Spade Haven's (same top bar, round buttons, bottom bar, pop-ups and
 // table tiles — the shared classes in styles.css), with Crows Haven's own coins, levels, bets and game points.
 // Spades' Lobby.tsx / OnlineLobby.tsx / modals.tsx are not used or changed.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Coin, Icon, Modal, Pill, RingButton } from '../components/ui';
 import { TableShape } from '../components/TableShape';
 import { CityRing, lookFor } from '../components/CityRing';
@@ -23,15 +23,59 @@ const BONUS_COINS = 100, BONUS_EVERY_MS = 30 * 60 * 1000;
 const bonusLeftMs = (last: number) => Math.max(0, last + BONUS_EVERY_MS - Date.now());
 const clock = (ms: number) => { const t = Math.ceil(ms / 1000); return [Math.floor(t / 3600), Math.floor(t / 60) % 60, t % 60].map((n) => String(n).padStart(2, '0')).join(':'); };
 
-/** The Online Lobby icon: the spinning globe with cards orbiting it (as in Spade Haven). */
+/** The Online Lobby icon: Spade Haven's spinning globe and gold ring, with a crow flying round the earth along the ring. */
 const GlobeOrbit = () => (
   <span className="globe-orbit" aria-hidden="true">
     <span className="orbit-ring back" />
     <span className="orbit-globe"><GlobeArt /></span>
     <span className="orbit-ring front" />
-    <span className="orbit-cards">{[['♥', 'red', 0], ['♦', 'blue', 120], ['♠', 'dark', 240]].map(([g, c, a]) => <i key={String(a)} style={{ transform: `rotate(${a}deg) translateY(-84px) rotate(${-Number(a)}deg)` }}><b className={`oc ${c}`}>{g}</b></i>)}</span>
+    <FlyingCrow />
   </span>
 );
+
+/** A crow flapping its wings, following the tilted gold ring: in front of the earth on the near side, behind it on the far side. */
+function FlyingCrow() {
+  const box = useRef<HTMLSpanElement>(null);
+  const bird = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const tilt = (-24 * Math.PI) / 180, cos = Math.cos(tilt), sin = Math.sin(tilt);
+    let raf = 0, t0 = performance.now();
+    const place = (now: number) => {
+      const el = bird.current, b = box.current;
+      if (!el || !b) return;
+      const r = b.offsetWidth * 0.52;
+      const hover = !!b.closest('.ring-btn:hover');
+      const a = still ? Math.PI * 0.62 : ((now - t0) / (hover ? 3500 : 7000)) * Math.PI * 2;
+      const ex = r * Math.cos(a), ey = r * 0.36 * Math.sin(a);       // the ring: a circle squashed to 36% and turned -24°
+      const x = ex * cos - ey * sin, y = ex * sin + ey * cos;
+      const front = Math.sin(a) > 0;                                  // the lower half of the ring is the near side
+      const goingRight = -Math.sin(a) * cos - 0.36 * Math.cos(a) * sin > 0;
+      const depth = 0.8 + 0.25 * Math.sin(a);                         // a little smaller when it's behind the earth
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${goingRight ? depth : -depth}, ${depth})`;
+      el.style.zIndex = front ? '3' : '0';
+      el.style.opacity = front ? '1' : '.8';
+      if (!still) raf = requestAnimationFrame(place);
+    };
+    if (still) place(performance.now()); else raf = requestAnimationFrame((n) => { t0 = n; place(n); });
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <span className="crow-orbit" ref={box}>
+      <span className="crow-fly" ref={bird}>
+        <svg viewBox="0 0 60 40" width="62" height="42">
+          <g className="cf-wing back"><path d="M28 21 C25 10 31 3 41 3 C37 8 35 14 34 21Z" /></g>
+          <path d="M8 16 L19 20.5 L19 24 L8 26 L11 21Z" />
+          <ellipse cx="30" cy="22.5" rx="13" ry="5.2" />
+          <circle cx="43.5" cy="19.5" r="4.8" />
+          <path d="M47.5 18 L54.5 19.8 L47.5 21.6Z" fill="#3a3340" />
+          <circle cx="45" cy="18.4" r="1" fill="#ffd36a" />
+          <g className="cf-wing front"><path d="M25 21 C20 9 26 1 37 0 C33 6 31 13 31 21Z" /></g>
+        </svg>
+      </span>
+    </span>
+  );
+}
 
 const SLIDES = [
   { k: 'spin', title: 'BONUS', sub: 'Spin the wheel every 4 hours!' },
