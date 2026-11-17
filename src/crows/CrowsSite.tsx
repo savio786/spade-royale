@@ -3,18 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import './crows.css';
 import { CrowCard, CrowArt } from './CrowCard';
-import { Modal } from '../components/ui';
+import { Icon, Modal } from '../components/ui';
 import { CrowsTable, CrowsRules, CrowsRulesBody, TableMode } from './CrowsTable';
-import { onlineAvailable, quickMatch, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
+import { quickMatch, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
 import { toast } from '../lib/toast';
 import { changeName, registerMyName, NAME_MAX } from './names';
 import { CrowsRanking } from './CrowsRanking';
-import { CrowsAvatar, InstallHelp, InstallModal, PictureModal, randomPlayerPicture, useInstall } from './CrowsExtras';
+import { InstallHelp, InstallModal, PictureModal, randomPlayerPicture, useInstall } from './CrowsExtras';
+import { CrowsLobby, CrowsOnlineLobby, GAME_POINTS, type LobbyAction } from './CrowsLobby';
+import { crowsCity, notEnough } from './wallet';
 import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
 import { sfx } from '../lib/sound';
 
-const HERO_CARDS = [{ s: 'ember', r: 1 }, { s: 'crow', r: 0 }, { s: 'sky', r: 14 }, { s: 'moss', r: 10 }] as const;
+const HERO_CARDS = [{ s: 'H', r: 1 }, { s: 'crow', r: 0 }, { s: 'S', r: 14 }, { s: 'D', r: 10 }] as const;
 
 const FEATURES = [
   { t: 'Bid for the nest', d: 'Promise how many points your side will take. Win the bid and the five hidden nest cards are yours.' },
@@ -86,8 +88,6 @@ function exitGame(toWelcome: () => void) {
   toWelcome();
 }
 
-/** The game lengths players can choose: first side to this many points wins. */
-const GAME_POINTS = [300, 400, 500];
 
 /** Inside the game: start as a guest, then the home screen, then a table. */
 export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite: () => void; installPrompt: null | (() => void) }) {
@@ -96,7 +96,8 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
   const p = useProfile();
   // back from a reload in the middle of an online game: straight back to that table
   const resume = currentTable();
-  const [screen, setScreen] = useState<'home' | 'table' | 'ranking'>(resume ? 'table' : 'home');
+  const [screen, setScreen] = useState<'home' | 'online' | 'table' | 'ranking'>(resume ? 'table' : 'home');
+  const [bet, setBet] = useState(0);
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -123,75 +124,80 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
       setBusy(false);
     };
     return (
-      <div className="screen crows-home felt-bg">
-        <div className="ch-card">
-          <CrowArt size={120} />
-          <h1>CROWS HAVEN</h1>
-          <p>Play free as a guest. Your name and progress stay on this device.</p>
-          <button className="cl-btn" disabled={busy} onClick={start}>{busy ? 'Starting…' : '▶ PLAY AS GUEST'}</button>
-          <button className="ch-link" onClick={onLeaveSite}>Back to the welcome page</button>
+      <div className="screen login felt-bg crows-login">
+        <img className="hostess left" src="/brand/hostess-left.webp" alt="" aria-hidden="true" draggable={false} />
+        <img className="hostess right" src="/brand/hostess-right.webp" alt="" aria-hidden="true" draggable={false} />
+        <div className="login-inner">
+          <CrowsLogo />
+          <div className="login-glow" />
+          <div className="login-buttons">
+            <button className="social reg" onClick={start} disabled={busy}>
+              <span className="social-ico"><Icon name="play" size={24} /></span><span>{busy ? 'One moment…' : 'Play free as a guest'}</span>
+            </button>
+          </div>
+          <p className="crows-login-note">50,000 free coins to start · your name, coins and level stay on this device</p>
+          <button className="guest-link" onClick={() => { sfx.click(); onLeaveSite(); }}>Back to the welcome page</button>
         </div>
       </div>
     );
   }
 
   const openTable = (m: TableMode) => { if (m.kind === 'online') rememberTable(m.tableId); else forgetTable(); setMode(m); setTableKey((k) => k + 1); setScreen('table'); };
-  /** "Play online": the server seats you at a public table with the same game points (or starts one). */
-  const playOnline = async () => {
-    sfx.click(); setFinding(true);
-    try { openTable({ kind: 'online', tableId: await quickMatch(target) }); }
+  /** Online: the server seats you at a public table with the same game points and bet (or starts one). */
+  const playOnline = async (b = bet) => {
+    if (profile.get().coins < b) { notEnough(b); return; }
+    setFinding(true);
+    try { setBet(b); openTable({ kind: 'online', tableId: await quickMatch(target, b) }); }
     catch (e) { toast((e as Error).message); }
     finally { setFinding(false); }
   };
+  const playLocal = (b: number) => {
+    if (profile.get().coins < b) { notEnough(b); return; }
+    setBet(b); openTable({ kind: 'local' });
+  };
+  const toLobby = () => { fullTries.current = 0; forgetTable(); setScreen('home'); };
   if (screen === 'table') {
-    return <CrowsTable key={tableKey} target={target} mode={mode} onExit={() => { fullTries.current = 0; forgetTable(); setScreen('home'); }}
+    return <CrowsTable key={tableKey} target={target} bet={bet} mode={mode} onExit={toLobby}
       onAgainOnline={() => { forgetTable(); void playOnline(); }}
       onFull={() => { if (++fullTries.current <= 3 && mode.kind === 'online') void playOnline(); else { toast('That table is full.'); setScreen('home'); } }} />;
   }
   if (screen === 'ranking') return <CrowsRanking onBack={() => setScreen('home')} />;
 
+  const act = (a: LobbyAction) => {
+    switch (a.t) {
+      case 'play': if (a.online) void playOnline(a.bet); else playLocal(a.bet); break;
+      case 'online': setScreen('online'); break;
+      case 'private': setModal('private'); break;
+      case 'ranking': setScreen('ranking'); break;
+      case 'rules': setRules(true); break;
+      case 'picture': setModal('picture'); break;
+      case 'name': setModal('name'); break;
+      case 'install': if (installPrompt) void installPrompt(); else setModal('install'); break;
+      case 'exit': exitGame(onLeaveSite); break;
+    }
+  };
 
   return (
-    <div className="screen crows-home felt-bg">
-      <div className="ch-card">
-        <button className="crows-exit" onClick={() => { sfx.click(); exitGame(onLeaveSite); }} aria-label="Exit the game">⏻ Exit</button>
-        <CrowArt size={110} />
-        <h1>CROWS HAVEN</h1>
-        <div className="ch-me">
-          <button className="ch-me-pic" onClick={() => { sfx.click(); setModal('picture'); }} aria-label="Change your picture"><CrowsAvatar k={p.avatar} size={64} name={p.name} /></button>
-          <b>{p.name}</b>
-          <button className="ch-edit" onClick={() => { sfx.click(); setModal('name'); }}>Change name</button>
-          <button className="ch-edit" onClick={() => { sfx.click(); setModal('picture'); }}>Change picture</button>
-        </div>
-        <div className="ch-points" role="radiogroup" aria-label="Game points">
-          <span>GAME POINTS</span>
-          {GAME_POINTS.map((v) => <button key={v} role="radio" aria-checked={target === v} className={target === v ? 'on' : ''} onClick={() => setTarget(v)}>{v}</button>)}
-        </div>
-        {onlineAvailable() ? (
-          <>
-            <button className="cl-btn big" disabled={finding} onClick={() => void playOnline()}>{finding ? 'Finding a table…' : '▶ PLAY ONLINE'}</button>
-            <div className="ch-row">
-              <button className="cl-btn ghost strong" onClick={() => { sfx.click(); setModal('private'); }}>🔒 Private table</button>
-              <button className="cl-btn ghost strong" onClick={() => { sfx.click(); openTable({ kind: 'local' }); }}>🤖 Play vs computer</button>
-            </div>
-          </>
-        ) : (
-          <button className="cl-btn big" onClick={() => { sfx.click(); openTable({ kind: 'local' }); }}>▶ PLAY</button>
-        )}
-        <div className="ch-row">
-          <button className="cl-btn ghost" onClick={() => { sfx.click(); setScreen('ranking'); }}>🏆 Weekly ranking</button>
-          <button className="cl-btn ghost" onClick={() => { sfx.click(); setRules(true); }}>How to play</button>
-          {!installed && <button className="cl-btn ghost" onClick={() => { sfx.click(); if (installPrompt) void installPrompt(); else setModal('install'); }}>⤓ Install the app</button>}
-        </div>
-        <p className="ch-note">{onlineAvailable()
-          ? <>Play online with other people — empty seats get a computer player every 5 seconds, or press Start now. First side to {target} wins.</>
-          : <>You and your partner (across the table) against two computer players. First side to {target} wins.</>}</p>
-      </div>
+    <>
+      {screen === 'online'
+        ? <CrowsOnlineLobby target={target} setTarget={setTarget} onBack={() => setScreen('home')} onJoin={(b) => void playOnline(b)} onCreate={() => setModal('private')} />
+        : <CrowsLobby onAction={act} installed={installed} target={target} setTarget={setTarget} />}
+      {finding && <div className="modal-backdrop"><div className="modal kicked"><h2 className="modal-title">Finding a table…</h2><p className="center">Looking for players at the {crowsCity(bet)} table.</p></div></div>}
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
       {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
       {modal === 'name' && <NameModal current={p.name} note={nameNote} onClose={() => { setModal(null); setNameNote(null); }} />}
-      {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); openTable({ kind: 'online', tableId }); }} />}
+      {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); setBet(0); openTable({ kind: 'online', tableId }); }} />}
+    </>
+  );
+}
+
+/** The Crows Haven logo, laid out like Spade Haven's (emblem + two-line name). */
+function CrowsLogo() {
+  return (
+    <div className="logo crows-logo" role="img" aria-label="Crows Haven">
+      <span className="logo-emblem crows-emblem"><CrowArt size={200} /></span>
+      <span className="logo-name" aria-hidden="true"><span>CROWS</span><span>HAVEN</span></span>
     </div>
   );
 }

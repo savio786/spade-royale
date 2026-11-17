@@ -54,7 +54,7 @@ export function CrowsRanking({ onBack }: { onBack: () => void }) {
   }, [which]);
   const me = profile.get();
   return (
-    <div className="screen crows-home felt-bg">
+    <div className="screen lobby felt-bg crows-rank-screen">
       <div className="ch-card crows-rank">
         <div className="cr-head">
           <button className="cl-btn ghost" onClick={() => { sfx.click(); onBack(); }}>← Back</button>

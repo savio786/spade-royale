@@ -16,33 +16,33 @@ const seats = [0, 1, 2, 3].map((i) => ({ id: `bot:${i}`, name: `B${i}`, avatar: 
   const d = newDeck();
   check(d.length === 45, 'deck has 45 cards (1, 5–14 in four colours + the Crow)');
   check(pointsOf(d) === DECK_POINTS && DECK_POINTS === 180, 'deck has 180 points');
-  check(pointsOf([c('sky', 1)]) === 15, 'a 1 is worth 15');
+  check(pointsOf([c('S', 1)]) === 15, 'a 1 is worth 15');
 
   // A playing state built by hand: trump = moss.
   const base = (hands: Card[][], trick: { seat: number; card: Card }[] = [], turn = 0): CrowsState => ({
-    ...createGame({}, seats), phase: 'playing', trump: 'moss', hands, trick, turn, highBidder: 0, highBid: 70,
+    ...createGame({}, seats), phase: 'playing', trump: 'C', hands, trick, turn, highBidder: 0, highBid: 70,
   });
   // Following a non-trump colour: must follow, but the Crow is always allowed.
-  let g = base([[c('sky', 6), c('ember', 9), CROW], [], [], []], [{ seat: 3, card: c('sky', 12) }]);
+  let g = base([[c('S', 6), c('H', 9), CROW], [], [], []], [{ seat: 3, card: c('S', 12) }]);
   let legal = legalCards(g, 0);
-  check(legal.length === 2 && legal.some((x) => x.s === 'crow') && legal.some((x) => x.s === 'sky'), 'Crow playable while following another colour');
+  check(legal.length === 2 && legal.some((x) => x.s === 'crow') && legal.some((x) => x.s === 'S'), 'Crow playable while following another colour');
   // Trump led, Crow is my only trump: must play it.
-  g = base([[c('sky', 6), CROW], [], [], []], [{ seat: 3, card: c('moss', 7) }]);
+  g = base([[c('S', 6), CROW], [], [], []], [{ seat: 3, card: c('C', 7) }]);
   legal = legalCards(g, 0);
   check(legal.length === 1 && legal[0].s === 'crow', 'Crow forced when trump led and it is the only trump');
   // Crow led: everyone must play trump if they can.
-  g = base([[c('moss', 5), c('sky', 14)], [], [], []], [{ seat: 3, card: CROW }]);
+  g = base([[c('C', 5), c('S', 14)], [], [], []], [{ seat: 3, card: CROW }]);
   legal = legalCards(g, 0);
-  check(legal.length === 1 && legal[0].s === 'moss', 'Crow led counts as trump led');
+  check(legal.length === 1 && legal[0].s === 'C', 'Crow led counts as trump led');
   // Void: anything goes.
-  g = base([[c('ember', 5), c('moss', 6)], [], [], []], [{ seat: 3, card: c('sky', 9) }]);
+  g = base([[c('H', 5), c('C', 6)], [], [], []], [{ seat: 3, card: c('S', 9) }]);
   check(legalCards(g, 0).length === 2, 'void in colour led: any card');
   // Winners.
-  check(trickWinner([{ seat: 0, card: c('sky', 14) }, { seat: 1, card: c('moss', 5) }, { seat: 2, card: c('sky', 13) }, { seat: 3, card: c('ember', 14) }], 'moss') === 1, 'low trump beats 14 of colour led');
-  check(trickWinner([{ seat: 0, card: c('moss', 1) }, { seat: 1, card: CROW }], 'moss') === 1, 'Crow beats the 1 of trump');
-  check(trickWinner([{ seat: 0, card: c('sky', 14) }, { seat: 1, card: c('sky', 1) }, { seat: 2, card: c('sky', 13) }], 'moss') === 1, 'the 1 beats the 14 of its colour');
-  check(trickWinner([{ seat: 0, card: c('moss', 14) }, { seat: 1, card: c('moss', 1) }], 'moss') === 1, 'the 1 of trump beats the 14 of trump');
-  check(trickWinner([{ seat: 0, card: c('sky', 8) }, { seat: 1, card: c('ember', 14) }, { seat: 2, card: c('sky', 9) }], 'moss') === 2, 'off-colour card cannot win');
+  check(trickWinner([{ seat: 0, card: c('S', 14) }, { seat: 1, card: c('C', 5) }, { seat: 2, card: c('S', 13) }, { seat: 3, card: c('H', 14) }], 'C') === 1, 'low trump beats 14 of colour led');
+  check(trickWinner([{ seat: 0, card: c('C', 1) }, { seat: 1, card: CROW }], 'C') === 1, 'Crow beats the 1 of trump');
+  check(trickWinner([{ seat: 0, card: c('S', 14) }, { seat: 1, card: c('S', 1) }, { seat: 2, card: c('S', 13) }], 'C') === 1, 'the 1 beats the 14 of its colour');
+  check(trickWinner([{ seat: 0, card: c('C', 14) }, { seat: 1, card: c('C', 1) }], 'C') === 1, 'the 1 of trump beats the 14 of trump');
+  check(trickWinner([{ seat: 0, card: c('S', 8) }, { seat: 1, card: c('H', 14) }, { seat: 2, card: c('S', 9) }], 'C') === 2, 'off-colour card cannot win');
 
   // Bidding: dealer opens, everybody passes → dealer forced at 70.
   let b = startRound(createGame({}, seats, () => 0.1), () => 0.3);
@@ -62,8 +62,8 @@ const seats = [0, 1, 2, 3].map((i) => ({ id: `bot:${i}`, name: `B${i}`, avatar: 
   check(b.phase === 'nest', 'the top bid (180) ends the bidding');
 
   // Scoring: set bid loses its amount, the other side keeps its points.
-  const s: CrowsState = { ...createGame({}, seats), phase: 'trickEnd', highBidder: 0, highBid: 100, trump: 'sky', lastTrickWinner: 1,
-    taken: [[c('sky', 14), c('ember', 10), c('moss', 5)], [CROW, c('plum', 14)]], nest: [c('sky', 10)], hands: [[], [], [], []] };
+  const s: CrowsState = { ...createGame({}, seats), phase: 'trickEnd', highBidder: 0, highBid: 100, trump: 'S', lastTrickWinner: 1,
+    taken: [[c('S', 14), c('H', 10), c('C', 5)], [CROW, c('D', 14)]], nest: [c('S', 10)], hands: [[], [], [], []] };
   const r = applyAction(s, { type: 'collect' });
   check(r.history[0].points[0] === 25 && r.history[0].points[1] === 40, 'last trick side gets the nest points');
   check(r.scores[0] === -100 && r.scores[1] === 40, 'set: bidders lose the bid, opponents keep their points');

@@ -1,6 +1,6 @@
 // Crows Haven game server (Cloudflare Worker + Durable Objects). Spades doesn't use any of this.
 //
-//  Worker        HTTP: POST /quick, POST /private, GET /code/:CODE, GET /health · WebSocket: /ws/:tableId
+//  Worker        HTTP: POST /quick, POST /private, GET /code/:CODE, GET /lobby, GET /health · WebSocket: /ws/:tableId
 //  Lobby (one)   finds an open public table for "Play online", makes private tables with invite codes
 //  Table (each)  one table: seats, the game (shared/crows/engine), computer players (shared/crows/bot),
 //                countdowns, turn timers, reconnects and the fixed chat
@@ -18,6 +18,7 @@ import type { ClientMsg, ServerMsg, TableInfo } from '../../shared/crows/protoco
 import { validateName, squash, isGuestName } from '../../shared/crows/names';
 import { CROWS_PORTRAITS } from '../../src/crows/portraits';
 import { BOT_PHOTOS } from '../../shared/botphotos';
+import { normBet, crowsCity } from '../../shared/crows/bets';
 
 export interface Env {
   LOBBY: DurableObjectNamespace<Lobby>;
@@ -47,13 +48,14 @@ export default {
         return json(await env.NAMES.get(env.NAMES.idFromName('names')).claim(String(b.pid ?? ''), String(b.secret ?? ''), b.name, !!b.check));
       }
       if (url.pathname === '/quick' && req.method === 'POST') {
-        const b = await req.json().catch(() => ({})) as { target?: number };
-        return json({ tableId: await lobby().quick(normTarget(b.target)) });
+        const b = await req.json().catch(() => ({})) as { target?: number; bet?: number };
+        return json({ tableId: await lobby().quick(normTarget(b.target), normBet(b.bet)) });
       }
       if (url.pathname === '/private' && req.method === 'POST') {
-        const b = await req.json().catch(() => ({})) as { target?: number };
-        return json(await lobby().createPrivate(normTarget(b.target)));
+        const b = await req.json().catch(() => ({})) as { target?: number; bet?: number };
+        return json(await lobby().createPrivate(normTarget(b.target), normBet(b.bet)));
       }
+      if (url.pathname === '/lobby') return json(await lobby().counts());
       const code = url.pathname.match(/^\/code\/([A-Za-z]{5})$/)?.[1];
       if (code) {
         const tableId = await lobby().byCode(code.toUpperCase());
@@ -72,7 +74,7 @@ export default {
 };
 
 // ---------------------------------------------------------------- Lobby
-interface Entry { id: string; target: number; isPrivate: boolean; code: string | null; seated: number; started: boolean; pending: number[]; updatedAt: number }
+interface Entry { id: string; target: number; bet?: number; isPrivate: boolean; code: string | null; seated: number; humans?: number; started: boolean; pending: number[]; updatedAt: number }
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 export class Lobby extends DurableObject<Env> {
@@ -88,42 +90,57 @@ export class Lobby extends DurableObject<Env> {
       if (now - e.updatedAt > 6 * 3600e3) delete this.tables[id];
     }
   }
-  private async open(target: number, isPrivate: boolean, code: string | null) {
+  private async open(target: number, bet: number, isPrivate: boolean, code: string | null) {
     const id = crypto.randomUUID();
-    await this.env.TABLE.get(this.env.TABLE.idFromName(id)).init(id, target, isPrivate, code);
-    const e: Entry = { id, target, isPrivate, code, seated: 0, started: false, pending: [], updatedAt: Date.now() };
+    await this.env.TABLE.get(this.env.TABLE.idFromName(id)).init(id, target, isPrivate, code, bet);
+    const e: Entry = { id, target, bet, isPrivate, code, seated: 0, humans: 0, started: false, pending: [], updatedAt: Date.now() };
     this.tables[id] = e;
     return e;
   }
-  /** "Play online": a public table with the same game points that's still filling up, or a new one. */
-  async quick(target: number): Promise<string> {
+  /** "Play online": a public table with the same game points and bet that's still filling up, or a new one. */
+  async quick(target: number, bet = 0): Promise<string> {
     const now = Date.now();
     this.prune(now);
     let e = Object.values(this.tables)
-      .filter((x) => !x.isPrivate && !x.started && x.target === target && x.seated + x.pending.length < 4 && now - x.updatedAt < 10 * 60e3)
+      .filter((x) => !x.isPrivate && !x.started && x.target === target && (x.bet ?? 0) === bet && x.seated + x.pending.length < 4 && now - x.updatedAt < 10 * 60e3)
       .sort((a, b) => b.seated - a.seated)[0];
-    if (!e) e = await this.open(target, false, null);
+    if (!e) e = await this.open(target, bet, false, null);
     e.pending.push(now);
     await this.save();
     return e.id;
   }
-  async createPrivate(target: number): Promise<{ tableId: string; code: string }> {
+  async createPrivate(target: number, bet = 0): Promise<{ tableId: string; code: string }> {
     this.prune();
     const used = new Set(Object.values(this.tables).map((x) => x.code));
     let code = '';
     do code = Array.from({ length: 5 }, () => pick([...CODE_LETTERS])).join(''); while (used.has(code));
-    const e = await this.open(target, true, code);
+    const e = await this.open(target, bet, true, code);
     await this.save();
     return { tableId: e.id, code };
   }
   async byCode(code: string): Promise<string | null> {
     return Object.values(this.tables).find((x) => x.code === code)?.id ?? null;
   }
-  /** a table reports how many seats are taken and whether the game has started */
-  async update(id: string, seated: number, started: boolean, joined: boolean) {
+  /** The online lobby: people waiting at public tables (by game points and bet) and how many games are being played. */
+  async counts(): Promise<{ waiting: Record<string, number>; playing: number }> {
+    const now = Date.now();
+    this.prune(now);
+    const waiting: Record<string, number> = {};
+    let playing = 0;
+    for (const e of Object.values(this.tables)) {
+      if (now - e.updatedAt > 10 * 60e3) continue;
+      if (e.started) { playing++; continue; }
+      if (e.isPrivate || !e.humans) continue;
+      const k = `${e.target}:${e.bet ?? 0}`;
+      waiting[k] = (waiting[k] ?? 0) + e.humans;
+    }
+    return { waiting, playing };
+  }
+  /** a table reports how many seats are taken (and by how many people) and whether the game has started */
+  async update(id: string, seated: number, started: boolean, joined: boolean, humans = 0) {
     const e = this.tables[id];
     if (!e) return;
-    e.seated = seated; e.started = started; e.updatedAt = Date.now();
+    e.seated = seated; e.humans = humans; e.started = started; e.updatedAt = Date.now();
     if (joined) e.pending.shift();
     await this.save();
   }
@@ -171,7 +188,7 @@ export class Names extends DurableObject<Env> {
 // ---------------------------------------------------------------- Table
 interface Player { pid: string; name: string; avatar: string; token: string; human: boolean; away: boolean; goneAt: number | null; missed: number; level: number }
 interface TableData {
-  id: string; target: number; isPrivate: boolean; code: string | null;
+  id: string; target: number; bet?: number; isPrivate: boolean; code: string | null;
   g: CrowsState; players: (Player | null)[];
   fillAt: number | null; startAt: number | null; turnAt: number | null; botAt: number | null;
   collectAt: number | null; nextAt: number | null; closeAt: number | null; emptySince: number | null;
@@ -195,11 +212,11 @@ export class Table extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(async () => { this.t = (await ctx.storage.get<TableData>('t')) ?? null; });
   }
 
-  async init(id: string, target: number, isPrivate: boolean, code: string | null) {
+  async init(id: string, target: number, isPrivate: boolean, code: string | null, bet = 0) {
     if (this.t) return;
     this.t = {
-      id, target, isPrivate, code,
-      g: createGame({ target, city: 'Crows Haven', isPrivate }, [null, null, null, null]),
+      id, target, bet, isPrivate, code,
+      g: createGame({ target, bet, city: crowsCity(bet), isPrivate }, [null, null, null, null]),
       players: [null, null, null, null],
       fillAt: null, startAt: null, turnAt: null, botAt: null, collectAt: null, nextAt: null, closeAt: null, emptySince: Date.now(),
       key: '', ready: [false, false, false, false], createdAt: Date.now(),
@@ -230,7 +247,7 @@ export class Table extends DurableObject<Env> {
     const t = this.t!, now = Date.now();
     const turnTotal = t.g.phase === 'nest' ? this.ms.NEST : this.ms.TURN;
     return {
-      tableId: t.id, code: t.code, isPrivate: t.isPrivate, target: t.target,
+      tableId: t.id, code: t.code, isPrivate: t.isPrivate, target: t.target, bet: t.bet ?? 0,
       fillAt: t.fillAt, startAt: t.startAt, turnAt: t.turnAt, turnTotal, nextAt: t.nextAt,
       filling: !!t.filling,
       humans: t.players.map((p) => !!p?.human), away: t.players.map((p) => !!p && p.human && this.isAway(p, now)), ready: t.ready.slice(), now,
@@ -265,7 +282,7 @@ export class Table extends DurableObject<Env> {
     t.g = { ...t.g, seats: t.g.seats.map((s, j) => (j === i ? this.seatFor(b, i) : s)) };
   }
   private async report(joined = false) {
-    try { await this.lobby().update(this.t!.id, this.seated(), this.t!.g.phase !== 'waiting', joined); } catch { /* lobby busy */ }
+    try { await this.lobby().update(this.t!.id, this.seated(), this.t!.g.phase !== 'waiting', joined, this.t!.players.filter((p) => p?.human).length); } catch { /* lobby busy */ }
   }
 
   // ----- messages from players

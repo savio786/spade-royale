@@ -5,10 +5,11 @@
 import type { Seat } from '../engine';
 export type { Seat };
 
-/** The four coloured suits. Names and colours are our own (not the original game's). */
-export type Colour = 'sky' | 'ember' | 'moss' | 'plum';
-export const COLOURS: Colour[] = ['sky', 'ember', 'moss', 'plum'];
-export const COLOUR_NAME: Record<Colour, string> = { sky: 'Sky', ember: 'Ember', moss: 'Moss', plum: 'Plum' };
+/** The four suits — the same ♠ ♥ ♣ ♦ as Spade Haven's cards (owner decision 2026-11-16). */
+export type Colour = 'S' | 'H' | 'C' | 'D';
+export const COLOURS: Colour[] = ['S', 'H', 'C', 'D'];
+export const COLOUR_NAME: Record<Colour, string> = { S: 'Spades', H: 'Hearts', C: 'Clubs', D: 'Diamonds' };
+export const COLOUR_SYMBOL: Record<Colour, string> = { S: '♠', H: '♥', C: '♣', D: '♦' };
 
 /** A card: a colour numbered 1 or 5..14, or the Crow (s: 'crow', r: 0). The 1 is the highest card of its colour. */
 export interface Card { s: Colour | 'crow'; r: number }
@@ -262,7 +263,7 @@ export function applyAction(g: CrowsState, a: CrowsAction, rnd: () => number = M
     case 'nest': {
       if (g.phase !== 'nest') throw new RuleError('Not the nest');
       if (a.seat !== g.highBidder) throw new RuleError('Only the bidder takes the nest');
-      if (!COLOURS.includes(a.trump)) throw new RuleError('Name a colour for trump');
+      if (!COLOURS.includes(a.trump)) throw new RuleError('Name a suit for trump');
       if (a.discard.length !== NEST_SIZE) throw new RuleError(`Put down exactly ${NEST_SIZE} cards`);
       let hand = g.hands[a.seat];
       for (const c of a.discard) {

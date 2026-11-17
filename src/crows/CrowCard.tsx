@@ -1,16 +1,12 @@
-// Crows Haven card faces: our own deck design (four colour emblems + the Crow). Not the Spades cards.
+// Crows Haven cards in Spade Haven's card style (owner decision 2026-11-16): the same white faces, corners and pips
+// (classes pcard / pc-*, from styles.css), suits ♠ ♥ ♣ ♦, numbers 1 and 5–14, plus our Crow card and point badges.
 import React from 'react';
 import { Card, Colour, COLOUR_NAME, cardPoints, isCrow } from '../../shared/crows/engine';
+import { SuitIcon } from '../components/ui';
 
-/** Emblem for each colour: Sky = cloud, Ember = flame, Moss = leaf, Plum = berry. */
+/** A suit symbol (♠ ♥ ♣ ♦) drawn the same way as on Spade Haven's cards. */
 export function Emblem({ s, size = 24, className }: { s: Colour; size?: number; className?: string }) {
-  const paths: Record<Colour, React.ReactNode> = {
-    sky: <path d="M7 18h10.5a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.6 8.2 5 5 0 0 0 7 18z" />,
-    ember: <path d="M12 2c.6 3.4 4.8 5.6 4.8 10.6A4.8 4.8 0 0 1 12 22a4.8 4.8 0 0 1-4.8-4.8c0-2.2 1.2-3.6 2.4-4.6-.1 1.6.6 2.8 1.8 3.2C10.6 12.2 11.4 6.6 12 2z" />,
-    moss: <path d="M20 4C9 4 4 10 4 18c0 .7.1 1.4.2 2C6 13 11 9.6 15 8.2 11 10.6 7.6 14.4 5.8 20.6 13.6 20 20 15 20 4z" />,
-    plum: <><circle cx="12" cy="14" r="7.5" /><path d="M12 6.5c.4-2.2 1.8-3.8 4.2-4.3-.3 2.4-1.8 3.9-4.2 4.3z" /></>,
-  };
-  return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">{paths[s]}</svg>;
+  return <SuitIcon s={s} className={`crows-suit s-${s} ${className ?? ''}`} style={{ width: size, height: size }} />;
 }
 
 /** The Crow: our own crow silhouette perched on a branch. */
@@ -25,33 +21,58 @@ export function CrowArt({ size = 80 }: { size?: number }) {
   );
 }
 
+// Pip positions (x%, y%), the same as Spade Haven's number cards.
+const PIPS: Record<number, [number, number][]> = {
+  5: [[30, 18], [70, 18], [50, 50], [30, 82], [70, 82]],
+  6: [[30, 18], [70, 18], [30, 50], [70, 50], [30, 82], [70, 82]],
+  7: [[30, 18], [70, 18], [50, 34], [30, 50], [70, 50], [30, 82], [70, 82]],
+  8: [[30, 18], [70, 18], [50, 34], [30, 50], [70, 50], [50, 66], [30, 82], [70, 82]],
+  9: [[30, 16], [70, 16], [30, 39], [70, 39], [50, 50], [30, 61], [70, 61], [30, 84], [70, 84]],
+  10: [[30, 16], [70, 16], [50, 28], [30, 39], [70, 39], [30, 61], [70, 61], [50, 72], [30, 84], [70, 84]],
+};
+
 export function CrowCard({ card, back, className, style, onClick, dataCard, trump }: {
   card?: Card; back?: boolean; className?: string; style?: React.CSSProperties; onClick?: () => void; dataCard?: string;
   /** mark this card as trump (glow + TRUMP tag) */
   trump?: boolean;
 }) {
-  if (back || !card) return <div className={`ccard back ${className ?? ''}`} style={style} aria-hidden="true"><span className="cc-back-mark"><CrowArt size={54} /></span></div>;
+  if (back || !card) return <div className={`pcard back ${className ?? ''}`} style={style} aria-hidden="true"><span className="pc-back-mark"><SuitIcon s="S" /></span></div>;
   const Tag = onClick ? 'button' : 'div';
   const pts = cardPoints(card);
   if (isCrow(card)) {
     return (
-      <Tag className={`ccard crow ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick} aria-label="The Crow, 20 points, highest trump">
+      <Tag className={`pcard crows-crow ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick} aria-label="The Crow, 20 points, highest trump">
         {trump && <span className="cc-trump">TRUMP</span>}
-        <span className="cc-corner"><b>C</b><i className="cc-cpts">20</i></span>
+        <span className="pc-corner"><b>C</b><i className="cc-cpts">20</i></span>
         <span className="cc-crow"><CrowArt /></span>
         <span className="cc-name">CROW</span>
-        <span className="cc-pts">20</span>
+        <span className="pc-corner br"><b>C</b></span>
       </Tag>
     );
   }
   const s = card.s as Colour;
+  const red = s === 'H' || s === 'D';
+  const corner = <><b>{card.r}</b><SuitIcon s={s} className="pc-corner-suit" /></>;
+  let body: React.ReactNode;
+  if (card.r === 1) body = <span className={`pc-ace ${s === 'S' ? 'ornate' : ''}`}><SuitIcon s={s} /></span>;
+  else if (card.r >= 11) body = (
+    <span className="pc-face crows-high">
+      <span className="crows-high-num">{card.r}</span>
+      <SuitIcon s={s} className="pc-face-suit" />
+    </span>
+  );
+  else body = (
+    <span className="pc-pips">
+      {PIPS[card.r].map(([x, y], i) => <SuitIcon key={i} s={s} className={`pc-pip ${y > 55 ? 'flip' : ''}`} style={{ left: `${x}%`, top: `${y}%` }} />)}
+    </span>
+  );
   return (
-    <Tag className={`ccard c-${s} ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
-      aria-label={`${card.r} ${COLOUR_NAME[s]}${trump ? ', trump' : ''}${pts ? `, ${pts} points` : ''}`}>
+    <Tag className={`pcard ${red ? 'red' : 'black'} s-${s} ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
+      aria-label={`${card.r} of ${COLOUR_NAME[s]}${trump ? ', trump' : ''}${pts ? `, ${pts} points` : ''}`}>
       {trump && <span className="cc-trump">TRUMP</span>}
-      <span className="cc-corner"><b>{card.r}</b><Emblem s={s} size={20} />{pts > 0 && <i className="cc-cpts">{pts}</i>}</span>
-      <span className="cc-big">{card.r}</span>
-      <span className="cc-emblem"><Emblem s={s} size={40} /></span>
+      <span className="pc-corner">{corner}{pts > 0 && <i className="cc-cpts">{pts}</i>}</span>
+      {body}
+      <span className="pc-corner br">{corner}</span>
       {pts > 0 && <span className="cc-pts">{pts}</span>}
     </Tag>
   );

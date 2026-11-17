@@ -30,7 +30,11 @@ Crows Haven-only files:
 - `shared/crows/bot.ts` — computer players: bid, nest + trump, card play
 - `scripts/simulate-crows.ts` — rule tests + 4,000 bot games (`npm run sim:crows`)
 - `src/crows/CrowsTable.tsx` — the Crows Haven table (bidding, nest, play, hand summary, game over, rules)
-- `src/crows/CrowCard.tsx` — our own card faces (Sky cloud, Ember flame, Moss leaf, Plum berry, the Crow)
+- `src/crows/CrowCard.tsx` — the cards, drawn in Spade Haven's card style (♠ ♥ ♣ ♦, 1 and 5–14) plus our Crow card and point badges
+- `src/crows/CrowsLobby.tsx` — the lobby and online lobby, built like Spade Haven's (top bar, PLAY NOW / ONLINE LOBBY / PRIVATE GAME,
+  daily gift, bonus coins, mega wheel, ranking, profile, settings); one online table per bet
+- `src/crows/wallet.ts`, `shared/crows/bets.ts` — Crows Haven coins: bets 100 to 500,000 (Spade Haven's cities), the bet is taken when
+  the first hand is dealt, each winner gets bet × 1.8, +40 XP a game and +80 for a win. Free coins only — nothing to buy
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
 
 - `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen
@@ -61,7 +65,10 @@ Shared files touched (Spades behaves exactly as before; without `VITE_CROWS` not
   (checked: the Spades build's index.html is identical to `main`'s)
 - The Spades lobby is unchanged (no game switch).
 
-Version one: practice table, no coins or XP, you + partner vs two computer players.
+Look and logic (owner decision 2026-11-16): Crows Haven uses Spade Haven's graphics and design — the sign-in screen, lobby,
+online lobby, table, panels, bid box, hand summary, game-over window, menus — with Crows Haven's rules. It has its own free coins,
+levels, table bets, daily gift, bonus coins and mega wheel (kept on the player's device: the Crows site is a different web address,
+so its coins are separate from Spade Haven's). Private tables are played without coins.
 
 A four-player **partnership trick-taking game with bidding, a trump-suit choice and a
 "nest" of extra cards** — in the style of the classic game Rook, but with its own name,
@@ -80,9 +87,9 @@ Crows Haven follows the **published Rook partnership rules with the 1s in the de
 with our own deck art and names. Nest, discard, lead and trump rules are as first settled.
 Items marked *(default)* are our choice where the published versions differ; the owner can change them.
 
-**Deck — 45 cards, our own design**
-- Four coloured suits, each with **1 and 5 to 14** (44 cards), plus one **Crow** card (our bird card).
-- Suit colours, card art and the Crow artwork are our own; no Rook logo, bird art or wording.
+**Deck — 45 cards**
+- The four suits **♠ ♥ ♣ ♦** (owner decision 2026-11-16, drawn like Spade Haven's cards), each with **1 and 5 to 14** (44 cards),
+  plus one **Crow** card (our bird card). The Crow artwork is our own; no Rook logo, bird art or wording.
 - Rank inside a suit: **1 highest**, then 14, 13 … down to 5.
 
 **Point cards (180 points in the deck)**

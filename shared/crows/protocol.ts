@@ -1,7 +1,8 @@
 // Messages between the Crows Haven game and its game server (crows-server/, Cloudflare).
 import type { CrowsAction, CrowsPublicState } from './engine';
 
-/** HTTP: POST /quick {target} → {tableId} · POST /private {target} → {tableId, code} · GET /code/:CODE → {tableId}
+/** HTTP: POST /quick {target, bet} → {tableId} · POST /private {target, bet} → {tableId, code} · GET /code/:CODE → {tableId}
+ *  GET /lobby → {waiting: {"target:bet": people waiting}, playing: games being played}
  *  WebSocket: GET /ws/:tableId */
 export type ClientMsg =
   | { t: 'hello'; pid: string; name: string; avatar: string; token?: string | null }
@@ -16,6 +17,7 @@ export interface TableInfo {
   code: string | null;      // private tables: the 5-letter invite code
   isPrivate: boolean;
   target: number;
+  bet: number;              // coins each player puts in (0 = no coins)
   fillAt: number | null;    // public tables: when the next computer player sits down
   filling: boolean;         // "Start now" was pressed: computer players are joining one by one (5 s apart)
   startAt: number | null;   // all seats taken: when the first hand is dealt
