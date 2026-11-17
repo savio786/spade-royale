@@ -1,6 +1,6 @@
 // Crows Haven game server (Cloudflare Worker + Durable Objects). Spades doesn't use any of this.
 //
-//  Worker        HTTP: POST /quick, POST /private, GET /code/:CODE, GET /lobby, GET /health · WebSocket: /ws/:tableId
+//  Worker        HTTP: POST /quick, POST /create, POST /private, GET /code/:CODE, GET /tables, GET /lobby, GET /health · WebSocket: /ws/:tableId
 //  Lobby (one)   finds an open public table for "Play online", makes private tables with invite codes
 //  Table (each)  one table: seats, the game (shared/crows/engine), computer players (shared/crows/bot),
 //                countdowns, turn timers, reconnects and the fixed chat
@@ -56,6 +56,11 @@ export default {
         return json(await lobby().createPrivate(normTarget(b.target), normBet(b.bet)));
       }
       if (url.pathname === '/lobby') return json(await lobby().counts());
+      if (url.pathname === '/tables') return json(await lobby().list());
+      if (url.pathname === '/create' && req.method === 'POST') {
+        const b = await req.json().catch(() => ({})) as { target?: number; bet?: number };
+        return json({ tableId: await lobby().create(normTarget(b.target), normBet(b.bet)) });
+      }
       const code = url.pathname.match(/^\/code\/([A-Za-z]{5})$/)?.[1];
       if (code) {
         const tableId = await lobby().byCode(code.toUpperCase());
@@ -74,7 +79,9 @@ export default {
 };
 
 // ---------------------------------------------------------------- Lobby
-interface Entry { id: string; target: number; bet?: number; isPrivate: boolean; code: string | null; seated: number; humans?: number; started: boolean; pending: number[]; updatedAt: number }
+interface SeatInfo { name: string; avatar: string; bot: boolean }
+interface Entry { id: string; target: number; bet?: number; isPrivate: boolean; code: string | null; seated: number; humans?: number; started: boolean; pending: number[]; updatedAt: number;
+  /** made with "Create table" in the online lobby */ created?: boolean; seats?: (SeatInfo | null)[]; over?: boolean }
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 export class Lobby extends DurableObject<Env> {
@@ -90,10 +97,10 @@ export class Lobby extends DurableObject<Env> {
       if (now - e.updatedAt > 6 * 3600e3) delete this.tables[id];
     }
   }
-  private async open(target: number, bet: number, isPrivate: boolean, code: string | null) {
+  private async open(target: number, bet: number, isPrivate: boolean, code: string | null, created = false) {
     const id = crypto.randomUUID();
-    await this.env.TABLE.get(this.env.TABLE.idFromName(id)).init(id, target, isPrivate, code, bet);
-    const e: Entry = { id, target, bet, isPrivate, code, seated: 0, humans: 0, started: false, pending: [], updatedAt: Date.now() };
+    await this.env.TABLE.get(this.env.TABLE.idFromName(id)).init(id, target, isPrivate, code, bet, created);
+    const e: Entry = { id, target, bet, isPrivate, code, seated: 0, humans: 0, started: false, pending: [], updatedAt: Date.now(), created };
     this.tables[id] = e;
     return e;
   }
@@ -108,6 +115,24 @@ export class Lobby extends DurableObject<Env> {
     e.pending.push(now);
     await this.save();
     return e.id;
+  }
+  /** "Create table" in the online lobby: a new public table with the player's bet and game points; it shows in the lobby for others to join. */
+  async create(target: number, bet = 0): Promise<string> {
+    this.prune();
+    const e = await this.open(target, bet, false, null, true);
+    e.pending.push(Date.now());
+    await this.save();
+    return e.id;
+  }
+  /** The online lobby's list: public tables someone is sitting at — open ones first, then games being played. */
+  async list(): Promise<{ id: string; target: number; bet: number; started: boolean; seats: (SeatInfo | null)[] }[]> {
+    const now = Date.now();
+    this.prune(now);
+    return Object.values(this.tables)
+      .filter((e) => !e.isPrivate && !e.over && (e.humans ?? 0) > 0 && now - e.updatedAt < 30 * 60e3)
+      .map((e) => ({ id: e.id, target: e.target, bet: e.bet ?? 0, started: e.started, seats: e.seats ?? [null, null, null, null] }))
+      .sort((a, b) => Number(a.started) - Number(b.started) || a.bet - b.bet)
+      .slice(0, 60);
   }
   async createPrivate(target: number, bet = 0): Promise<{ tableId: string; code: string }> {
     this.prune();
@@ -137,10 +162,12 @@ export class Lobby extends DurableObject<Env> {
     return { waiting, playing };
   }
   /** a table reports how many seats are taken (and by how many people) and whether the game has started */
-  async update(id: string, seated: number, started: boolean, joined: boolean, humans = 0) {
+  async update(id: string, seated: number, started: boolean, joined: boolean, humans = 0, seats?: (SeatInfo | null)[], over = false) {
     const e = this.tables[id];
     if (!e) return;
     e.seated = seated; e.humans = humans; e.started = started; e.updatedAt = Date.now();
+    if (seats) e.seats = seats;
+    e.over = over;
     if (joined) e.pending.shift();
     await this.save();
   }
@@ -189,6 +216,8 @@ export class Names extends DurableObject<Env> {
 interface Player { pid: string; name: string; avatar: string; token: string; human: boolean; away: boolean; goneAt: number | null; missed: number; level: number }
 interface TableData {
   id: string; target: number; bet?: number; isPrivate: boolean; code: string | null;
+  /** made with "Create table": waits longer before the first computer player sits down, so others can find it */
+  created?: boolean;
   g: CrowsState; players: (Player | null)[];
   fillAt: number | null; startAt: number | null; turnAt: number | null; botAt: number | null;
   collectAt: number | null; nextAt: number | null; closeAt: number | null; emptySince: number | null;
@@ -198,7 +227,7 @@ interface TableData {
 }
 interface Att { seat: number }
 
-const BASE = { FILL: 5_000, FILL_GAP: 5_000, START: 600, TURN: 20_000, NEST: 40_000, BOT: 900, NEST_BOT: 1_500, COLLECT: 1_300, NEXT: 15_000, GRACE: 8_000, EMPTY_CLOSE: 90_000, OVER_CLOSE: 120_000 };
+const BASE = { FILL: 5_000, FILL_GAP: 5_000, CREATED_WAIT: 30_000, START: 600, TURN: 20_000, NEST: 40_000, BOT: 900, NEST_BOT: 1_500, COLLECT: 1_300, NEXT: 15_000, GRACE: 8_000, EMPTY_CLOSE: 90_000, OVER_CLOSE: 120_000 };
 const AVATAR_RE = /^(a|p|b|c|f|t)\d{1,3}$/;
 const ALL_PORTRAITS = [...CROWS_PORTRAITS, ...BOT_PHOTOS];
 
@@ -212,10 +241,10 @@ export class Table extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(async () => { this.t = (await ctx.storage.get<TableData>('t')) ?? null; });
   }
 
-  async init(id: string, target: number, isPrivate: boolean, code: string | null, bet = 0) {
+  async init(id: string, target: number, isPrivate: boolean, code: string | null, bet = 0, created = false) {
     if (this.t) return;
     this.t = {
-      id, target, bet, isPrivate, code,
+      id, target, bet, isPrivate, code, created,
       g: createGame({ target, bet, city: crowsCity(bet), isPrivate }, [null, null, null, null]),
       players: [null, null, null, null],
       fillAt: null, startAt: null, turnAt: null, botAt: null, collectAt: null, nextAt: null, closeAt: null, emptySince: Date.now(),
@@ -282,7 +311,9 @@ export class Table extends DurableObject<Env> {
     t.g = { ...t.g, seats: t.g.seats.map((s, j) => (j === i ? this.seatFor(b, i) : s)) };
   }
   private async report(joined = false) {
-    try { await this.lobby().update(this.t!.id, this.seated(), this.t!.g.phase !== 'waiting', joined, this.t!.players.filter((p) => p?.human).length); } catch { /* lobby busy */ }
+    const t = this.t!;
+    const seats = t.players.map((p) => (p ? { name: p.name, avatar: p.avatar, bot: !p.human } : null));
+    try { await this.lobby().update(t.id, this.seated(), t.g.phase !== 'waiting', joined, t.players.filter((p) => p?.human).length, seats, t.g.phase === 'gameOver'); } catch { /* lobby busy */ }
   }
 
   // ----- messages from players
@@ -431,7 +462,8 @@ export class Table extends DurableObject<Env> {
       }
       t.startAt = null;
       if (t.players.some((p) => p?.human) && (t.filling || !t.isPrivate)) {
-        const gap = t.filling ? ms.FILL_GAP : ms.FILL;
+        // a table made with "Create table" gives other people 30 s to find it before the first computer player sits down
+        const gap = t.filling ? ms.FILL_GAP : t.created && t.players.every((p) => !p || p.human) ? ms.CREATED_WAIT : ms.FILL;
         if (t.fillAt === null) { t.fillAt = now + gap; return true; }
         if (due(t.fillAt)) {
           this.putBot(t.players.findIndex((p) => !p));

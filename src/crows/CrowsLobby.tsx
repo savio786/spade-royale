@@ -13,7 +13,8 @@ import { sfx, vibrate } from '../lib/sound';
 import { toast } from '../lib/toast';
 import { CrowsAvatar } from './CrowsExtras';
 import { CROWS_BETS, crowsCity, prizeOf, suggestedCrowsBet } from './wallet';
-import { lobbyCounts, onlineAvailable } from './online';
+export type { LobbyTable };
+import { listTables, onlineAvailable, type LobbyTable } from './online';
 
 const Art = ({ n, c = 'lobby-img' }: { n: string; c?: string }) => <img className={c} src={`/ui/lobby/${n}.webp`} alt="" aria-hidden="true" draggable={false} />;
 export const GAME_POINTS = [300, 400, 500];
@@ -156,7 +157,8 @@ async function shareGame() {
 }
 
 // ---------------- Play now: choose the bet and the game points ----------------
-export function PlayModal({ target, setTarget, onClose, onPlay, title = 'Play' }: { target: number; setTarget: (v: number) => void; onClose: () => void; onPlay: (bet: number, online: boolean) => void; title?: string }) {
+export function PlayModal({ target, setTarget, onClose, onPlay, create }: { target: number; setTarget: (v: number) => void; onClose: () => void; onPlay: (bet: number, online: boolean) => void; create?: boolean }) {
+  const title = create ? 'Create' : 'Play';
   const p = useProfile();
   const affordable = CROWS_BETS.filter((b) => b <= Math.max(CROWS_BETS[0], p.coins));
   const [bi, setBi] = useState(() => Math.max(0, affordable.indexOf(suggestedCrowsBet(p.coins))));
@@ -186,6 +188,8 @@ export function PlayModal({ target, setTarget, onClose, onPlay, title = 'Play' }
       </div>
       {poor
         ? <Pill color="gold" className="play-now-btn" onClick={onClose}>Not enough coins — collect free coins</Pill>
+        : create
+          ? <Pill color="green" className="play-now-btn" onClick={() => onPlay(bet, true)}>CREATE TABLE</Pill>
         : onlineAvailable()
           ? <div className="crows-play-btns">
               <Pill color="green" className="play-now-btn" onClick={() => onPlay(bet, true)}>PLAY ONLINE</Pill>
@@ -196,19 +200,22 @@ export function PlayModal({ target, setTarget, onClose, onPlay, title = 'Play' }
   );
 }
 
-// ---------------- Online lobby: one table for each bet ----------------
-export function CrowsOnlineLobby({ target, setTarget, onBack, onJoin, onCreate }: { target: number; setTarget: (v: number) => void; onBack: () => void; onJoin: (bet: number) => void; onCreate: () => void }) {
+// ---------------- Online lobby: the tables people have made (like Spade Haven's) ----------------
+const ANY = 0;
+export function CrowsOnlineLobby({ onBack, onJoin, onCreate }: { onBack: () => void; onJoin: (t: LobbyTable) => void; onCreate: () => void }) {
   const p = useProfile();
-  const [counts, setCounts] = useState<{ waiting: Record<string, number>; playing: number } | null | undefined>(undefined);
+  const [pts, setPts] = useState(ANY);
+  const [live, setLive] = useState<LobbyTable[] | null | undefined>(undefined);
   useEffect(() => {
     let on = true;
-    const load = () => void lobbyCounts().then((c) => { if (on) setCounts(c); });
+    const load = () => void listTables().then((t) => { if (on) setLive(t); });
     load();
-    const t = setInterval(load, 4000);
+    const t = setInterval(load, 3000);
     return () => { on = false; clearInterval(t); };
   }, []);
-  const i = GAME_POINTS.indexOf(target);
-  const cycle = (d: number) => { sfx.click(); setTarget(GAME_POINTS[(i + d + GAME_POINTS.length) % GAME_POINTS.length]); };
+  const opts = [ANY, ...GAME_POINTS];
+  const cycle = (d: number) => { sfx.click(); setPts(opts[(opts.indexOf(pts) + d + opts.length) % opts.length]); };
+  const tables = (live ?? []).filter((t) => pts === ANY || t.target === pts);
   return (
     <div className="screen online-lobby city-bg crows-ol">
       <header className="ol-head">
@@ -216,48 +223,70 @@ export function CrowsOnlineLobby({ target, setTarget, onBack, onJoin, onCreate }
         <div className="ol-box">
           <span className="ol-label">GAME POINTS</span>
           <div className="ol-ctl">
-            <button aria-label="Fewer game points" onClick={() => cycle(-1)}><Icon name="left" size={18} /></button>
-            <b>{target}</b>
-            <button aria-label="More game points" onClick={() => cycle(1)}><Icon name="right" size={18} /></button>
+            <button aria-label="Previous" onClick={() => cycle(-1)}><Icon name="left" size={18} /></button>
+            <b>{pts === ANY ? 'ANY' : pts}</b>
+            <button aria-label="Next" onClick={() => cycle(1)}><Icon name="right" size={18} /></button>
           </div>
-        </div>
-        <div className="ol-box wide crows-ol-status">
-          <span className="ol-label">ONLINE NOW</span>
-          <b>{counts === undefined ? 'Looking…' : counts === null ? 'Can’t reach the game server' : `${Object.values(counts.waiting).reduce((a, b) => a + b, 0)} waiting · ${counts.playing} game${counts.playing === 1 ? '' : 's'} playing`}</b>
         </div>
         <div className="coins-pill small"><Coin size={26} /><span className="coins-num">{fmt(p.coins)}</span></div>
       </header>
 
       <div className="lt-row">
-        <button className="lt-create" onClick={() => { sfx.click(); onCreate(); }} aria-label="Make a private table">
+        <button className="lt-create" onClick={() => { sfx.click(); onCreate(); }} aria-label="Create a table">
           <img className="lt-create-img" src="/ui/lobby/ol-create.webp" alt="" aria-hidden="true" draggable={false} />
-          <span className="lt-create-txt">PRIVATE TABLE</span>
+          <span className="lt-create-txt">CREATE TABLE</span>
         </button>
-        {CROWS_BETS.map((bet) => <BetTable key={bet} bet={bet} target={target} waiting={counts?.waiting[`${target}:${bet}`] ?? 0} poor={p.coins < bet} onJoin={() => onJoin(bet)} />)}
+        {tables.map((t) => <LiveTable key={t.id} t={t} poor={p.coins < t.bet} onJoin={() => onJoin(t)} />)}
+        {tables.length === 0 && (
+          <div className="lt-empty" role="status">
+            <img className="lt-empty-img" src="/ui/lobby/ol-empty.webp" alt="" aria-hidden="true" draggable={false} />
+            <div className="lt-empty-txt">
+              {live === null ? <><b>Can’t reach the game server</b><p>Live tables appear here when you’re online. You can still play against the computer from PLAY NOW.</p></>
+                : live === undefined ? <b>Looking for tables…</b>
+                : <><b>No one has a table open right now</b><p>Create one — choose the bet and the game points — and other players can join you here. Computer players fill any seats still empty after 30 seconds.</p></>}
+              {live !== null && live !== undefined && <button className="lt-empty-btn" onClick={() => { sfx.click(); onCreate(); }}>CREATE A TABLE</button>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function BetTable({ bet, target, waiting, poor, onJoin }: { bet: number; target: number; waiting: number; poor: boolean; onJoin: () => void }) {
-  const city = crowsCity(bet);
+function LiveTable({ t, poor, onJoin }: { t: LobbyTable; poor: boolean; onJoin: () => void }) {
+  const city = crowsCity(t.bet);
   const look = lookFor(city);
-  const pos = ['left', 'top', 'right'];
+  const waiting = !t.started;
+  const mine = waiting ? t.seats.findIndex((s) => !s) : -1;   // the seat you'd take (the server seats you in the first empty one)
+  const base = mine >= 0 ? mine : 0;
+  const pos = ['bottom', 'left', 'top', 'right'];
+  const humans = t.seats.filter((s) => s && !s.bot).length;
   return (
-    <div className={`lt ${poor ? 'poor' : ''}`} style={themeVars(themeById(look.theme))}>
+    <div className={`lt ${poor ? 'poor' : ''} ${waiting ? '' : 'busy'}`} style={themeVars(themeById(look.theme))}>
       <TableShape scale={0.62} emblem={false} />
       <div className="lt-felt">
         <div className="lt-city"><span>{city}</span><CityRing gem={look.gem} /></div>
         <div className="lt-pills">
-          <span className="lt-pill">{fmt(bet)} <Coin size={30} /></span>
-          <span className="lt-pill">{target}</span>
+          <span className="lt-pill">{fmt(t.bet)} <Coin size={30} /></span>
+          <span className="lt-pill">{t.target}</span>
         </div>
-        <span className="lt-status">{waiting ? `${waiting} player${waiting === 1 ? '' : 's'} waiting` : 'Computer players fill empty seats'}</span>
+        <span className="lt-status">{waiting ? `${humans} player${humans === 1 ? '' : 's'} waiting` : 'GAME IN PROGRESS'}</span>
       </div>
-      {pos.map((where) => <span key={where} className={`lt-seat at-${where} ${where === 'top' ? 'blue' : 'red'}`}><span className="lt-q">?</span></span>)}
-      <button className="lt-play" onClick={() => { if (poor) { toast(`You need ${fmt(bet)} coins for this table`, 'error'); return; } sfx.click(); onJoin(); }} aria-label={`Play at the ${city} table, bet ${fmt(bet)}`}>
-        <span className="lt-arrow">↑</span><b>PLAY</b>
-      </button>
+      {[0, 1, 2, 3].map((seat) => {
+        const rel = (seat - base + 4) % 4;
+        if (rel === 0 && mine >= 0) return null;   // your seat = the PLAY button
+        const s = t.seats[seat];
+        return (
+          <span key={seat} className={`lt-seat at-${pos[rel]} ${rel === 2 ? 'blue' : 'red'}`}>
+            {s ? <><span className="bezel" /><CrowsAvatar k={s.avatar} size={78} name={s.name} /><small className="lt-name">{s.name}</small></> : <span className="lt-q">?</span>}
+          </span>
+        );
+      })}
+      {waiting && mine >= 0
+        ? <button className="lt-play" onClick={() => { if (poor) { toast(`You need ${fmt(t.bet)} coins for this table`, 'error'); return; } sfx.click(); onJoin(); }} aria-label={`Play at the ${city} table, bet ${fmt(t.bet)}`}>
+            <span className="lt-arrow">↑</span><b>PLAY</b>
+          </button>
+        : <span className="lt-live">PLAYING</span>}
     </div>
   );
 }

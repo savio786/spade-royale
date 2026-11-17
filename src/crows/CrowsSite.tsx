@@ -5,12 +5,12 @@ import './crows.css';
 import { CrowCard, CrowArt } from './CrowCard';
 import { Icon, Modal } from '../components/ui';
 import { CrowsTable, CrowsRules, CrowsRulesBody, TableMode } from './CrowsTable';
-import { quickMatch, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
+import { quickMatch, createTable, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
 import { toast } from '../lib/toast';
 import { changeName, registerMyName, NAME_MAX } from './names';
 import { CrowsRanking } from './CrowsRanking';
 import { InstallHelp, InstallModal, PictureModal, randomPlayerPicture, useInstall } from './CrowsExtras';
-import { CrowsLobby, CrowsOnlineLobby, GAME_POINTS, type LobbyAction } from './CrowsLobby';
+import { CrowsLobby, CrowsOnlineLobby, GAME_POINTS, PlayModal, type LobbyAction } from './CrowsLobby';
 import { crowsCity, notEnough } from './wallet';
 import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
@@ -101,7 +101,7 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private' | 'name'>(null);
+  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private' | 'name' | 'create'>(null);
   const [nameNote, setNameNote] = useState<string | null>(null);
   // make sure the game server knows this player's name (names are unique); ask for a new one if it's taken
   useEffect(() => {
@@ -151,6 +151,14 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
     catch (e) { toast((e as Error).message); }
     finally { setFinding(false); }
   };
+  /** "Create table": a public table with your bet and game points, listed in the online lobby for others to join. */
+  const makeTable = async (b: number) => {
+    if (profile.get().coins < b) { notEnough(b); return; }
+    setFinding(true);
+    try { setBet(b); openTable({ kind: 'online', tableId: await createTable(target, b) }); }
+    catch (e) { toast((e as Error).message); }
+    finally { setFinding(false); }
+  };
   const playLocal = (b: number) => {
     if (profile.get().coins < b) { notEnough(b); return; }
     setBet(b); openTable({ kind: 'local' });
@@ -180,13 +188,14 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
   return (
     <>
       {screen === 'online'
-        ? <CrowsOnlineLobby target={target} setTarget={setTarget} onBack={() => setScreen('home')} onJoin={(b) => void playOnline(b)} onCreate={() => setModal('private')} />
+        ? <CrowsOnlineLobby onBack={() => setScreen('home')} onJoin={(t) => { if (profile.get().coins < t.bet) { notEnough(t.bet); return; } setBet(t.bet); setTarget(t.target); openTable({ kind: 'online', tableId: t.id }); }} onCreate={() => setModal('create')} />
         : <CrowsLobby onAction={act} installed={installed} target={target} setTarget={setTarget} />}
       {finding && <div className="modal-backdrop"><div className="modal kicked"><h2 className="modal-title">Finding a table…</h2><p className="center">Looking for players at the {crowsCity(bet)} table.</p></div></div>}
       {rules && <CrowsRules onClose={() => setRules(false)} />}
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
       {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
       {modal === 'name' && <NameModal current={p.name} note={nameNote} onClose={() => { setModal(null); setNameNote(null); }} />}
+      {modal === 'create' && <PlayModal create target={target} setTarget={setTarget} onClose={() => setModal(null)} onPlay={(b) => { setModal(null); void makeTable(b); }} />}
       {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); setBet(0); openTable({ kind: 'online', tableId }); }} />}
     </>
   );

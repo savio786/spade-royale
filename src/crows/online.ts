@@ -18,6 +18,12 @@ async function call<T>(path: string, body?: object): Promise<T> {
 }
 export const quickMatch = (target: number, bet = 0) => call<{ tableId: string }>('/quick', { target, bet }).then((r) => r.tableId);
 export const createPrivate = (target: number, bet = 0) => call<{ tableId: string; code: string }>('/private', { target, bet });
+/** "Create table": a new public table with your bet and game points that others can join from the online lobby. */
+export const createTable = (target: number, bet: number) => call<{ tableId: string }>('/create', { target, bet }).then((r) => r.tableId);
+export interface LobbySeat { name: string; avatar: string; bot: boolean }
+export interface LobbyTable { id: string; target: number; bet: number; started: boolean; seats: (LobbySeat | null)[] }
+/** The online lobby's tables (open ones first); null when the server can't be reached. */
+export const listTables = () => call<LobbyTable[]>('/tables').catch(() => null);
 /** People waiting at public tables ("target:bet" → count) and games in progress; null when the server can't be reached. */
 export const lobbyCounts = () => call<{ waiting: Record<string, number>; playing: number }>('/lobby').catch(() => null);
 export const findCode = (code: string) => call<{ tableId: string }>(`/code/${encodeURIComponent(code.trim().toUpperCase())}`).then((r) => r.tableId);

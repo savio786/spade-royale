@@ -32,7 +32,9 @@ Crows Haven-only files:
 - `src/crows/CrowsTable.tsx` — the Crows Haven table (bidding, nest, play, hand summary, game over, rules)
 - `src/crows/CrowCard.tsx` — the cards, drawn in Spade Haven's card style (♠ ♥ ♣ ♦, 1 and 5–14) plus our Crow card and point badges
 - `src/crows/CrowsLobby.tsx` — the lobby and online lobby, built like Spade Haven's (top bar, PLAY NOW / ONLINE LOBBY / PRIVATE GAME,
-  daily gift, bonus coins, mega wheel, ranking, profile, settings); one online table per bet
+  daily gift, bonus coins, mega wheel, ranking, profile, settings). The online lobby lists the tables people have made
+  (like Spade Haven's): CREATE TABLE sets the bet and game points, others tap PLAY to join; a created table waits 30 s before
+  the first computer player sits down (then 5 s each), or anyone seated can press Start now
 - `src/crows/wallet.ts`, `shared/crows/bets.ts` — Crows Haven coins: bets 100 to 500,000 (Spade Haven's cities), the bet is taken when
   the first hand is dealt, each winner gets bet × 1.8, +40 XP a game and +80 for a win. Free coins only — nothing to buy
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
