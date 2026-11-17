@@ -20,12 +20,14 @@ const apiBase = serverOrigin;
 export async function fetchBoard(id?: string): Promise<Board | null> {
   const base = apiBase();
   if (!base) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 10_000);   // never wait forever: after 10 s the window shows a Retry button
   try {
-    const r = await fetch(`${base}/api/leaderboard${id ? `?id=${encodeURIComponent(id)}` : ''}`);
+    const r = await fetch(`${base}/api/leaderboard${id ? `?id=${encodeURIComponent(id)}` : ''}`, { signal: ctl.signal });
     if (!r.ok) return null;
     const b = await r.json();
     return b && Array.isArray(b.rows) ? (b as Board) : null;
-  } catch { return null; }
+  } catch { return null; } finally { clearTimeout(timer); }
 }
 
 /** Tell the owner about a player (cheating, abuse...). Returns an error message, or null when it was sent. */

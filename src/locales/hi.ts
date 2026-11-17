@@ -439,6 +439,7 @@ const dict: Record<string, string> = {
  "Playing the cards": "पत्ते खेलना",
  "Scoring": "अंक गणना",
  "Winning": "जीतना",
- "Language": "भाषा"
+ "Language": "भाषा",
+ "The leaderboard could not be loaded right now. Your wins this week still count on this device.": "लीडरबोर्ड अभी लोड नहीं हो सका। इस सप्ताह की आपकी जीत इस डिवाइस पर अभी भी गिनी जाती है।",
 };
 export default dict;

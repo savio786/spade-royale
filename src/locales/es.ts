@@ -439,6 +439,7 @@ const dict: Record<string, string> = {
  "Playing the cards": "Cómo se juegan las cartas",
  "Scoring": "Puntuación",
  "Winning": "Cómo ganar",
- "Language": "Idioma"
+ "Language": "Idioma",
+ "The leaderboard could not be loaded right now. Your wins this week still count on this device.": "La tabla de clasificación no se pudo cargar ahora. Tus victorias de esta semana siguen contando en este dispositivo.",
 };
 export default dict;

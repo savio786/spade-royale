@@ -48,7 +48,8 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
   const [last, setLast] = useState(false);   // false = this week, true = last week's final results
   const [inviting, setInviting] = useState(false);
   const [data, setData] = useState<Board | null | 'loading'>('loading');
-  useEffect(() => { let live = true; fetchBoard(p.id).then((b) => live && setData(b)); return () => { live = false; }; }, [p.id]);
+  const [tries, setTries] = useState(0);
+  useEffect(() => { let live = true; setData('loading'); fetchBoard(p.id).then((b) => live && setData(b)); return () => { live = false; }; }, [p.id, tries]);
   const b = data === 'loading' ? null : data;
   const ends = useCountdown(b?.endsAt ?? weekEndsAt());
 
@@ -80,6 +81,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
           {data === 'loading' ? empty('Loading results…') : tab !== 'fame' ? (
+            rows.length === 0 && !b ? <div className="lb-empty"><Icon name="trophy" size={44} /><p>{tr('The leaderboard could not be loaded right now. Your wins this week still count on this device.')}</p><button className="inv-btn" onClick={() => { sfx.click(); setTries((n) => n + 1); }}>{tr('Try again')}</button></div> :
             rows.length === 0 ? empty(
               !b ? 'The leaderboard is shown when the game server is running. Your wins this week still count on this device.'
                 : tab === 'friends' ? `None of your friends ${last ? 'finished in last week’s results' : 'have won a game this week yet'}. Add friends by their player name.`
