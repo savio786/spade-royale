@@ -85,6 +85,12 @@ export function noteDevice(id: string, dev: string) {
   if (store.bans[id]) store.bannedDevices[dev] = true;
   save();
 }
+/** Groups of accounts that were used from the same browser (ids only; the browser's own code is never shown). */
+export function sharedDeviceGroups(): string[][] {
+  const by = new Map<string, string[]>();
+  for (const [id, dev] of Object.entries(store.devices)) by.set(dev, [...(by.get(dev) ?? []), id]);
+  return [...by.values()].filter((g) => g.length > 1);
+}
 export const isDeviceBanned = (dev: string) => !!dev && !!store.bannedDevices[dev];
 
 /** Account deletion: drop the chat mute and the device link. The suspension itself (name, email, reason) is kept so it cannot be dodged by deleting. */

@@ -10,6 +10,7 @@ import { isFreeChat } from '../shared/chat';
 import type { ClientMsg, PlayerHello, ServerMsg, TableSummary } from '../shared/protocol';
 import { CITIES, prizeFor, secondPrizeFor, seatsOfSide, type Mode, type PublicStats, type TableSettings } from '../shared/engine';
 import { board, credit, debit, initLeaderboard, touch } from './leaderboard';
+import { initAudit, noteWin } from './audit';
 import { deleteRecord, getRecord, putRecord, storageKind } from './storage';
 import { createHash } from 'crypto';
 import { productById } from '../shared/products';
@@ -199,7 +200,7 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
     for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
       winnerSeats.add(seat);
       const s = g.seats[seat];
-      if (s && !s.bot) credit(s, prize);   // the boards show the full prize a winner collects (a 50,000 partners game = 90,000)
+      if (s && !s.bot) { credit(s, prize); noteWin(s.id, 'online', prize); }   // the boards show the full prize a winner collects (a 50,000 partners game = 90,000)
     }
     // real players on the losing side(s) lose their bet from the weekly and all-time totals
     // solo: 2nd place gets their bet back (their client refunds it): no board credit and no board debit
@@ -625,7 +626,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         if (!lost && now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });   // wins are throttled; a loss or forfeit is always recorded
         if (!lost) lastReport.set(id, now);
         if (isBanned(id)) return json(res, 200, { ok: true });
-        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, b.leftNil === true ? Math.round(bet * 1.5) : bet); else credit(who, prize); });
+        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, b.leftNil === true ? Math.round(bet * 1.5) : bet); else { credit(who, prize); noteWin(who.id, 'bot', prize); } });
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });
@@ -837,7 +838,7 @@ process.on('SIGTERM', () => {
   setTimeout(() => { void Promise.race([refunds, new Promise((r) => setTimeout(r, 4000))]).then(() => process.exit(0)); }, 1500);
 });
 
-Promise.all([initLeaderboard(), initPayments(), initReferrals(), initModeration(), initWallet()]).then(() => {
+Promise.all([initLeaderboard(), initPayments(), initReferrals(), initModeration(), initAudit(), initWallet()]).then(() => {
   http.listen(PORT, () => console.log(`Spade Haven server on http://localhost:${PORT} (ws path /ws) · storage: ${storageKind}`));
 });
 

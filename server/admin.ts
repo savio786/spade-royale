@@ -10,6 +10,7 @@ import { ban, dismissReport, isBanned, isMuted, listBans, listMuted, listReports
 import { removePlayer } from './leaderboard';
 import { analyticsReport } from './analytics';
 import { giftCoins, MAX_GIFT } from './referrals';
+import { reviewReport } from './review';
 
 const KEY = (process.env.ADMIN_KEY || '').trim();
 export const adminEnabled = KEY.length >= 16;
@@ -36,7 +37,7 @@ const acctId = (id: unknown) => String(id ?? '').slice(0, 64);
 export async function adminApi(req: IncomingMessage, res: ServerResponse, url: URL, ip: string, onBan: (id: string) => void, onWallet: () => void = () => {}) {
   if (!adminEnabled) return json(res, 404, { error: 'not found' });
   const p = url.pathname;
-  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup', '/api/admin/analytics', '/api/admin/wallet'].includes(p))
+  const known = (req.method === 'GET' && ['/api/admin/users', '/api/admin/find', '/api/admin/bans', '/api/admin/reports', '/api/admin/muted', '/api/admin/backup', '/api/admin/analytics', '/api/admin/wallet', '/api/admin/review'].includes(p))
     || (req.method === 'POST' && ['/api/admin/ban', '/api/admin/unban', '/api/admin/wipe', '/api/admin/mute', '/api/admin/unmute', '/api/admin/gift', '/api/admin/reports/dismiss', '/api/admin/wallet'].includes(p));
   if (!known) return json(res, 404, { error: 'not found' });
   const f = fails.get(ip);
@@ -84,6 +85,7 @@ export async function adminApi(req: IncomingMessage, res: ServerResponse, url: U
     const names = new Map(accounts.map((a) => [a.id, a.name]));
     return json(res, 200, { on: walletOn(), saved: { players: saved.length, total: saved.reduce((t, x) => t + x.coins, 0), top: saved.slice(0, 25) }, live: { ...live, top: live.top.map((w) => ({ ...w, name: names.get(w.id) ?? w.id.slice(0, 8) })) } });
   }
+  if (p === '/api/admin/review') return json(res, 200, reviewReport(accounts));
   if (p === '/api/admin/muted') return json(res, 200, { rows: listMuted() });
   if (p === '/api/admin/bans') return json(res, 200, { rows: listBans() });
   if (p === '/api/admin/reports') return json(res, 200, { rows: listReports().map((r) => ({ ...r, targetBanned: isBanned(r.targetId), targetMuted: isMuted(r.targetId) })) });

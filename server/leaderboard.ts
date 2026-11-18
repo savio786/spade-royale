@@ -119,6 +119,12 @@ export function board(id?: string) {
   };
 }
 
+/** Read-only copy of this week's and the all-time totals (for the owner's review page). */
+export function snapshot() {
+  rollover();
+  return { week: store.week, players: Object.values(store.players).map((r) => ({ ...r })), allTime: Object.values(store.allTime).map((r) => ({ ...r })) };
+}
+
 /** Wipes every leaderboard and Haven’s Fame entry. */
 export function resetAll() { store = empty(); save(); }
 

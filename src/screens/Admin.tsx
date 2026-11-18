@@ -7,7 +7,9 @@ interface Data { total: number; withEmail: number; byKind: Record<string, number
 interface Rep { n: number; at: number; byName: string; targetId: string; targetName: string; reason: string; note: string; targetBanned: boolean; targetMuted?: boolean }
 interface BanRow { id: string; name: string; reason: string; at: number; email?: string }
 interface MuteRow { id: string; name: string; reason: string; at: number; auto?: boolean }
-type Tab = 'players' | 'find' | 'reports' | 'muted' | 'suspended' | 'stats' | 'coins';
+type Tab = 'players' | 'find' | 'reports' | 'review' | 'muted' | 'suspended' | 'stats' | 'coins';
+interface ReviewRow { id: string; name: string; kind: string; email: string; banned: boolean; muted: boolean; week: number; allTime: number; botWins: number; onlineWins: number; signals: { k: string; text: string }[] }
+interface Review { week: string; typical: number; auditSince: number; rows: ReviewRow[] }
 interface WalletInfo { on: boolean; saved: { players: number; total: number; top: { id: string; name: string; kind: string; coins: number }[] }; live: { players: number; total: number; top: { id: string; name: string; coins: number }[] } }
 interface Stats { days: { day: string; active: number; events: Record<string, number> }[]; cohort: { day: string; size: number; d1: number | null; d7: number | null }[]; note: string }
 const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
@@ -40,6 +42,7 @@ export function AdminPage() {
   const [reason, setReason] = useState('');
   const [stats, setStats] = useState<Stats | null>(null);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
   const [guests, setGuests] = useState(false);   // list guests too (they have no email)
   useEffect(() => {
     document.title = 'Owner · Spade Haven';
@@ -62,6 +65,7 @@ export function AdminPage() {
       if (t === 'reports') setReports(((await call('/api/admin/reports')) as { rows: Rep[] }).rows);
       if (t === 'stats') setStats(await call('/api/admin/analytics'));
       if (t === 'coins') setWallet(await call('/api/admin/wallet'));
+      if (t === 'review') setReview(await call('/api/admin/review'));
       if (t === 'muted') setMutes(((await call('/api/admin/muted')) as { rows: MuteRow[] }).rows);
       if (t === 'suspended') setBans(((await call('/api/admin/bans')) as { rows: BanRow[] }).rows);
       setAuthed(true);
@@ -127,7 +131,7 @@ export function AdminPage() {
         ) : (
           <>
             <p style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['muted', 'Chat off'], ['suspended', 'Suspended'], ['stats', 'Stats'], ['coins', 'Coins']] as [Tab, string][]).map(([t, l]) => (
+              {([['players', 'Players'], ['find', 'Find a player'], ['reports', `Reports${reports.length ? ` (${reports.length})` : ''}`], ['review', 'Review'], ['muted', 'Chat off'], ['suspended', 'Suspended'], ['stats', 'Stats'], ['coins', 'Coins']] as [Tab, string][]).map(([t, l]) => (
                 <button key={t} className={`pill small-pill ${tab === t ? 'gold' : ''}`} onClick={() => go(t)}>{l}</button>
               ))}
               <button className="pill small-pill" onClick={() => void refresh()}>Refresh</button>
@@ -220,6 +224,21 @@ export function AdminPage() {
                       {actions({ id: r.targetId, name: r.targetName, banned: r.targetBanned, muted: r.targetMuted })}
                       <button className="pill small-pill" onClick={() => void act('/api/admin/reports/dismiss', { n: r.n }, 'Report dismissed.')}>Dismiss</button>
                     </span></td></tr>
+                ))}</tbody></table></div>
+            </>)}
+
+            {tab === 'review' && (<>
+              <p>Accounts whose numbers look unusual. This list only <b>points</b> at them: a flag is a reason to look closer, never proof, and nothing here suspends or wipes anyone by itself. Use the buttons only after you have checked.</p>
+              {review && <p style={{ opacity: .8, fontSize: 14 }}>Week of {review.week} · the typical player with winnings has {review.typical.toLocaleString('en-US')} this week. Where a flag mentions “browser-reported” wins, the record starts {date(review.auditSince)}; earlier winnings cannot be sorted by where they came from.</p>}
+              {reasonBox}
+              {review && review.rows.length === 0 && <p style={{ opacity: .7 }}>Nothing unusual right now.</p>}
+              <div style={{ overflowX: 'auto' }}><table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 15 }}>
+                <tbody>{(review?.rows ?? []).map((r) => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,.12)' }}>
+                    <td style={td}><b>{r.name}</b>{r.banned ? ' 🚫' : ''}{r.muted ? ' 🔇' : ''}<br /><small style={{ opacity: .7 }}>{KIND[r.kind] ?? r.kind}{r.email ? ` · ${r.email}` : ''}</small></td>
+                    <td style={td}>This week {r.week.toLocaleString('en-US')}<br /><small style={{ opacity: .7 }}>all-time {r.allTime.toLocaleString('en-US')}</small></td>
+                    <td style={td}>{r.signals.map((x, i) => <div key={i} style={{ marginBottom: 4 }}>⚑ {x.text}</div>)}</td>
+                    <td style={td}>{actions({ id: r.id, name: r.name, banned: r.banned, muted: r.muted })}</td></tr>
                 ))}</tbody></table></div>
             </>)}
 
