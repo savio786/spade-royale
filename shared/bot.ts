@@ -74,6 +74,7 @@ function partnerForcedToWin(g: GameState, seat: number, partner: number, c: Card
   const led = after[0].card.s;
   const winSeat = trickWinner(after);
   const win = after.find((t) => t.seat === winSeat)!;
+  if (g.voids?.[partner + led]) return 0;              // partner is known to be out of the led suit: free to discard
   if (win.card.s !== led) return 0;                    // trumped: partner can only follow suit with a lower card, or is void and may discard anything
   const unseen = unseenCards(g, seat);
   const U = unseen.length, n = g.hands[partner].length;
@@ -124,7 +125,7 @@ function nilSearch(g: GameState, seat: number, partner: number, legal: Card[]): 
       const pHand: Card[] = [];
       for (let i = 0; i < pn && pool.length; i++) {
         let sum = 0;
-        const w = pool.map((c) => { const x = blindNil ? 1 : Math.exp(-(c.r - 2) / NIL_TUNING.decay) * (c.s === 'S' ? NIL_TUNING.spade : 1); sum += x; return x; });
+        const w = pool.map((c) => { if (g.voids?.[partner + c.s]) return 1e-6; const x = blindNil ? 1 : Math.exp(-(c.r - 2) / NIL_TUNING.decay) * (c.s === 'S' ? NIL_TUNING.spade : 1); sum += x; return x; });
         let r = Math.random() * sum, j = 0;
         while (j < pool.length - 1 && (r -= w[j]) > 0) j++;
         pHand.push(pool.splice(j, 1)[0]);
