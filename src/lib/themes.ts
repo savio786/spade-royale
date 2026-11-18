@@ -4,7 +4,8 @@ import type { CSSProperties } from 'react';
 export interface Theme {
   id: string;
   name: string;
-  level: number;              // unlocks at this player level
+  level: number;              // unlocks at this player level (also decides which theme a new player gets by default)
+  pick?: number;              // level from which it can be CHOSEN, when earlier than `level` (the default look is not affected)
   felt: [string, string, string];  // centre → edge
   feltLine: string;           // inner ring
   glow: string;               // outer glow
@@ -36,7 +37,7 @@ export const THEMES: Theme[] = [
     felt: ['#2fbf71', '#16924f', '#0b5e33'], feltLine: '#9ff0bf', glow: 'rgba(60,220,140,.55)', rim: 'linear-gradient(135deg, #6b3f1f, #3d2210 40%, #7a4a24 60%, #2e1a0c)', rimEdge: '#1c0f06',
     panel: 'rgba(0,60,30,.45)', panelLine: 'rgba(190,255,215,.6)', panelText: '#dcffe9',
     cardFace: 'linear-gradient(180deg, #fffdf6, #f1ecdc)', cardBack: 'repeating-linear-gradient(45deg, #c62828 0 6px, #8e1b1b 6px 12px)', cardBackEdge: '#fff7e0', suits: CLASSIC },
-  { id: 'ocean', rail: ['#f6f9fc', '#a9b8c6', '#55677a'], name: 'Ocean', level: 4,
+  { id: 'ocean', rail: ['#f6f9fc', '#a9b8c6', '#55677a'], name: 'Ocean', level: 4, pick: 1,
     felt: ['#29b6f6', '#0277bd', '#01416e'], feltLine: '#a6e4ff', glow: 'rgba(60,190,255,.6)', rim: 'linear-gradient(135deg, #e0e7ee, #9fb0c0 40%, #f4f7fa 60%, #7d8fa1)', rimEdge: '#3c4a57',
     panel: 'rgba(0,40,80,.45)', panelLine: 'rgba(180,230,255,.6)', panelText: '#e1f5ff',
     cardFace: 'linear-gradient(180deg, #ffffff, #e6f4fb)', cardBack: 'radial-gradient(circle at 30% 30%, #4fc3f7 0 18%, transparent 19%) 0 0/16px 16px, linear-gradient(160deg, #0288d1, #01579b)', cardBackEdge: '#e1f5fe', suits: FOUR, fourColor: true },
@@ -63,13 +64,15 @@ export const THEMES: Theme[] = [
 ];
 
 export const themeById = (id: string) => THEMES.find((t) => t.id === id) ?? THEMES[0];
+/** The level from which a player can choose this theme. */
+export const unlockLevel = (t: Theme) => t.pick ?? t.level;
 export const unlocked = (level: number) => THEMES.filter((t) => level >= t.level);
 /** The chosen theme, or the best unlocked one if the choice isn't unlocked. */
 export function activeTheme(chosen: string | null | undefined, level: number) {
   const t = chosen ? themeById(chosen) : null;
-  return t && level >= t.level ? t : unlocked(level).slice(-1)[0] ?? THEMES[0];
+  return t && level >= unlockLevel(t) ? t : unlocked(level).slice(-1)[0] ?? THEMES[0];
 }
-export const newlyUnlocked = (from: number, to: number) => THEMES.filter((t) => t.level > from && t.level <= to);
+export const newlyUnlocked = (from: number, to: number) => THEMES.filter((t) => unlockLevel(t) > from && unlockLevel(t) <= to);
 
 /** CSS variables applied to the table screen. */
 /** Suit colors for "four-color suits": spades black, hearts red, diamonds blue, clubs green. It overrides any table theme. */

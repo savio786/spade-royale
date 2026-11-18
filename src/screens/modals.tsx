@@ -11,7 +11,7 @@ import { buy, CHAT_PASS_FOR_SALE, chatPassLabel, isTestMode, nativeStoreOff, pay
 import { facebookSignIn, loadAuthConfig, mountGoogleButton, showFacebook, type AuthConfig } from '../lib/auth';
 import { EmailModal } from './Login';
 import { PRODUCTS, priceLabel } from '../../shared/products';
-import { activeTheme, THEMES, themeVars } from '../lib/themes';
+import { activeTheme, THEMES, themeVars, unlockLevel } from '../lib/themes';
 import type { OnlineCounts } from '../../shared/protocol';
 import { sfx, vibrate } from '../lib/sound';
 import { track } from '../lib/track';
@@ -466,23 +466,23 @@ export function TrophyModal({ onClose }: { onClose: () => void }) {
 }
 
 // ---------------- Table & card themes ----------------
-export function ThemePicker() {
+export function ThemePicker({ compact }: { compact?: boolean } = {}) {
   const p = useProfile();
   const lvl = levelFromXp(p.xp);
   const current = activeTheme(p.theme, lvl);
   return (
-    <div className="theme-grid" role="radiogroup" aria-label={tr("Table and card theme")}>
+    <div className={`theme-grid${compact ? ' compact' : ''}`} role="radiogroup" aria-label={tr("Table and card theme")}>
       {THEMES.map((t) => {
-        const open = lvl >= t.level;
+        const open = lvl >= unlockLevel(t);
         return (
           <button key={t.id} type="button" role="radio" aria-checked={current.id === t.id} disabled={!open}
             className={`theme-pick ${current.id === t.id ? 'on' : ''}`} style={themeVars(t)}
             onClick={() => { sfx.click(); profile.set({ theme: t.id }); }}
-            aria-label={open ? `${t.name} theme` : `${t.name} theme, unlocks at level ${t.level}`}>
+            aria-label={open ? `${t.name} theme` : `${t.name} theme, unlocks at level ${unlockLevel(t)}`}>
             <span className="tp-table"><span /></span>
             <span className="tp-cards" aria-hidden="true"><i style={{ color: t.suits.S }}>♠</i><i style={{ color: t.suits.H }}>♥</i><i style={{ color: t.suits.D }}>♦</i><i className="back" /></span>
             <small>{t.name}</small>
-            <em>{open ? (t.fourColor ? tr('Four-color deck') : tr('Classic deck')) : tr('Level {n}', { n: t.level })}</em>
+            <em>{open ? (t.fourColor ? tr('Four-color deck') : tr('Classic deck')) : tr('Level {n}', { n: unlockLevel(t) })}</em>
             {!open && <span className="tp-lock"><Icon name="lock" size={14} /></span>}
           </button>
         );
@@ -826,6 +826,10 @@ export function CreateTableModal({ mode, onClose, onCreate, title = 'Create', pr
             <b>{MAX_STEPS[xi]} pts.</b>
             <button className="round-btn" aria-label={tr("Raise maximum")} onClick={() => setXi(Math.min(MAX_STEPS.length - 1, xi + 1))}><Icon name="plus" /></button></span>
         </div>
+      </div>
+      <div className="theme-box">
+        <div className="points-title">{tr("TABLE & CARDS")}</div>
+        <ThemePicker compact />
       </div>
       {p.coins < bet ? <Pill color="gold" className="play-now-btn" onClick={() => store.open({ tab: 'coins', need: bet })}>{tr("BUY COINS")}</Pill> :
       <Pill color="green" className="play-now-btn" onClick={() => {

@@ -442,5 +442,6 @@ const dict: Record<string, string> = {
  "Language": "Idioma",
  "The leaderboard could not be loaded right now. Your wins this week still count on this device.": "La tabla de clasificación no se pudo cargar ahora. Tus victorias de esta semana siguen contando en este dispositivo.",
  "Only games played at online tables count toward the rankings. Practice games against the computer don't.": "Solo cuentan para la clasificación las partidas jugadas en mesas en línea. Las partidas de práctica contra la computadora no cuentan.",
+ "TABLE & CARDS": "MESA Y CARTAS",
 };
 export default dict;
