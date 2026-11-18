@@ -2425,3 +2425,5 @@ body.calm .cl-empty-img, body.calm .cc-ticket { animation: none; }
 .lobby .topbar > * { white-space: nowrap; }
 .lobby .topbar .help-btn, .lobby .topbar .gear, .lobby .topbar .me-avatar { flex: none; }
 .lobby .topbar { gap: 16px; }
+
+.lb-note { margin: 8px 4px 0; font-size: 13px; line-height: 1.4; color: var(--ink-2); opacity: .8; text-align: center; }

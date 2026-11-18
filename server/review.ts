@@ -39,14 +39,14 @@ export function reviewReport(accounts: Account[]) {
 
     const a = au.wk[id];
     if (a && a.bw >= 5 && a.bc / Math.max(1, a.bc + a.oc) >= 0.9) {
-      signals.push({ k: 'browser-reported', text: `${a.bw} wins this week came from results reported by the player's own browser (games against computer players), ${a.ow} from real online games.` });
+      signals.push({ k: 'browser-reported', text: `${a.bw} wins were reported this week by the player's own browser (practice games; these no longer count on the boards), ${a.ow} came from real online games.` });
     }
 
     const t = au.botWinTimes[id] ?? [];
     if (t.length >= 8) {
       const gaps = t.slice(1).map((x, i) => (x - t[i]!) / 1000);
       const mg = median(gaps);
-      if (mg < 60) signals.push({ k: 'steady-pace', text: `Its last ${t.length} browser-reported wins came about every ${Math.round(mg)} seconds, faster than a game can be played.` });
+      if (mg < 60) signals.push({ k: 'steady-pace', text: `Its last ${t.length} browser-reported wins (not counted) came about every ${Math.round(mg)} seconds, faster than a game can be played.` });
     }
 
     if (!signals.length) continue;

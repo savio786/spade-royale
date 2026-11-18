@@ -441,5 +441,6 @@ const dict: Record<string, string> = {
  "Winning": "जीतना",
  "Language": "भाषा",
  "The leaderboard could not be loaded right now. Your wins this week still count on this device.": "लीडरबोर्ड अभी लोड नहीं हो सका। इस सप्ताह की आपकी जीत इस डिवाइस पर अभी भी गिनी जाती है।",
+ "Only games played at online tables count toward the rankings. Practice games against the computer don't.": "रैंकिंग में केवल ऑनलाइन टेबल पर खेले गए गेम गिने जाते हैं। कंप्यूटर के खिलाफ अभ्यास वाले गेम नहीं गिने जाते।",
 };
 export default dict;

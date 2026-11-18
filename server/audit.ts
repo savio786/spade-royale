@@ -1,7 +1,7 @@
 // A small record of HOW each account's winnings arrived, so the owner can review suspicious accounts.
 // Read-only bookkeeping: nothing here changes the game, bans anyone or touches the leaderboard.
 //   online = a real game finished on the server (the server decided the winner)
-//   bot    = a result the player's own browser reported after a game against computer players (the server cannot check it)
+//   bot    = a result the player's own browser reported after a practice game against computer players (the server cannot check it; these no longer count on the boards, they are only noted here)
 import { loadJSON, saveJSON } from './storage';
 import { weekKey } from './leaderboard';
 

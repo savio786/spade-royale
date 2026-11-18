@@ -610,7 +610,7 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
   }
   if (req.method === 'GET' && url.pathname === '/api/leaderboard') return json(res, 200, board(url.searchParams.get('id') || undefined));
   if (req.method === 'POST' && url.pathname === '/api/report') {
-    // results of games played against bots in the browser (online games are credited by the server itself)
+    // results of practice games played against bots in the browser: accepted but NOT counted on the boards (online games are credited by the server itself)
     let raw = '';
     req.on('data', (d) => { raw += d; if (raw.length > 2000) req.destroy(); });
     req.on('end', () => {
@@ -625,8 +625,9 @@ function api(req: import('http').IncomingMessage, res: import('http').ServerResp
         if (!id || !(bet >= 100 && bet <= 2_000_000) || (!lost && !(prize > 0 && prize <= max))) return json(res, 400, { error: 'invalid result' });
         if (!lost && now - (lastReport.get(id) ?? 0) < 30_000) return json(res, 429, { error: 'too many reports' });   // wins are throttled; a loss or forfeit is always recorded
         if (!lost) lastReport.set(id, now);
-        if (isBanned(id)) return json(res, 200, { ok: true });
-        guestName(id).then((gn) => { const who = { id, name: gn || String(b.name || 'Player'), avatar: cleanAvatar(b.avatar) }; if (lost) debit(who, b.leftNil === true ? Math.round(bet * 1.5) : bet); else { credit(who, prize); noteWin(who.id, 'bot', prize); } });
+        // Practice games against computer players are played and reported by the player's own browser, so the server cannot check them.
+        // They no longer count on the weekly or all-time boards (only games run by the server do). The report is still noted for the owner's review list.
+        if (!lost && !isBanned(id)) noteWin(id, 'bot', prize);
         return json(res, 200, { ok: true });
       } catch { return json(res, 400, { error: 'bad json' }); }
     });
