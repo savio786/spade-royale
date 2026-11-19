@@ -178,7 +178,7 @@ function nilCover(g: GameState, seat: number, partner: number, legal: Card[], le
   };
   if (!partnerCard) return takeOver() ?? lowestNonSpadeFirst(legal);        // rule 1 (partner still to play), rule 4 (void ruff)
   if (best === partner) {
-    if (partnerCard.r >= 9 || g.trick.length === 3) return takeOver() ?? lowestNonSpadeFirst(legal);   // rules 1 and 2
+    // my Nil partner has played and is winning: any card that beats theirs makes them safe for good (nobody after me can make their card win), so use the cheapest one and keep the aces
     if (winners.length) { const plain = winners.filter((c) => c.s !== 'S'); return lowestRank(plain.length ? plain : winners); }
     return lowestNonSpadeFirst(legal);
   }
