@@ -1,3 +1,4 @@
+import { roundLogText } from '../../shared/playlog';
 import { t as tr, LANGS, setLang, useLang } from '../lib/i18n';
 import { rich } from '../lib/rich';
 import { PartnersArt, SoloArt } from '../components/ModeArt';
@@ -678,6 +679,12 @@ export function SettingsModal({ onClose, installPrompt }: { onClose: () => void;
         {LANGS.map((l) => <button key={l.id} className={`st-lang-btn ${lang === l.id ? 'on' : ''}`} aria-pressed={lang === l.id} lang={l.id} onClick={() => { sfx.click(); void setLang(l.id); }}>{l.name}</button>)}
       </div>
       <button className="st-replay" onClick={() => { onClose(); window.dispatchEvent(new Event('spade-tutorial')); }}>{tr("Replay the 60-second tutorial")}</button>
+      <button className="st-replay" onClick={() => {
+        const t = roundLogText();
+        if (!t) { toast('No rounds played yet on this device', 'error'); return; }
+        const done = () => toast('Copied: paste it into your message to the Spade Haven team');
+        if (navigator.clipboard?.writeText) navigator.clipboard.writeText(t).then(done, () => toast('Could not copy', 'error')); else toast('Could not copy', 'error');
+      }}>{tr("Copy last rounds (to report a bad bot move)")}</button>
       <div className="st-music">
         <h3>BACKGROUND MUSIC <small>{tr("tap a track to hear it")}</small></h3>
         <MusicPicker />

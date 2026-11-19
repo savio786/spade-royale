@@ -2,6 +2,7 @@
 // Used in the browser for offline play (one human, three bots) and on the
 // server for online/private tables (up to four humans, bots fill the gaps).
 import { CITIES, PublicStats, Action, applyAction, createGame, GameState, isFull, PublicState, RuleError, Seat, sideOf, startRound, TableSettings, viewFor } from './engine';
+import { logAction } from './playlog';
 import { botBid, botPlay, BOT_LINES, BOT_NAMES, pick, skilledBid, skilledPlay, skillForBet } from './bot';
 import { GIFT_BY_ID, MAX_GIFTS_PER_SEAT } from './gifts';
 import { BOT_PHOTOS } from './botphotos';
@@ -257,6 +258,7 @@ export class TableRuntime {
       return null;
     }
     try {
+      logAction(this.g, a);
       this.g = applyAction(this.g, a);
     } catch (e) {
       if (e instanceof RuleError) return e.message;
