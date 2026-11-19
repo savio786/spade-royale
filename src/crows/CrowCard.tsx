@@ -1,12 +1,12 @@
-// Crows Haven cards in Spade Haven's card style (owner decision 2026-11-16): the same white faces, corners and pips
-// (classes pcard / pc-*, from styles.css), suits ♠ ♥ ♣ ♦, numbers 1 and 5–14, plus our Crow card and point badges.
+// Crows Haven cards in the style of the classic bidding card game (owner decision 2026-11-19): four coloured suits
+// (Red, Yellow, Green, Black), each card showing its number in its colour — no ♠ ♥ ♣ ♦. Our own drawing, not a copy of
+// any published deck: no logo or bird art from it; the Crow card is our own crow. Sizes come from Spade Haven's pcard class.
 import React from 'react';
 import { Card, Colour, COLOUR_NAME, cardPoints, isCrow } from '../../shared/crows/engine';
-import { SuitIcon } from '../components/ui';
 
-/** A suit symbol (♠ ♥ ♣ ♦) drawn the same way as on Spade Haven's cards. */
+/** A suit's colour chip (used for trump, the trump picker and the announcement). */
 export function Emblem({ s, size = 24, className }: { s: Colour; size?: number; className?: string }) {
-  return <SuitIcon s={s} className={`crows-suit s-${s} ${className ?? ''}`} style={{ width: size, height: size }} />;
+  return <span className={`rc-chip rc-${s} ${className ?? ''}`} style={{ width: size, height: size }} aria-hidden="true" />;
 }
 
 /** The Crow: our own crow silhouette perched on a branch. */
@@ -21,22 +21,12 @@ export function CrowArt({ size = 80 }: { size?: number }) {
   );
 }
 
-// Pip positions (x%, y%), the same as Spade Haven's number cards.
-const PIPS: Record<number, [number, number][]> = {
-  5: [[30, 18], [70, 18], [50, 50], [30, 82], [70, 82]],
-  6: [[30, 18], [70, 18], [30, 50], [70, 50], [30, 82], [70, 82]],
-  7: [[30, 18], [70, 18], [50, 34], [30, 50], [70, 50], [30, 82], [70, 82]],
-  8: [[30, 18], [70, 18], [50, 34], [30, 50], [70, 50], [50, 66], [30, 82], [70, 82]],
-  9: [[30, 16], [70, 16], [30, 39], [70, 39], [50, 50], [30, 61], [70, 61], [30, 84], [70, 84]],
-  10: [[30, 16], [70, 16], [50, 28], [30, 39], [70, 39], [30, 61], [70, 61], [50, 72], [30, 84], [70, 84]],
-};
-
 export function CrowCard({ card, back, className, style, onClick, dataCard, trump }: {
   card?: Card; back?: boolean; className?: string; style?: React.CSSProperties; onClick?: () => void; dataCard?: string;
   /** mark this card as trump (glow + TRUMP tag) */
   trump?: boolean;
 }) {
-  if (back || !card) return <div className={`pcard back ${className ?? ''}`} style={style} aria-hidden="true"><span className="pc-back-mark"><SuitIcon s="S" /></span></div>;
+  if (back || !card) return <div className={`pcard back crows-back ${className ?? ''}`} style={style} aria-hidden="true"><span className="pc-back-mark"><CrowArt size={60} /></span></div>;
   const Tag = onClick ? 'button' : 'div';
   const pts = cardPoints(card);
   if (isCrow(card)) {
@@ -51,28 +41,15 @@ export function CrowCard({ card, back, className, style, onClick, dataCard, trum
     );
   }
   const s = card.s as Colour;
-  const red = s === 'H' || s === 'D';
-  const corner = <><b>{card.r}</b><SuitIcon s={s} className="pc-corner-suit" /></>;
-  let body: React.ReactNode;
-  if (card.r === 1) body = <span className={`pc-ace ${s === 'S' ? 'ornate' : ''}`}><SuitIcon s={s} /></span>;
-  else if (card.r >= 11) body = (
-    <span className="pc-face crows-high">
-      <span className="crows-high-num">{card.r}</span>
-      <SuitIcon s={s} className="pc-face-suit" />
-    </span>
-  );
-  else body = (
-    <span className="pc-pips">
-      {PIPS[card.r].map(([x, y], i) => <SuitIcon key={i} s={s} className={`pc-pip ${y > 55 ? 'flip' : ''}`} style={{ left: `${x}%`, top: `${y}%` }} />)}
-    </span>
-  );
+  const num = <b className="rc-num">{card.r}</b>;
   return (
-    <Tag className={`pcard ${red ? 'red' : 'black'} s-${s} ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
-      aria-label={`${card.r} of ${COLOUR_NAME[s]}${trump ? ', trump' : ''}${pts ? `, ${pts} points` : ''}`}>
+    <Tag className={`pcard crows-rc rc-${s} ${trump ? 'is-trump' : ''} ${className ?? ''}`} style={style} data-card={dataCard} onClick={onClick}
+      aria-label={`${card.r} ${COLOUR_NAME[s]}${trump ? ', trump' : ''}${pts ? `, ${pts} points` : ''}`}>
+      <span className="rc-frame" aria-hidden="true" />
       {trump && <span className="cc-trump">TRUMP</span>}
-      <span className="pc-corner">{corner}{pts > 0 && <i className="cc-cpts">{pts}</i>}</span>
-      {body}
-      <span className="pc-corner br">{corner}</span>
+      <span className="rc-corner">{num}{pts > 0 && <i className="cc-cpts">{pts}</i>}</span>
+      <span className="rc-mid" aria-hidden="true"><span className="rc-disc"><b>{card.r}</b></span><span className="rc-name">{COLOUR_NAME[s].toUpperCase()}</span></span>
+      <span className="rc-corner br">{num}</span>
       {pts > 0 && <span className="cc-pts">{pts}</span>}
     </Tag>
   );

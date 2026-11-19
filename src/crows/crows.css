@@ -30,7 +30,36 @@ button.pcard { border: 0; padding: 0; font: inherit; text-align: left; }
 .cc-trump { position: absolute; left: 5%; top: 62%; z-index: 3; padding: 2px 4px; border-radius: 5px; background: #c8102e; color: #fff;
   font: 400 calc(var(--w) * .11)/1.1 var(--display); letter-spacing: 1px; writing-mode: vertical-rl; rotate: 180deg; box-shadow: 0 2px 4px rgba(0,0,0,.35); }
 .fan .hcard.is-trump.legal { box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px #c8102e, 0 0 18px rgba(255,200,61,.85); }
-.crows-suit.s-S, .crows-suit.s-C { color: #141428; } .crows-suit.s-H, .crows-suit.s-D { color: #c8102e; }
+
+/* coloured suits: --rc fill colour, --rc-ink text on that colour, --rc-text the number on a white card */
+.rc-R { --rc: #d4202c; --rc-dk: #8f0f19; --rc-ink: #fff; --rc-text: #d4202c; }
+.rc-Y { --rc: #f7c21b; --rc-dk: #b8860b; --rc-ink: #3a2600; --rc-text: #d99500; }
+.rc-G { --rc: #1e9e4a; --rc-dk: #0e5e2b; --rc-ink: #fff; --rc-text: #178a3f; }
+.rc-K { --rc: #24232c; --rc-dk: #000; --rc-ink: #fff; --rc-text: #1b1a22; }
+.rc-chip { display: inline-block; flex: none; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--rc) 70%, #fff), var(--rc) 55%, var(--rc-dk));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.7), 0 0 0 2px var(--rc-dk), 0 2px 4px rgba(0,0,0,.35); }
+.pcard.crows-rc { background: #fffdf7; color: var(--rc-text); }
+.rc-frame { position: absolute; inset: 4.5%; border-radius: calc(var(--w) * .07); border: calc(var(--w) * .035) solid var(--rc); opacity: .9; pointer-events: none; }
+.rc-corner { position: absolute; left: 9%; top: 6%; z-index: 2; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.rc-corner.br { left: auto; top: auto; right: 9%; bottom: 6%; rotate: 180deg; }
+.rc-num { font: 400 calc(var(--w) * .3)/.95 var(--display); color: var(--rc-text); letter-spacing: -1px;
+  text-shadow: 0 1px 0 rgba(0,0,0,.12); }
+.rc-Y .rc-num { -webkit-text-stroke: .6px #8a5d00; }
+.rc-mid { position: absolute; left: 50%; top: 50%; translate: -50% -52%; display: flex; flex-direction: column; align-items: center; gap: calc(var(--w) * .03); }
+.rc-disc { width: calc(var(--w) * .58); height: calc(var(--w) * .58); border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--rc) 65%, #fff), var(--rc) 50%, var(--rc-dk));
+  box-shadow: inset 0 0 0 calc(var(--w) * .025) rgba(255,255,255,.75), 0 0 0 calc(var(--w) * .015) var(--rc-dk), 0 3px 6px rgba(0,0,0,.3); }
+.rc-disc b { font: 400 calc(var(--w) * .34)/1 var(--display); color: var(--rc-ink); letter-spacing: -1px; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.rc-Y .rc-disc b { text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+.rc-name { font: 400 calc(var(--w) * .1)/1 var(--display); letter-spacing: 2px; color: var(--rc-text); }
+.pcard.crows-rc .cc-cpts { margin-top: 4px; }
+.pcard.small .rc-mid, .pcard.small .rc-corner.br { display: none; }
+.pcard.small .rc-num { font-size: 22px; }
+.pcard.crows-rc.is-trump { background: linear-gradient(180deg, #fff8dc, #ffeab0); }
+.crows-back .pc-back-mark svg { width: 70%; height: 70%; }
+.crows-sp-title { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.crows-sp-title i { width: 12px; height: 12px; border-radius: 50%; background: var(--rc); box-shadow: 0 0 0 1.5px rgba(255,255,255,.7); }
+.crows-sp-title i:last-of-type { margin-right: 6px; }
 
 /* ---------- table ---------- */
 .crows-screen .tbl-top-left { display: flex; align-items: center; gap: 12px; }
@@ -63,8 +92,8 @@ button.pcard { border: 0; padding: 0; font: inherit; text-align: left; }
 .crows-announce { position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 45; display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 18px 44px; border-radius: 22px; background: #fff; border: 5px solid #f5b82e; color: #141428;
   box-shadow: 0 0 40px rgba(255,200,61,.75), 0 14px 40px rgba(0,0,0,.55); animation: crowsAnnounce 2.3s ease-out both; pointer-events: none; }
-.crows-announce.s-H, .crows-announce.s-D { color: #c8102e; }
-.crows-announce b { font: 400 54px/1 var(--display); letter-spacing: 3px; white-space: nowrap; }
+.crows-announce b { font: 400 54px/1 var(--display); letter-spacing: 3px; white-space: nowrap; color: var(--rc-text); }
+.crows-announce { border-color: var(--rc, #f5b82e); }
 .crows-announce small { font: 600 15px var(--body); color: #3a2400; }
 @keyframes crowsAnnounce { 0% { opacity: 0; scale: .6; } 12% { opacity: 1; scale: 1.06; } 22% { scale: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .crows-announce, .crows-pop, .crows-tin { animation: none; } }
@@ -87,8 +116,7 @@ button.pcard { border: 0; padding: 0; font: inherit; text-align: left; }
 .crows-suits { display: flex; justify-content: center; gap: 14px; margin-bottom: 14px; }
 .crows-suits button { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 140px; padding: 10px 0 8px; border-radius: 14px; cursor: pointer;
   background: linear-gradient(180deg, #fff, #e6e8f6); border: 3px solid transparent; box-shadow: 0 4px 10px rgba(0,0,0,.4); transition: transform .12s; }
-.crows-suits button span { font: 400 24px var(--display); letter-spacing: 1px; color: #141428; }
-.crows-suits button.s-H span, .crows-suits button.s-D span { color: #c8102e; }
+.crows-suits button span { font: 400 24px var(--display); letter-spacing: 1px; color: var(--rc-text); }
 .crows-suits button small { font: 600 12px var(--body); color: #555; }
 .crows-suits button:hover { transform: translateY(-3px); }
 .crows-suits button.on { border-color: var(--gold); box-shadow: 0 0 0 3px #1a2266, 0 0 18px rgba(255,200,61,.9); transform: translateY(-4px); }
@@ -262,3 +290,4 @@ body.crows-site { background: var(--wine-3, #16020b); }
 .cf-wing.back { fill: #2a2436; animation-delay: -.06s; }
 @keyframes crowFlap { from { transform: scaleY(1) skewX(-6deg); } to { transform: scaleY(-.75) skewX(8deg); } }
 @media (prefers-reduced-motion: reduce) { .cf-wing { animation: none; } }
+.pcard.crows-rc .cc-pts { left: 9%; bottom: 6%; translate: 0 0; }

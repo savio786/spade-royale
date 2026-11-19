@@ -5,11 +5,10 @@
 import type { Seat } from '../engine';
 export type { Seat };
 
-/** The four suits — the same ♠ ♥ ♣ ♦ as Spade Haven's cards (owner decision 2026-11-16). */
-export type Colour = 'S' | 'H' | 'C' | 'D';
-export const COLOURS: Colour[] = ['S', 'H', 'C', 'D'];
-export const COLOUR_NAME: Record<Colour, string> = { S: 'Spades', H: 'Hearts', C: 'Clubs', D: 'Diamonds' };
-export const COLOUR_SYMBOL: Record<Colour, string> = { S: '♠', H: '♥', C: '♣', D: '♦' };
+/** The four coloured suits, in the style of the classic bidding card game (owner decision 2026-11-19): Red, Yellow, Green, Black. */
+export type Colour = 'R' | 'Y' | 'G' | 'K';
+export const COLOURS: Colour[] = ['R', 'Y', 'G', 'K'];
+export const COLOUR_NAME: Record<Colour, string> = { R: 'Red', Y: 'Yellow', G: 'Green', K: 'Black' };
 
 /** A card: a colour numbered 1 or 5..14, or the Crow (s: 'crow', r: 0). The 1 is the highest card of its colour. */
 export interface Card { s: Colour | 'crow'; r: number }

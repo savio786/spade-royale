@@ -16,7 +16,7 @@ import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
 import { sfx } from '../lib/sound';
 
-const HERO_CARDS = [{ s: 'H', r: 1 }, { s: 'crow', r: 0 }, { s: 'S', r: 14 }, { s: 'D', r: 10 }] as const;
+const HERO_CARDS = [{ s: 'R', r: 1 }, { s: 'crow', r: 0 }, { s: 'G', r: 14 }, { s: 'Y', r: 10 }] as const;
 
 const FEATURES = [
   { t: 'Bid for the nest', d: 'Promise how many points your side will take. Win the bid and the five hidden nest cards are yours.' },

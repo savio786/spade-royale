@@ -30,7 +30,8 @@ Crows Haven-only files:
 - `shared/crows/bot.ts` — computer players: bid, nest + trump, card play
 - `scripts/simulate-crows.ts` — rule tests + 4,000 bot games (`npm run sim:crows`)
 - `src/crows/CrowsTable.tsx` — the Crows Haven table (bidding, nest, play, hand summary, game over, rules)
-- `src/crows/CrowCard.tsx` — the cards, drawn in Spade Haven's card style (♠ ♥ ♣ ♦, 1 and 5–14) plus our Crow card and point badges
+- `src/crows/CrowCard.tsx` — the cards: four coloured suits (Red, Yellow, Green, Black), 1 and 5–14, in the style of the classic
+  bidding card game but our own drawing (no logo or bird art copied), plus our Crow card and point badges
 - `src/crows/CrowsLobby.tsx` — the lobby and online lobby, built like Spade Haven's (top bar, PLAY NOW / ONLINE LOBBY / PRIVATE GAME,
   daily gift, bonus coins, mega wheel, ranking, profile, settings). The online lobby lists the tables people have made
   (like Spade Haven's): CREATE TABLE sets the bet and game points, others tap PLAY to join; a created table waits 30 s before
@@ -90,7 +91,7 @@ with our own deck art and names. Nest, discard, lead and trump rules are as firs
 Items marked *(default)* are our choice where the published versions differ; the owner can change them.
 
 **Deck — 45 cards**
-- The four suits **♠ ♥ ♣ ♦** (owner decision 2026-11-16, drawn like Spade Haven's cards), each with **1 and 5 to 14** (44 cards),
+- Four coloured suits **Red, Yellow, Green, Black** (owner decision 2026-11-19; ♠ ♥ ♣ ♦ from 2026-11-16 to 11-19), each with **1 and 5 to 14** (44 cards),
   plus one **Crow** card (our bird card). The Crow artwork is our own; no Rook logo, bird art or wording.
 - Rank inside a suit: **1 highest**, then 14, 13 … down to 5.
 

@@ -18,7 +18,6 @@ import { chargeBet, settleGame, prizeOf, crowsCity, notEnough } from './wallet';
 import { toast } from '../lib/toast';
 import { sfx } from '../lib/sound';
 import { CrowCard, Emblem } from './CrowCard';
-import { COLOUR_SYMBOL } from '../../shared/crows/engine';
 import { CrowsAvatar, PictureModal, randomPortrait, portraitName } from './CrowsExtras';
 import { ChatPanel, useCrowsChat, ChatMsg } from './CrowsChat';
 import { reportGame } from './CrowsRanking';
@@ -158,7 +157,7 @@ function TableUI({ src }: { src: Source }) {
   const bet = st.settings.bet ?? 0;
   /** Is this card trump right now? (the Crow always is, once trump is named) */
   const isTrump = (c: Card) => !!st.trump && (isCrow(c) || c.s === st.trump);
-  // big "HEARTS ARE TRUMP" for a moment when the bidder names trump
+  // big "RED IS TRUMP" for a moment when the bidder names trump
   const [announce, setAnnounce] = useState<Colour | null>(null);
   const prevPhase = useRef(g.phase);
   useEffect(() => {
@@ -221,7 +220,7 @@ function TableUI({ src }: { src: Source }) {
     if (!myTurn) return toast(`Wait for your turn — ${st.seats[st.turn]?.name ?? 'another player'} is playing`);
     if (legal.some((l) => sameCard(l, c))) { sfx.card(); act({ type: 'play', seat: ME, card: c }); return; }
     const led = suitOf(st.trick[0].card, st.trump);
-    toast(`Follow suit: play ${led === 'crow' ? 'trump' : `a ${COLOUR_SYMBOL[led as Colour]} ${COLOUR_NAME[led as Colour].slice(0, -1).toLowerCase()}`}${led === st.trump ? ' (trump)' : ''} — or the Crow`);
+    toast(`Follow suit: play ${led === 'crow' ? 'trump' : `a ${COLOUR_NAME[led as Colour].toLowerCase()} card`}${led === st.trump ? ' (trump)' : ''} — or the Crow`);
   };
 
   const hand = st.hand;
@@ -298,7 +297,7 @@ function TableUI({ src }: { src: Source }) {
             <div className="ip-end">GAME POINTS:<b>{st.settings.target}</b></div>
           </div>
           <div className="score-panel crows-score">
-            <div className="sp-title">CROWS ♠♥</div>
+            <div className="sp-title crows-sp-title"><i className="rc-R" /><i className="rc-Y" /><i className="rc-G" /><i className="rc-K" />CROWS</div>
             <div className="sp-grid">
               <span className="team red">THEM</span><span className="team blue">US</span>
               <b className={st.scores[them] > st.scores[us] ? 'sp-lead' : ''}>{st.scores[them]}</b><b className={st.scores[us] > st.scores[them] ? 'sp-lead' : ''}>{st.scores[us]}</b>
@@ -309,7 +308,7 @@ function TableUI({ src }: { src: Source }) {
                 <span className="sp-lbl">{bidSide === null ? 'THIS HAND' : 'THIS HAND / BID'}</span>
               </>}
             </div>
-            <div className={`crows-sp-trump ${st.trump ? `s-${st.trump} on` : ''}`} title={st.trump ? `${COLOUR_NAME[st.trump]} are trump` : 'No trump yet'}>
+            <div className={`crows-sp-trump ${st.trump ? `rc-${st.trump} on` : ''}`} title={st.trump ? `${COLOUR_NAME[st.trump]} is trump` : 'No trump yet'}>
               {st.trump ? <><Emblem s={st.trump} size={30} /><span>TRUMP</span></> : <span>NEST {st.nestCount}</span>}
             </div>
           </div>
@@ -347,9 +346,9 @@ function TableUI({ src }: { src: Source }) {
             {st.phase === 'playing' && st.trick.length === 0 && myTurn && <div className="status-line you">Your lead</div>}
           </div>
           {announce && (
-            <div className={`crows-announce s-${announce}`} role="alert">
+            <div className={`crows-announce rc-${announce}`} role="alert">
               <Emblem s={announce} size={72} />
-              <b>{COLOUR_NAME[announce].toUpperCase()} ARE TRUMP</b>
+              <b>{COLOUR_NAME[announce].toUpperCase()} IS TRUMP</b>
               <small>{st.highBidder === ME ? 'You' : st.seats[st.highBidder!]?.name} named trump · bid {st.highBid}</small>
             </div>
           )}
@@ -473,7 +472,7 @@ function NestDialog({ picked, trump, hand, bid, forced, onTrump, onConfirm }: {
         {pickedTrump && <> <b>Careful:</b> you're putting down trump.</>}</p>
       <div className="crows-suits">
         {COLOURS.map((c) => (
-          <button key={c} className={`s-${c} ${trump === c ? 'on' : ''}`} onClick={() => { sfx.click(); onTrump(c); }} aria-pressed={trump === c}>
+          <button key={c} className={`rc-${c} ${trump === c ? 'on' : ''}`} onClick={() => { sfx.click(); onTrump(c); }} aria-pressed={trump === c}>
             <Emblem s={c} size={34} /><span>{COLOUR_NAME[c]}</span><small>×{hand.filter((h) => h.s === c && !picked.some((x) => sameCard(x, h))).length}</small>
           </button>
         ))}
@@ -545,7 +544,7 @@ function RoundSummary({ g, me: ME, avatar, onNext, online }: { g: CrowsState; me
             </tbody>
           </table>
           <div className="crows-rs-nest" aria-label="The put-down cards">
-            <span>{COLOUR_SYMBOL[r.trump]} {COLOUR_NAME[r.trump]} were trump · put-down cards:</span>
+            <span>{COLOUR_NAME[r.trump]} was trump · put-down cards:</span>
             <div>{sortHand(g.nest).map((c, i) => <CrowCard key={i} card={c} className="small" />)}</div>
           </div>
           <div className="rs-note">{online?.waiting ? `WAITING FOR THE OTHERS · ${Math.max(0, left)}s` : `PRESS "CONTINUE" — NEXT HAND IN ${Math.max(0, left)}s`}</div>
@@ -603,7 +602,7 @@ export function CrowsRulesBody() {
   return (
     <div className="crows-rules">
         <h4>The deck</h4>
-        <ul><li>45 cards: the four suits ♠ ♥ ♣ ♦, each with 5 to 14 and a 1, plus the Crow.</li>
+        <ul><li>45 cards: four coloured suits — Red, Yellow, Green and Black — each with 5 to 14 and a 1, plus the Crow.</li>
           <li>In each suit the 1 is the highest card, then 14, 13 and down to 5.</li>
           <li>Point cards: every 1 is worth 15, every 10 and 14 is worth 10, every 5 is worth 5, and the Crow is worth 20 — 180 in all.</li></ul>
         <h4>Bidding</h4>
