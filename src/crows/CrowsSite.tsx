@@ -11,7 +11,7 @@ import { changeName, registerMyName, NAME_MAX } from './names';
 import { CrowsRanking } from './CrowsRanking';
 import { InstallHelp, InstallModal, PictureModal, randomPlayerPicture, useInstall } from './CrowsExtras';
 import { CrowsLobby, CrowsOnlineLobby, GAME_POINTS, PlayModal, type LobbyAction } from './CrowsLobby';
-import { crowsCity, notEnough } from './wallet';
+import { crowsCity, notEnough, refundUnfinished } from './wallet';
 import { profile, useProfile } from '../lib/profile';
 import { continueAsGuest, finishNewGuest, notifyReturning } from '../lib/guest';
 import { sfx } from '../lib/sound';
@@ -96,6 +96,7 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
   const p = useProfile();
   // back from a reload in the middle of an online game: straight back to that table
   const resume = currentTable();
+  useEffect(() => { refundUnfinished(resume ? `online-${resume}` : undefined); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [screen, setScreen] = useState<'home' | 'online' | 'table' | 'ranking'>(resume ? 'table' : 'home');
   const [bet, setBet] = useState(0);
   const [tableKey, setTableKey] = useState(0);

@@ -37,7 +37,9 @@ Crows Haven-only files:
   (like Spade Haven's): CREATE TABLE sets the bet and game points, others tap PLAY to join; a created table waits 30 s before
   the first computer player sits down (then 5 s each), or anyone seated can press Start now
 - `src/crows/wallet.ts`, `shared/crows/bets.ts` — Crows Haven coins: bets 100 to 500,000 (Spade Haven's cities), the bet is taken when
-  the first hand is dealt, each winner gets bet × 1.8, +40 XP a game and +80 for a win. Free coins only — nothing to buy
+  the first hand is dealt, each winner gets bet × 1.8, +40 XP a game and +80 for a win. Free coins only — nothing to buy.
+  No penalty for leaving (owner decision 2026-11-19): leaving before the game is over gives the bet back (also when the tab
+  or app was closed — it's given back the next time the game opens). Losing a finished game still costs the bet
 - `src/crows/crows.css` — Crows styles, all prefixed so Spades styles are untouched
 
 - `src/crows/CrowsSite.tsx` — the Crows Haven site: welcome page, guest start, home screen

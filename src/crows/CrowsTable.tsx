@@ -14,7 +14,7 @@ import { profile, levelFromXp, useProfile, fmt, short } from '../lib/profile';
 import { Coin, Icon, Modal, Pill } from '../components/ui';
 import { TableShape } from '../components/TableShape';
 import { activeTheme, themeVars } from '../lib/themes';
-import { chargeBet, settleGame, prizeOf, crowsCity, notEnough } from './wallet';
+import { chargeBet, settleGame, refundBet, prizeOf, crowsCity, notEnough } from './wallet';
 import { toast } from '../lib/toast';
 import { sfx } from '../lib/sound';
 import { CrowCard, Emblem } from './CrowCard';
@@ -175,6 +175,9 @@ function TableUI({ src }: { src: Source }) {
     if (!dealt || !bet) return;
     if (!chargeBet(src.gameId, bet)) { notEnough(bet); }
   }, [dealt, src.gameId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // no penalty for leaving: leaving a game before it's over gives the bet back
+  const idRef = useRef(src.gameId); idRef.current = src.gameId;
+  useEffect(() => () => refundBet(idRef.current), []);
   // sounds for cards other people play (online), tricks taken
   const prevTrick = useRef(st.trick.length);
   useEffect(() => { if (online && st.trick.length > prevTrick.current) sfx.card(); prevTrick.current = st.trick.length; }, [st.trick.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -400,7 +403,7 @@ function TableUI({ src }: { src: Source }) {
       )}
       {confirmExit && (
         <Modal title="Leave this game?" onClose={() => setConfirmExit(false)}>
-          <p className="center">{online ? 'A computer player will take your seat so the others can keep playing.' : 'This game will end.'}{bet > 0 && <> Your {fmt(bet)} coin bet is lost.</>}</p>
+          <p className="center">{online ? 'A computer player will take your seat so the others can keep playing.' : 'This game will end.'}{bet > 0 && <> You get your {fmt(bet)} coin bet back.</>}</p>
           <div className="btn-row">
             <Pill color="red" onClick={onExit}>Yes, leave</Pill>
             <Pill color="green" onClick={() => setConfirmExit(false)}>Keep playing</Pill>

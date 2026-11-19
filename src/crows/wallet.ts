@@ -13,25 +13,56 @@ export function suggestedCrowsBet(coins: number) {
 }
 export const XP_PLAYED = 40, XP_WON = 80;
 
-// Each table's bet is taken once and its prize paid once, even after a reload (kept for this browser tab).
+// Each table's bet is taken once and its prize paid once, even after a reload (kept on this device).
+// No penalty for leaving (owner decision 2026-11-19): a bet for a game that didn't finish is given back.
 const KEY = 'crowsPaid';
-const done = (): Record<string, string> => { try { return JSON.parse(sessionStorage.getItem(KEY) || '{}'); } catch { return {}; } };
-const mark = (id: string, what: string) => { try { sessionStorage.setItem(KEY, JSON.stringify({ ...done(), [id]: what })); } catch { /* private mode */ } };
+type Mark = { s: 'bet' | 'settled' | 'refunded'; bet: number; at: number };
+const done = (): Record<string, Mark> => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) || '{}') as Record<string, Mark | string>;
+    const out: Record<string, Mark> = {};
+    for (const [k, v] of Object.entries(raw)) if (v && typeof v === 'object' && Date.now() - v.at < 3 * 86400e3) out[k] = v;  // forget after 3 days
+    return out;
+  } catch { return {}; }
+};
+const state = (id: string) => done()[id]?.s;
+const mark = (id: string, s: Mark['s'], bet: number) => { try { localStorage.setItem(KEY, JSON.stringify({ ...done(), [id]: { s, bet, at: Date.now() } })); } catch { /* private mode */ } };
 
 /** Take the table bet when the first hand is dealt. Returns false if there aren't enough coins. */
 export function chargeBet(gameId: string, bet: number): boolean {
-  if (!bet || done()[gameId]) return true;
+  if (!bet || state(gameId)) return true;
   if (profile.get().coins < bet) return false;
   profile.addCoins(-bet);
-  mark(gameId, 'bet');
+  mark(gameId, 'bet', bet);
   return true;
+}
+
+/** Leaving before the game is over: give the bet back (no penalty for leaving). */
+export function refundBet(gameId: string, quiet = false) {
+  const m = done()[gameId];
+  if (!m || m.s !== 'bet') return;
+  mark(gameId, 'refunded', m.bet);
+  profile.addCoins(m.bet);
+  if (!quiet) toast(`Your ${fmt(m.bet)} coin bet was given back`, 'coins');
+}
+
+/** When the game opens: give back bets from games that were closed part-way (tab or app closed), except the table we're going back to. */
+export function refundUnfinished(except?: string) {
+  let back = 0;
+  for (const [id, m] of Object.entries(done())) {
+    if (m.s !== 'bet' || id === except) continue;
+    refundBet(id, true);
+    back += m.bet;
+  }
+  if (back) toast(`${fmt(back)} coins from an unfinished game were given back`, 'coins');
 }
 
 /** Game over: pay the prize to the winning side, add XP and the stats. Returns what was paid. */
 export function settleGame(gameId: string, bet: number, won: boolean): { prize: number; xp: number } {
-  if (done()[gameId] === 'settled') return { prize: 0, xp: 0 };
-  const charged = done()[gameId] === 'bet';
-  mark(gameId, 'settled');
+  const was = state(gameId);
+  if (was === 'settled') return { prize: 0, xp: 0 };
+  const charged = was === 'bet';
+  mark(gameId, 'settled', bet);
   const prize = won && charged ? prizeOf(bet) : 0;
   const xp = XP_PLAYED + (won ? XP_WON : 0);
   profile.set((p) => ({
