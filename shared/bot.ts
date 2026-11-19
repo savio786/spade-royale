@@ -242,7 +242,7 @@ export function botPlay(g: GameState, seat: number): Card {
   const side = sideOf(mode, seat);
   const sideSeats = seatsOfSide(mode, side);
   const contract = sideSeats.reduce((s, i) => s + (g.bids[i] ?? 0), 0);
-  const taken = sideSeats.reduce((s, i) => s + g.tricks[i], 0);
+  const taken = sideSeats.reduce((s, i) => s + (g.bids[i] === 0 ? 0 : g.tricks[i]), 0);   // a Nil bidder's tricks never count toward the contract
   const need = contract - taken;
 
   if (leading) {

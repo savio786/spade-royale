@@ -498,7 +498,7 @@ function ScorePanel({ st }: { st: PublicState }) {
   if (mode === 'partners') {
     const mySide = sideOf(mode, me), opp = 1 - mySide;
     const bidOf = (side: number) => seatsOfSide(mode, side).reduce((s, i) => s + (st.bids[i] ?? 0), 0);
-    const trOf = (side: number) => seatsOfSide(mode, side).reduce((s, i) => s + st.tricks[i], 0);
+    const trOf = (side: number) => seatsOfSide(mode, side).reduce((s, i) => s + (st.bids[i] === 0 ? 0 : st.tricks[i]), 0);
     const sides = [opp, mySide];
     return (
       <div className="score-panel">
@@ -691,7 +691,7 @@ function RoundSummary({ st, nextAt, now, onContinue }: { st: PublicState; nextAt
   const sideRow = (side: number) => {
     const seats = seatsOfSide(mode, side);
     return {
-      bid: seats.reduce((a, s) => a + (h.bids[s] ?? 0), 0), made: seats.reduce((a, s) => a + h.tricks[s], 0),
+      bid: seats.reduce((a, s) => a + (h.bids[s] ?? 0), 0), made: seats.reduce((a, s) => a + (h.bids[s] === 0 ? 0 : h.tricks[s]), 0),
       bags: h.bagsAdded[side], bonus: seats.reduce((a, s) => a + nilPts(s), 0), round: h.delta[side],
       pen: h.bagPenalty[side] ? -100 : 0, totalBags: st.bags[side], total: st.scores[side],
     };

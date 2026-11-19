@@ -272,7 +272,7 @@ export function scoreRound(g: GameState): GameState {
         const worth = g.blind?.[s] ? 200 : 100;
         nilResults[s] = ok;
         delta[side] += ok ? worth : -worth;
-        won += g.tricks[s]; // a failed nil's tricks still count toward the partner's contract
+        // a failed nil's tricks do not count toward the partner's contract (and are not bags either)
       } else {
         contract += b;
         won += g.tricks[s];
