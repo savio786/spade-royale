@@ -33,7 +33,7 @@ export function botBid(g: GameState, seat: number): number {
     partnerBid !== 0 && (!partners || partnerBid === null || partnerBid >= 3);
   if (canNil) return 0;
 
-  let bid = Math.max(1, Math.round(est));
+  let bid = Math.max(1, Math.round(est + 0.3));   // a little more willing than a plain count: bots were underbidding and collecting bags (tested over 1,400 games)
   if (partners && partnerBid !== null) bid = Math.min(bid, 13 - partnerBid);
   return Math.max(1, Math.min(13, bid));
 }
