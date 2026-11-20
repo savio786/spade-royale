@@ -8,7 +8,7 @@ import { CrowsTable, CrowsRules, CrowsRulesBody, TableMode } from './CrowsTable'
 import { quickMatch, createTable, createPrivate, findCode, rememberTable, forgetTable, currentTable } from './online';
 import { toast } from '../lib/toast';
 import { changeName, registerMyName, NAME_MAX } from './names';
-import { CrowsRanking } from './CrowsRanking';
+import { CrowsLeaderboard } from './CrowsRanking';
 import { InstallHelp, InstallModal, PictureModal, randomPlayerPicture, useInstall } from './CrowsExtras';
 import { CrowsLobby, CrowsOnlineLobby, GAME_POINTS, PlayModal, type LobbyAction } from './CrowsLobby';
 import { crowsCity, notEnough, refundUnfinished } from './wallet';
@@ -102,7 +102,7 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
   const [tableKey, setTableKey] = useState(0);
   const [rules, setRules] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private' | 'name' | 'create'>(null);
+  const [modal, setModal] = useState<null | 'picture' | 'install' | 'private' | 'name' | 'create' | 'ranking'>(null);
   const [nameNote, setNameNote] = useState<string | null>(null);
   // make sure the game server knows this player's name (names are unique); ask for a new one if it's taken
   useEffect(() => {
@@ -170,14 +170,13 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
       onAgainOnline={() => { forgetTable(); void playOnline(); }}
       onFull={() => { if (++fullTries.current <= 3 && mode.kind === 'online') void playOnline(); else { toast('That table is full.'); setScreen('home'); } }} />;
   }
-  if (screen === 'ranking') return <CrowsRanking onBack={() => setScreen('home')} />;
 
   const act = (a: LobbyAction) => {
     switch (a.t) {
       case 'play': if (a.online) void playOnline(a.bet); else playLocal(a.bet); break;
       case 'online': setScreen('online'); break;
       case 'private': setModal('private'); break;
-      case 'ranking': setScreen('ranking'); break;
+      case 'ranking': setModal('ranking'); break;
       case 'rules': setRules(true); break;
       case 'picture': setModal('picture'); break;
       case 'name': setModal('name'); break;
@@ -196,6 +195,7 @@ export function CrowsApp({ onLeaveSite, installPrompt: fromApp }: { onLeaveSite:
       {modal === 'picture' && <PictureModal onClose={() => setModal(null)} />}
       {modal === 'install' && <InstallModal installPrompt={installPrompt} onClose={() => setModal(null)} />}
       {modal === 'name' && <NameModal current={p.name} note={nameNote} onClose={() => { setModal(null); setNameNote(null); }} />}
+      {modal === 'ranking' && <CrowsLeaderboard onClose={() => setModal(null)} />}
       {modal === 'create' && <PlayModal create target={target} setTarget={setTarget} onClose={() => setModal(null)} onPlay={(b) => { setModal(null); void makeTable(b); }} />}
       {modal === 'private' && <PrivateModal target={target} onClose={() => setModal(null)} onOpen={(tableId) => { setModal(null); setBet(0); openTable({ kind: 'online', tableId }); }} />}
     </>

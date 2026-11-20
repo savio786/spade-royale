@@ -156,7 +156,7 @@ export function CrowsLobby({ onAction, installed, target, setTarget }: { onActio
         </div>
       )}
       <nav className="bottom-nav" aria-label="Main">
-        <button onClick={() => { sfx.click(); onAction({ t: 'ranking' }); }}><Art n="podium" c="nav-img" /><span>RANKING</span></button>
+        <button onClick={() => { sfx.click(); onAction({ t: 'ranking' }); }}><Art n="podium" c="nav-img" /><span>LEADERS</span></button>
         <button onClick={() => { sfx.click(); setModal('me'); }}><img className="nav-img" src="/ui/trophy.webp" alt="" aria-hidden="true" draggable={false} /><span>MY STATS</span></button>
         <button className={`mega ${spinReady ? 'ready' : ''}`} onClick={() => { sfx.click(); setModal('spin'); }} aria-label={spinReady ? 'Mega bonus ready: spin the wheel' : `Mega bonus in ${clock(megaLeft)}`}>
           {spinReady ? (

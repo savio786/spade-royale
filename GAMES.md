@@ -50,11 +50,12 @@ Crows Haven-only files:
   Tables show only the registered name. Old clashing names are asked to change when the game opens.
 - `crows-server/` — the Cloudflare game server (own package.json; not part of the Spades build)
 - `src/crows/CrowsChat.tsx` — table chat: preset phrases + emoji only (no typing), bubbles on seats, computer players reply
-- `src/crows/CrowsRanking.tsx` — weekly ranking page; each finished game is sent to the ranking
-- `api/crows-rank.ts` — Vercel function for the weekly ranking (Render/Spades never runs it). Needs an Upstash Redis
-  database connected to the crows-haven Vercel project (Storage → Upstash for Redis); until then the page says "almost ready".
-  Weeks start Sunday 00:00 UTC; ranked by games won, then points. Results come from the browser (no game server),
-  so each player id is tied to a device secret, rate-limited (1 game / 2 min) and capped.
+- `src/crows/CrowsRanking.tsx` — the leaderboard, the same as Spade Haven's (owner decision 2026-11-19): weekly ranking of coins
+  won (a win adds the prize, a loss takes off the bet, never below 0), last week's results with the same rank rewards
+  (50,000 / 25,000 / 10,000 / 5,000 / 2,500 / 1,000, claimed in the game), and Crows' Fame (weekly champions + all-time).
+  Kept on the Crows Haven game server (`crows-server` → `Board`, GET /board, POST /result). Each result is tied to the
+  player's registered name and device secret, counted once, at most one every 45 s. Only games played for coins count.
+  Weeks start Sunday 00:00 UTC. (The old Vercel `api/crows-rank.ts` + Upstash plan was dropped.)
 - `src/crows/CrowsExtras.tsx` — pictures. Players pick from 12 AI portraits, cartoon characters (drawn people + robot,
   alien, pirate…), animals, things and flowers, or their own photo. Computer players always use the 82 AI portraits
   (40 of Crows Haven's own + the 42 Spades ones from `public/brand/bots/`)

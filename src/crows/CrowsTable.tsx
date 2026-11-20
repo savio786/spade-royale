@@ -209,7 +209,7 @@ function TableUI({ src }: { src: Source }) {
     const won = st.winners[0] === sideOf(ME);
     (won ? sfx.win : sfx.lose)();
     setPaid(settleGame(src.gameId, bet, won));
-    void reportGame(won, st.scores[sideOf(ME)]).then((r) => { if (r?.rank) setWeekRank(r.rank); });
+    void reportGame(src.gameId, won, bet).then((r) => { if (r?.rank) setWeekRank(r.rank); });
   }, [st.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lastBid = (seat: number) => [...st.bidLog].reverse().find((b) => b.seat === seat);

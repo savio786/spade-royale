@@ -9,6 +9,8 @@ import { MY_PHOTO } from './CrowsExtras';
 
 const SERVER = ((import.meta.env.VITE_CROWS_SERVER as string | undefined) ?? '').replace(/\/+$/, '');
 export const onlineAvailable = () => !!SERVER;
+/** The game server's address ('' when there is none). */
+export const crowsServer = () => SERVER;
 
 async function call<T>(path: string, body?: object): Promise<T> {
   const r = await fetch(SERVER + path, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : undefined);

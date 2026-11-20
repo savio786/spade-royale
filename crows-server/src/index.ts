@@ -1,5 +1,6 @@
 // Crows Haven game server (Cloudflare Worker + Durable Objects). Spades doesn't use any of this.
 //
+//  Board         the weekly leaderboard + Crows' Fame (like Spade Haven's): GET /board?pid=, POST /result
 //  Worker        HTTP: POST /quick, POST /create, POST /private, GET /code/:CODE, GET /tables, GET /lobby, GET /health · WebSocket: /ws/:tableId
 //  Lobby (one)   finds an open public table for "Play online", makes private tables with invite codes
 //  Table (each)  one table: seats, the game (shared/crows/engine), computer players (shared/crows/bot),
@@ -18,12 +19,13 @@ import type { ClientMsg, ServerMsg, TableInfo } from '../../shared/crows/protoco
 import { validateName, squash, isGuestName } from '../../shared/crows/names';
 import { CROWS_PORTRAITS } from '../../src/crows/portraits';
 import { BOT_PHOTOS } from '../../shared/botphotos';
-import { normBet, crowsCity } from '../../shared/crows/bets';
+import { normBet, crowsCity, prizeOf } from '../../shared/crows/bets';
 
 export interface Env {
   LOBBY: DurableObjectNamespace<Lobby>;
   TABLE: DurableObjectNamespace<Table>;
   NAMES: DurableObjectNamespace<Names>;
+  BOARD: DurableObjectNamespace<Board>;
   /** testing only: shorter countdowns, e.g. "0.1" */
   TIME_SCALE?: string;
 }
@@ -41,11 +43,21 @@ export default {
     const url = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
     const lobby = () => env.LOBBY.get(env.LOBBY.idFromName('lobby'));
+    const board = () => env.BOARD.get(env.BOARD.idFromName('board'));
     try {
       if (url.pathname === '/health') return json({ ok: true, game: 'crows-haven' });
       if (url.pathname === '/name' && req.method === 'POST') {
         const b = await req.json().catch(() => ({})) as { pid?: string; secret?: string; name?: string; check?: boolean };
-        return json(await env.NAMES.get(env.NAMES.idFromName('names')).claim(String(b.pid ?? ''), String(b.secret ?? ''), b.name, !!b.check));
+        const r = await env.NAMES.get(env.NAMES.idFromName('names')).claim(String(b.pid ?? ''), String(b.secret ?? ''), b.name, !!b.check);
+        if (r.ok && !b.check) await board().touch(String(b.pid), r.name, null);
+        return json(r);
+      }
+      if (url.pathname === '/board') return json(await board().board(url.searchParams.get('pid') ?? ''));
+      if (url.pathname === '/result' && req.method === 'POST') {
+        const b = await req.json().catch(() => ({})) as { pid?: string; secret?: string; gameId?: string; won?: boolean; bet?: number; avatar?: string };
+        const pid = String(b.pid ?? ''), name = await env.NAMES.get(env.NAMES.idFromName('names')).verify(pid, String(b.secret ?? ''));
+        if (!name) return json({ ok: false, message: 'Unknown player' }, 403);
+        return json(await board().result(pid, name, String(b.avatar ?? ''), String(b.gameId ?? ''), !!b.won, normBet(b.bet)));
       }
       if (url.pathname === '/quick' && req.method === 'POST') {
         const b = await req.json().catch(() => ({})) as { target?: number; bet?: number };
@@ -183,6 +195,12 @@ export type ClaimResult = { ok: true; name: string } | { ok: false; message: str
 const PID_RE = /^[\w-]{6,64}$/;
 
 export class Names extends DurableObject<Env> {
+  /** The registered name of the player this device secret belongs to, or null. */
+  async verify(pid: string, secret: string): Promise<string | null> {
+    if (!PID_RE.test(pid)) return null;
+    const me = await this.ctx.storage.get<NameOwner>(`p:${pid}`);
+    return me && me.secret === secret ? me.name : null;
+  }
   async claim(pid: string, secret: string, raw: unknown, check: boolean): Promise<ClaimResult> {
     if (!PID_RE.test(pid) || secret.length < 16 || secret.length > 128) return { ok: false, message: 'Something went wrong — please reload and try again.' };
     const v = validateName(raw, true);
@@ -209,6 +227,96 @@ export class Names extends DurableObject<Env> {
       if (!owner || owner === pid) return wanted;
     }
     return null;
+  }
+}
+
+// ---------------------------------------------------------------- Board
+// The weekly leaderboard, like Spade Haven's: coins won this week (each win adds the prize, each loss takes off the bet,
+// never below 0), last week's top 100 (rank rewards are claimed in the game), the weekly champions and all-time totals
+// (Crows' Fame). Weeks start Sunday 00:00 UTC. Only games played for coins count; only real players are listed.
+interface LbRow { name: string; avatar: string; earnings: number; me?: boolean }
+interface LbEntry { pid: string; name: string; avatar: string; earnings: number }
+interface LbMeta { week: string; lastWeek: { week: string; rows: LbEntry[] } | null; fame: { week: string; name: string; avatar: string; earnings: number }[] }
+interface LbSeen { at: number; games: string[] }
+export function weekKey(d = new Date()) {
+  const s = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  s.setUTCDate(s.getUTCDate() - s.getUTCDay());
+  return s.toISOString().slice(0, 10);
+}
+const weekEndsAt = (d = new Date()) => new Date(weekKey(d) + 'T00:00:00Z').getTime() + 7 * 864e5;
+const GAME_ID_RE = /^(local|online)-[\w-]{4,64}$/;
+const MIN_GAP_MS = 45_000;   // a game takes minutes: one result every 45 s at most
+
+export class Board extends DurableObject<Env> {
+  private async meta(): Promise<LbMeta> {
+    const st = this.ctx.storage;
+    const m = (await st.get<LbMeta>('meta')) ?? { week: weekKey(), lastWeek: null, fame: [] };
+    if (m.week !== weekKey()) {
+      // a new week: keep last week's top 100 and its champion, then start again from zero
+      const week = await st.list<LbEntry>({ prefix: 'w:' });
+      const rows = [...week.values()].filter((r) => r.earnings > 0).sort((a, b) => b.earnings - a.earnings);
+      m.lastWeek = { week: m.week, rows: rows.slice(0, 100) };
+      if (rows[0]) m.fame = [{ week: m.week, name: rows[0].name, avatar: rows[0].avatar, earnings: rows[0].earnings }, ...m.fame].slice(0, 52);
+      m.week = weekKey();
+      const keys = [...week.keys()];
+      for (let i = 0; i < keys.length; i += 128) await st.delete(keys.slice(i, i + 128));
+      await st.put('meta', m);
+    }
+    return m;
+  }
+
+  async result(pid: string, name: string, avatar: string, gameId: string, won: boolean, bet: number) {
+    if (!bet || !GAME_ID_RE.test(gameId)) return { ok: true, counted: false };
+    const st = this.ctx.storage;
+    await this.meta();
+    const seen = (await st.get<LbSeen>(`s:${pid}`)) ?? { at: 0, games: [] };
+    if (seen.games.includes(gameId) || Date.now() - seen.at < MIN_GAP_MS) return { ok: true, counted: false };
+    await st.put(`s:${pid}`, { at: Date.now(), games: [gameId, ...seen.games].slice(0, 30) });
+    const delta = won ? prizeOf(bet) : -bet;
+    const pic = AVATAR_RE.test(avatar) ? avatar : null;
+    for (const k of [`w:${pid}`, `a:${pid}`]) {
+      const e = (await st.get<LbEntry>(k)) ?? { pid, name, avatar: pic ?? 'c1', earnings: 0 };
+      e.name = name; if (pic) e.avatar = pic;
+      e.earnings = Math.max(0, e.earnings + delta);
+      await st.put(k, e);
+    }
+    const rows = await this.sorted('w:');
+    const rank = rows.findIndex((r) => r.pid === pid) + 1;
+    return { ok: true, counted: true, rank: rank || null };
+  }
+
+  /** a player changed their name (or picture): show the new one on the boards */
+  async touch(pid: string, name: string, avatar: string | null) {
+    const st = this.ctx.storage;
+    for (const k of [`w:${pid}`, `a:${pid}`]) {
+      const e = await st.get<LbEntry>(k);
+      if (!e) continue;
+      e.name = name; if (avatar && AVATAR_RE.test(avatar)) e.avatar = avatar;
+      await st.put(k, e);
+    }
+  }
+
+  private async sorted(prefix: string) {
+    return [...(await this.ctx.storage.list<LbEntry>({ prefix })).values()].sort((a, b) => b.earnings - a.earnings);
+  }
+
+  async board(pid: string) {
+    const m = await this.meta();
+    const strip = (r: LbEntry): LbRow => ({ name: r.name, avatar: r.avatar, earnings: r.earnings, ...(r.pid === pid ? { me: true } : {}) });
+    const week = await this.sorted('w:');
+    const all = (await this.sorted('a:')).filter((r) => r.earnings > 0);
+    const rankIn = (rows: LbEntry[]) => { const i = rows.findIndex((r) => r.pid === pid); return i < 0 ? null : i + 1; };
+    const meWeek = week.find((r) => r.pid === pid);
+    const meAll = all.find((r) => r.pid === pid);
+    return {
+      week: m.week, endsAt: weekEndsAt(),
+      rows: week.slice(0, 100).map(strip),
+      me: { rank: rankIn(week), earnings: meWeek?.earnings ?? 0 },
+      lastWeek: m.lastWeek ? { week: m.lastWeek.week, rank: rankIn(m.lastWeek.rows), rows: m.lastWeek.rows.map(strip) } : null,
+      fame: m.fame,
+      allTime: all.slice(0, 100).map(strip),
+      meAllTime: { rank: rankIn(all), earnings: meAll?.earnings ?? 0 },
+    };
   }
 }
 
