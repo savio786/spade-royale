@@ -32,11 +32,11 @@ button.pcard { border: 0; padding: 0; font: inherit; text-align: left; }
 .fan .hcard.is-trump.legal { box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px #c8102e, 0 0 18px rgba(255,200,61,.85); }
 
 /* coloured suits: --rc fill colour, --rc-ink text on that colour, --rc-text the number on a white card */
-.rc-R { --rc: #d4202c; --rc-dk: #8f0f19; --rc-ink: #fff; --rc-text: #d4202c; }
-.rc-Y { --rc: #f7c21b; --rc-dk: #b8860b; --rc-ink: #3a2600; --rc-text: #d99500; }
-.rc-G { --rc: #1e9e4a; --rc-dk: #0e5e2b; --rc-ink: #fff; --rc-text: #178a3f; }
-.rc-K { --rc: #24232c; --rc-dk: #000; --rc-ink: #fff; --rc-text: #1b1a22; }
-.rc-chip { display: inline-block; flex: none; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--rc) 70%, #fff), var(--rc) 55%, var(--rc-dk));
+.rc-R { --rc-lt: #e5747b; --rc: #d4202c; --rc-dk: #8f0f19; --rc-ink: #fff; --rc-text: #d4202c; }
+.rc-Y { --rc-lt: #fadb76; --rc: #f7c21b; --rc-dk: #b8860b; --rc-ink: #3a2600; --rc-text: #d99500; }
+.rc-G { --rc-lt: #6dc08a; --rc: #1e9e4a; --rc-dk: #0e5e2b; --rc-ink: #fff; --rc-text: #178a3f; }
+.rc-K { --rc-lt: #6b6a72; --rc: #24232c; --rc-dk: #000; --rc-ink: #fff; --rc-text: #1b1a22; }
+.rc-chip { display: inline-block; flex: none; border-radius: 50%; background: radial-gradient(circle at 35% 30%, var(--rc-lt), var(--rc) 55%, var(--rc-dk));
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.7), 0 0 0 2px var(--rc-dk), 0 2px 4px rgba(0,0,0,.35); }
 .pcard.crows-rc { background: #fffdf7; color: var(--rc-text); }
 .rc-frame { position: absolute; inset: 4.5%; border-radius: calc(var(--w) * .07); border: calc(var(--w) * .035) solid var(--rc); opacity: .9; pointer-events: none; }
@@ -47,7 +47,7 @@ button.pcard { border: 0; padding: 0; font: inherit; text-align: left; }
 .rc-Y .rc-num { -webkit-text-stroke: .6px #8a5d00; }
 .rc-mid { position: absolute; left: 50%; top: 50%; translate: -50% -52%; display: flex; flex-direction: column; align-items: center; gap: calc(var(--w) * .03); }
 .rc-disc { width: calc(var(--w) * .58); height: calc(var(--w) * .58); border-radius: 50%; display: grid; place-items: center;
-  background: radial-gradient(circle at 35% 28%, color-mix(in srgb, var(--rc) 65%, #fff), var(--rc) 50%, var(--rc-dk));
+  background: radial-gradient(circle at 35% 28%, var(--rc-lt), var(--rc) 50%, var(--rc-dk));
   box-shadow: inset 0 0 0 calc(var(--w) * .025) rgba(255,255,255,.75), 0 0 0 calc(var(--w) * .015) var(--rc-dk), 0 3px 6px rgba(0,0,0,.3); }
 .rc-disc b { font: 400 calc(var(--w) * .34)/1 var(--display); color: var(--rc-ink); letter-spacing: -1px; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
 .rc-Y .rc-disc b { text-shadow: 0 1px 0 rgba(255,255,255,.5); }
@@ -100,7 +100,7 @@ button.pcard { border: 0; padding: 0; font: inherit; text-align: left; }
 /* choosing the 5 cards to put down */
 .fan .hcard.pick { cursor: pointer; }
 .fan .hcard.picked { transform: translateY(-50px); box-shadow: 0 0 0 4px #ff5a6a, 0 0 18px rgba(255,90,106,.85); }
-.table-screen:has(.crows-nest-dlg) .fan { bottom: 30px; }
+.table-screen.crows-choosing .fan { bottom: 30px; }
 /* bids 100–180 */
 .crows-bid { width: 860px; }
 .crows-bid .bd-grid { grid-template-columns: repeat(9, 1fr); gap: 10px 12px; }
@@ -283,9 +283,8 @@ body.crows-site { background: var(--wine-3, #16020b); }
 
 /* a crow flying round the earth on the Online Lobby button */
 .crow-orbit { position: relative; width: 100%; height: 100%; pointer-events: none; }
-.crow-fly { position: absolute; left: 50%; top: 50%; width: 62px; height: 42px; margin: -21px 0 0 -31px; will-change: transform;
-  filter: drop-shadow(0 0 2px rgba(255,236,170,.9)) drop-shadow(0 3px 3px rgba(0,0,0,.55)); }
-.crow-fly svg { display: block; fill: #15121d; overflow: visible; }
+.crow-fly { position: absolute; left: 50%; top: 50%; width: 62px; height: 42px; margin: -21px 0 0 -31px; will-change: transform; }
+.crow-fly svg { display: block; fill: #15121d; overflow: visible; stroke: #ffe9a8; stroke-width: 1.4px; stroke-linejoin: round; paint-order: stroke; }
 .cf-wing { transform-box: fill-box; transform-origin: 30% 100%; animation: crowFlap .42s ease-in-out infinite alternate; }
 .cf-wing.back { fill: #2a2436; animation-delay: -.06s; }
 @keyframes crowFlap { from { transform: scaleY(1) skewX(-6deg); } to { transform: scaleY(-.75) skewX(8deg); } }

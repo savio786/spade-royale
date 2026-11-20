@@ -279,7 +279,7 @@ function TableUI({ src }: { src: Source }) {
   const bidSide = st.highBidder === null ? null : sideOf(st.highBidder);
 
   return (
-    <div className={`screen table-screen felt-bg crows-screen ${st.trump ? `trump-${st.trump}` : ''} ${p.settings.bigCards ? 'big-cards' : ''}`} style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
+    <div className={`screen table-screen felt-bg crows-screen ${choosingNest ? 'crows-choosing' : ''} ${st.trump ? `trump-${st.trump}` : ''} ${p.settings.bigCards ? 'big-cards' : ''}`} style={themeVars(activeTheme(p.theme, levelFromXp(p.xp)))}>
       <div className="table-scene" style={{ backgroundImage: `url(/ui/city/${crowsCity(bet).toLowerCase().replace(/\s+/g, '')}.webp)` }} aria-hidden="true" />
       <div className="tbl-top-left">
         <button className="crows-exit-btn" onClick={() => { sfx.click(); if (inGame) setConfirmExit(true); else onExit(); }} aria-label="Exit the table"><Icon name="left" size={26} /></button>

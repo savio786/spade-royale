@@ -40,11 +40,11 @@ function FlyingCrow() {
   useEffect(() => {
     const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const tilt = (-24 * Math.PI) / 180, cos = Math.cos(tilt), sin = Math.sin(tilt);
-    let raf = 0, t0 = performance.now();
+    let raf = 0, t0 = performance.now(), r = 0, frames = 0;
     const place = (now: number) => {
       const el = bird.current, b = box.current;
       if (!el || !b) return;
-      const r = b.offsetWidth * 0.52;
+      if (!r || ++frames % 120 === 0) r = b.offsetWidth * 0.52;   // measure the ring now and then, not every frame
       const hover = !!b.closest('.ring-btn:hover');
       const a = still ? Math.PI * 0.62 : ((now - t0) / (hover ? 3500 : 7000)) * Math.PI * 2;
       const ex = r * Math.cos(a), ey = r * 0.36 * Math.sin(a);       // the ring: a circle squashed to 36% and turned -24°
@@ -57,8 +57,10 @@ function FlyingCrow() {
       el.style.opacity = front ? '1' : '.8';
       if (!still) raf = requestAnimationFrame(place);
     };
+    const vis = () => { cancelAnimationFrame(raf); if (!document.hidden && !still) raf = requestAnimationFrame(place); };
+    document.addEventListener('visibilitychange', vis);
     if (still) place(performance.now()); else raf = requestAnimationFrame((n) => { t0 = n; place(n); });
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', vis); };
   }, []);
   return (
     <span className="crow-orbit" ref={box}>
