@@ -25,6 +25,7 @@ import { LIVE_SERVER } from '../lib/config';
 import { ShareIcon } from './Install';
 import type { SocialPerson } from '../../shared/protocol';
 import { Mode, prizeFor, secondPrizeFor } from '../../shared/engine';
+import { clickMark } from '../lib/controller';
 
 export interface StartRequest {
   mode: Mode; bet: number; minPoints: number; maxPoints: number;
@@ -841,6 +842,7 @@ export function CreateTableModal({ mode, onClose, onCreate, title = 'Create', pr
       {p.coins < bet ? <Pill color="gold" className="play-now-btn" onClick={() => store.open({ tab: 'coins', need: bet })}>{tr("BUY COINS")}</Pill> :
       <Pill color="green" className="play-now-btn" onClick={() => {
         const s = { bet, minPoints: MIN_STEPS[mi], maxPoints: MAX_STEPS[xi] };
+        clickMark.click = Date.now();
         profile.set({ lastTable: s });
         onCreate(s);
       }}>{tr("PLAY NOW")}</Pill>}

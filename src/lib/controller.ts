@@ -39,6 +39,9 @@ function me() {
   return { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), stats: publicStats(p) };
 }
 
+/** Timing only: when Play Now was pressed and when the table first drew (to find where a delay is). */
+export const clickMark = { click: 0, ctl: 0, sent: false };
+
 export class LocalController implements TableController {
   rt: TableRuntime;
   private view: CtlView;
@@ -80,6 +83,7 @@ export class RemoteController implements TableController {
   constructor(join: RemoteJoin) {
     this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null, conn: 'ok' };
     const t0 = Date.now(), openAtStart = net.isOpen();
+    clickMark.ctl = t0; clickMark.sent = false;
     let reported = false, joinedAt = 0;
     const offMsg = net.on((m) => {
       if (m.t === 'joined' && !joinedAt) joinedAt = Date.now() - t0;

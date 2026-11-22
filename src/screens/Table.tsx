@@ -6,7 +6,8 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { Avatar, CardView, Coin, Icon, Modal, Pill } from '../components/ui';
 import { Card, legalCards, prizeFor, secondPrizeFor, sameCard, sideCount, sideOf, seatsOfSide, PublicState } from '../../shared/engine';
 import { botBid } from '../../shared/bot';
-import type { CtlView, TableController } from '../lib/controller';
+import { net } from '../lib/net';
+import { clickMark, type CtlView, type TableController } from '../lib/controller';
 import { cityForBet, fmt, levelFromXp, profile, publicStats, short, useProfile, xpForLevel } from '../lib/profile';
 import { PlayerCard, ReportDialog } from '../components/PlayerCard';
 import { music, sfx, vibrate } from '../lib/sound';
@@ -231,6 +232,17 @@ export function Table({ ctl, onExit, onPlayAgain, onRematch }: { ctl: TableContr
     ctl.leave();
     onExit();
   };
+
+  // timing only: how long from pressing Play Now until the table has drawn (reported once per table)
+  const drawn = !!view && !!st;
+  useEffect(() => {
+    if (!drawn || clickMark.sent || !clickMark.click) return;
+    clickMark.sent = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const now = Date.now();
+      if (view?.online) net.send({ t: 'perf', ms: now - clickMark.click, open: true, waited: clickMark.ctl - clickMark.click, pre: clickMark.ctl - clickMark.click, paint: now - clickMark.ctl });
+    }));
+  }, [drawn]);
 
   if (!view || !st) {
     return <div className={`screen table-screen felt-bg fall-${fall}`}><div className="connecting">{tr("Connecting to table…")}</div>

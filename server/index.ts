@@ -387,7 +387,7 @@ function handle(c: Client, m: ClientMsg) {
       void walletHello(c).catch((e) => console.error('wallet hello', e));
       return send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() });
     }
-    case 'perf': { const ms = Math.round(Number(m.ms)), j = Math.round(Number(m.waited)); if (ms >= 0 && ms < 120000) console.log(`client timing: click to table ${ms}ms (joined after ${Number.isFinite(j) ? j : '?'}ms, connection already open: ${m.open ? 'yes' : 'no'})`); return; }
+    case 'perf': { const ms = Math.round(Number(m.ms)), j = Math.round(Number(m.waited)); if (ms >= 0 && ms < 120000) console.log(m.paint !== undefined ? `client timing: click to table drawn ${ms}ms (button to connect ${Math.round(Number(m.pre))}ms, connect to drawn ${Math.round(Number(m.paint))}ms)` : `client timing: connect to first table update ${ms}ms (joined after ${Number.isFinite(j) ? j : '?'}ms, connection already open: ${m.open ? 'yes' : 'no'})`); return; }
     case 'wallet': return void walletHello(c).catch((e) => console.error('wallet', e));
     case 'earn': case 'spend': {
       const p = c.player;
