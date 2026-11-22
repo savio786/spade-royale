@@ -22,7 +22,7 @@ import { adminApi } from './admin';
 import { trackApi } from './analytics';
 import { deleteAccount } from './deleteAccount';
 import { mailConfigured, sendMail } from './mail';
-import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, strike } from './moderation';
+import { MUTED_MESSAGE, SUSPENDED_MESSAGE, addReport, initModeration, isBanned, isDeviceBanned, isMuted, noteDevice, sameDevice, strike } from './moderation';
 import { cleanChat } from './profanity';
 import { collectReferralCoins, initReferrals, redeemInvite, referralInfo } from './referrals';
 import { claim, createCheckout, handleWebhook, hasChatPass, initPayments, isVip, paymentProvider, paymentsEnabled, paypalCapture, stripeConfirm } from './payments';
@@ -289,6 +289,7 @@ function rejoin(c: Client, tableId: string) {
 /** Sits the player down. Returns the seat, or -1 (after telling them why). */
 function seatNow(c: Client, room: Room, paid: boolean): number {
   const p = c.player!;
+  if (browserConflict(room, p.id)) { send(c, { t: 'error', message: 'Another account from this browser is already at this table. Please choose a different table.' }); return -1; }
   const held = room.reserved?.get(p.id);   // a rematch table keeps your old seat (and so your team) for you
   // seats kept for the people from the last game are off limits to everyone else
   const heldForOthers = held === undefined ? [...(room.reserved?.values() ?? [])] : [];
@@ -303,8 +304,12 @@ function seatNow(c: Client, room: Room, paid: boolean): number {
   return seat;
 }
 
+/** Is another account from the same browser already sitting at this table? One person must not play against their own accounts. */
+const browserConflict = (room: Room, id: string) => room.rt.g.seats.some((s) => !!s && !s.bot && sameDevice(s.id, id));
+
 function seatClient(c: Client, room: Room) {
   if (!c.player) return send(c, { t: 'error', message: 'Say hello first' });
+  if (browserConflict(room, c.player.id)) return send(c, { t: 'error', message: 'Another account from this browser is already at this table. Please choose a different table.' });
   stopWatching(c);
   leave(c, false);
   if (!walletOn()) { seatNow(c, room, false); return; }
@@ -422,7 +427,7 @@ function handle(c: Client, m: ClientMsg) {
     case 'unwatch': return stopWatching(c, true);
     case 'quick': {
       const s = sanitize(m.settings);
-      const match = [...rooms.values()].find((r) => !r.code && r.rt.g.phase === 'waiting' && r.rt.g.seats.some((x) => !x) &&
+      const match = [...rooms.values()].find((r) => !r.code && r.rt.g.phase === 'waiting' && r.rt.g.seats.some((x) => !x) && !(c.player && browserConflict(r, c.player.id)) &&
         r.rt.g.settings.mode === s.mode && r.rt.g.settings.bet === s.bet && r.rt.g.settings.maxPoints === s.maxPoints && r.rt.g.settings.minPoints === s.minPoints);
       return seatClient(c, match ?? createRoom(s, c.player?.id ?? '', false));
     }

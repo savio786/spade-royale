@@ -91,6 +91,8 @@ export function sharedDeviceGroups(): string[][] {
   for (const [id, dev] of Object.entries(store.devices)) by.set(dev, [...(by.get(dev) ?? []), id]);
   return [...by.values()].filter((g) => g.length > 1);
 }
+/** Were these two different accounts used from the same browser? (Used to keep one person's several accounts off the same table.) */
+export const sameDevice = (a: string, b: string) => !!a && !!b && a !== b && !!store.devices[a] && store.devices[a] === store.devices[b];
 export const isDeviceBanned = (dev: string) => !!dev && !!store.bannedDevices[dev];
 
 /** Account deletion: drop the chat mute and the device link. The suspension itself (name, email, reason) is kept so it cannot be dodged by deleting. */
