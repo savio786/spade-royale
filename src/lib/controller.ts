@@ -79,7 +79,11 @@ export class RemoteController implements TableController {
   private off: () => void;
   constructor(join: RemoteJoin) {
     this.view = { snap: null, code: null, host: false, online: true, error: null, settings: join.settings, kicked: null, conn: 'ok' };
+    const t0 = Date.now(), openAtStart = net.isOpen();
+    let reported = false, joinedAt = 0;
     const offMsg = net.on((m) => {
+      if (m.t === 'joined' && !joinedAt) joinedAt = Date.now() - t0;
+      if (m.t === 'snap' && !reported) { reported = true; net.send({ t: 'perf', ms: Date.now() - t0, open: openAtStart, waited: joinedAt }); }
       if (m.t === 'watching') { this.watchId = m.tableId; this.update({ watching: true, settings: m.settings, error: null, conn: 'ok' }); }
       else if (m.t === 'joined') { this.tableId = m.tableId; this.update({ wallet: !!m.wallet, code: m.code, host: m.host, settings: m.settings, error: null, conn: 'ok' }); }
       else if (m.t === 'snap') this.update({ snap: { ...m.snap, state: this.watchId ? { ...m.snap.state, mySeat: 0 } : m.snap.state, skew: m.snap.serverNow ? m.snap.serverNow - Date.now() : 0 } });   // a watcher sees the table from the first seat, with no cards of their own

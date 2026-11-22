@@ -79,6 +79,7 @@ class Net {
     return { t: 'hello', player: { id: p.id, name: p.name || 'Guest', avatar: p.avatar, level: levelFromXp(p.xp), chat: canChat(p), stats: publicStats(p) }, key: p.guestKey ?? undefined };
   }
   hello() { this.send(this.helloMsg()); }
+  isOpen() { return !!this.ws && this.ws.readyState === WebSocket.OPEN; }
 
   send(m: ClientMsg) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(m));

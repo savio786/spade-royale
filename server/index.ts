@@ -387,6 +387,7 @@ function handle(c: Client, m: ClientMsg) {
       void walletHello(c).catch((e) => console.error('wallet hello', e));
       return send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() });
     }
+    case 'perf': { const ms = Math.round(Number(m.ms)), j = Math.round(Number(m.waited)); if (ms >= 0 && ms < 120000) console.log(`client timing: click to table ${ms}ms (joined after ${Number.isFinite(j) ? j : '?'}ms, connection already open: ${m.open ? 'yes' : 'no'})`); return; }
     case 'wallet': return void walletHello(c).catch((e) => console.error('wallet', e));
     case 'earn': case 'spend': {
       const p = c.player;
