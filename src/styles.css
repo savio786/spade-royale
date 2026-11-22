@@ -255,7 +255,7 @@ input { font: inherit; }
 .lb-wrap { display: flex; gap: 22px; min-height: 0; flex: 1; }
 .lb-main { flex: 1; display: flex; flex-direction: column; min-height: 0; max-height: 520px; }
 /* tall desktop windows: the leaderboard fills the window so many more players show (the list scrolls inside; the note and your rank stay at the bottom) */
-@media (min-height: 760px) and (hover: hover) {
+@media (min-height: 520px) and (hover: hover) {
   .modal.lb-modal { height: calc(100% - 24px); }
   .modal.lb-modal .modal-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .lb-title { flex: none; }
@@ -2104,6 +2104,24 @@ body.calm .fame-card::before, body.calm .fame-cup-img { animation: none; }
 .medal-img { width: 80px; height: 80px; margin: -4px 0; }
 .lb-row.t1 .medal-img { width: 92px; height: 92px; margin: -4px 0; }
 .lb-row.top .lb-rank { width: 84px; }
+/* windows under ~860px tall: tighter rows so more of the leaderboard shows at once */
+@media (max-height: 860px) and (hover: hover) {
+  .lb-title { font-size: 42px; margin-bottom: 6px; }
+  .lb-title img { width: 48px; height: 48px; }
+  .lb-modal .tab { height: 44px; }
+  .lb-list { gap: 6px; }
+  .lb-row { padding-top: 3px; padding-bottom: 3px; gap: 12px; }
+  .lb-row .avatar, .lb-row img.avatar { width: 40px !important; height: 40px !important; }
+  .lb-name { font-size: 30px; }
+  .lb-earn { font-size: 32px; }
+  .lb-row.top { padding-top: 4px; padding-bottom: 4px; }
+  .lb-row.top .lb-name { font-size: 34px; }
+  .lb-row.top .lb-earn { font-size: 36px; }
+  .medal-img { width: 56px; height: 56px; margin: -4px 0; }
+  .lb-row.t1 .medal-img { width: 62px; height: 62px; margin: -4px 0; }
+  .lb-row:not(.top) .lb-rank { width: 38px; height: 38px; font-size: 22px; }
+  .lb-note { font-size: 12px; line-height: 1.3; margin-top: 4px; }
+}
 .rewards { padding-top: 14px; }
 .rewards-title { margin-top: 2px; line-height: 1.1; }
 
