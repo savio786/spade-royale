@@ -323,11 +323,15 @@ function seatClient(c: Client, room: Room) {
   c.seating = true;
   const p = c.player;
   void (async () => {
+    const t0 = Date.now();
     await c.auth;
+    const tAuth = Date.now() - t0;
     if (c.player !== p || !c.verified) { send(c, { t: 'error', message: 'Your account could not be verified. Close and reopen the game, then try again.' }); return; }
     const bet = room.rt.g.settings.bet;
     // fast path: a player who already has a wallet just has the bet taken (2 database calls). Only a first-time or empty wallet looks up the saved account.
+    const t1 = Date.now();
     let left = await escrowBet(p.id, bet, room.id);
+    const tBet = Date.now() - t1;
     if (left === -1 && (await balanceOf(p.id)) === null) {
       await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
       left = await escrowBet(p.id, bet, room.id);
@@ -341,6 +345,7 @@ function seatClient(c: Client, room: Room) {
     const seat = ok ? seatNow(c, room, true) : -1;
     if (seat < 0) { pushWallet(p.id, await refundEscrow(p.id)); if (!ok) send(c, { t: 'error', message: 'That table is no longer available' }); return; }
     pushWallet(p.id, left);
+    console.log(`seat timing: auth ${tAuth}ms, bet ${tBet}ms, total ${Date.now() - t0}ms`);   // timing only: no names or ids
   })().catch((e) => { console.error('seat', e); send(c, { t: 'error', message: 'Could not join the table. Try again.' }); }).finally(() => { c.seating = false; });
 }
 
