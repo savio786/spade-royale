@@ -326,8 +326,12 @@ function seatClient(c: Client, room: Room) {
     await c.auth;
     if (c.player !== p || !c.verified) { send(c, { t: 'error', message: 'Your account could not be verified. Close and reopen the game, then try again.' }); return; }
     const bet = room.rt.g.settings.bet;
-    await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
-    const left = await escrowBet(p.id, bet, room.id);
+    // fast path: a player who already has a wallet just has the bet taken (2 database calls). Only a first-time or empty wallet looks up the saved account.
+    let left = await escrowBet(p.id, bet, room.id);
+    if (left === -1 && (await balanceOf(p.id)) === null) {
+      await ensureWallet(p.id, await savedCoins(p.id).catch(() => null), p.stats?.coins ?? null);
+      left = await escrowBet(p.id, bet, room.id);
+    }
     if (left < 0) {
       send(c, { t: 'error', message: left === -2 ? 'You are already sitting at a table' : 'You do not have enough coins for this table' });
       pushWallet(p.id, await balanceOf(p.id));

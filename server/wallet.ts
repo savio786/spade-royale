@@ -47,14 +47,21 @@ export const walletClosing = () => closing;
 
 // ---- bets held while a game is on ----
 interface Escrow { id: string; bet: number; tableId: string; ts: number; boot: string }
+const checkedOld = new Set<string>();   // players whose old leftover bet was already looked for this run
 const mine = new Map<string, number>();   // player id -> bet, for this server run (refunded on shutdown)
 
 /** Takes the bet when the player sits down. Returns the new balance, -1 if they can't afford it, -2 if they already hold a seat at another table. */
 export const escrowBet = (id: string, bet: number, tableId: string): Promise<number> => alone(id, async () => {
   if (closing) return -1;
-  const old = await getRecord<Escrow>(`escrow-${id}`).catch(() => null);
-  if (old && old.boot === BOOT && mine.has(id)) return -2;
-  if (old) await walletAdd(id, old.bet);   // a leftover from a table that no longer exists
+  if (mine.has(id)) return -2;   // already holds a seat this server run
+  // a leftover bet from a server that was replaced is looked for once per player per run (later sits skip the database read: anything held this run is in `mine`)
+  if (!checkedOld.has(id)) {
+    const old = await getRecord<Escrow>(`escrow-${id}`).catch(() => null);
+    if (old && old.boot === BOOT && mine.has(id)) return -2;
+    if (old) await walletAdd(id, old.bet);   // a leftover from a table that no longer exists
+    checkedOld.add(id);
+    if (checkedOld.size > 20_000) { checkedOld.clear(); checkedOld.add(id); }
+  }
   const left = await walletTake(id, bet);
   if (left < 0) return -1;
   mine.set(id, bet);
