@@ -47,7 +47,7 @@ export const TOPICS: Topic[] = [
     answer: 'Make your bid: 10 × your bid (extra tricks, called bags, add no points). Miss it ("get set"): −10 × your bid. Nil: +100 or −100. Every 10 bags: −100. After each round a summary shows bids, books and points.',
     related: ['bags', 'winning', 'nil'] },
   { id: 'winning', title: 'How do I win?', keys: ['win', 'winning', 'end', 'ending points', 'end game', 'game end', 'game over', 'max points', 'min points', 'how long', 'when does it end', 'prize'],
-    answer: 'Each table has game-ending points, for example −100/100. The game ends when a side reaches the maximum or drops to the minimum, and the highest score wins. If two sides are level, the side with fewer bags wins. Winners get the prize: 1.8× the bet each in Partners, 3.6× in Solo (+10% with VIP). In Solo, second place gets their bet back; third and fourth lose their bet.',
+    answer: 'Each table has game-ending points, for example −100/100. The game ends when a side reaches the maximum or drops to the minimum, and the highest score wins. If two sides are level, the side with fewer bags wins. Winners get the prize: 1.8× the bet each in Partners, 3× in Solo (+10% with VIP). In Solo, second place gets their bet back; third and fourth lose their bet.',
     related: ['solo-partners', 'scoring'] },
   { id: 'solo-partners', title: 'Solo vs Partners', keys: ['solo', 'partner', 'partners', 'team', 'teammate', 'difference', 'mode', 'alone'],
     answer: 'Partners: classic Spades, two teams of two. You sit across from your partner and your bids and books are combined. Solo: four players, everyone for themselves, the winner takes a bigger prize and second place gets their bet back.',

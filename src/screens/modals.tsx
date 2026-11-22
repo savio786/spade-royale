@@ -788,7 +788,7 @@ export function ModeRulesModal({ mode, onClose }: { mode: Mode; onClose: () => v
         ? 'Every extra trick over your bid is a “bag” and adds no points. Your bags keep adding up from hand to hand, and every time they reach 10 you lose **100 points**, so don\'t win more than you need!'
         : 'Every extra trick over your bid is a “bag” and adds no points. Your team\'s bags keep adding up from hand to hand, and every time they reach 10 you lose **100 points**, so don\'t win more than you need!'))}</p>)}
       {sec('Winning', <p>{rich(tr(solo
-        ? "The game ends when a player reaches the table's top score or drops to its lowest score. The highest score wins, and the winner takes **3.6×** the bet. If two players are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand."
+        ? "The game ends when a player reaches the table's top score or drops to its lowest score. The highest score wins, and the winner takes **3×** the bet. If two players are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand."
         : "The game ends when a team reaches the table's top score or drops to its lowest score. The highest score wins, and **both partners** on the winning team take **1.8×** the bet. If two teams are level at the top, the one with fewer bags wins; if the bags are level too, you play another hand."))}</p>)}
       <Pill color="green" className="wide-btn" onClick={onClose}>{tr("GOT IT")}</Pill>
     </Modal>

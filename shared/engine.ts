@@ -78,9 +78,9 @@ export const sideCount = (mode: Mode) => (mode === 'partners' ? 2 : 4);
 export const sideOf = (mode: Mode, seat: number) => (mode === 'partners' ? seat % 2 : seat);
 export const seatsOfSide = (mode: Mode, side: number) => (mode === 'partners' ? [side, side + 2] : [side]);
 
-/** Prize paid to each winning seat. Partners: both winners get 1.8x bet. Solo: winner gets 3.6x bet. */
+/** Prize paid to each winning seat. Partners: both winners get 1.8x bet. Solo: winner gets 3x bet. */
 export function prizeFor(settings: Pick<TableSettings, 'mode' | 'bet'>): number {
-  return Math.round(settings.bet * (settings.mode === 'partners' ? 1.8 : 3.6));
+  return Math.round(settings.bet * (settings.mode === 'partners' ? 1.8 : 3.0));
 }
 
 /** Solo only: second place gets their bet back (a loss on their record, but no coins lost; third and fourth lose the bet). */
