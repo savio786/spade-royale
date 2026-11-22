@@ -196,16 +196,20 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
   rt.onGameOver = (g) => {
     // credit real winners on the weekly leaderboard (server-authoritative for online games)
     const prize = prizeFor(g.settings);
+    const solo = g.settings.mode === 'solo';
+    // the boards credit stakes, not the full payout, so totals stay low: partners winners get the stake (50,000 table = 50,000 each);
+    // solo is harder (1 of 4), so the winner gets 1.8x the stake (90,000) and 2nd place gets their stake (50,000). The coins paid by the wallet are unchanged.
+    const boardWin = Math.round(g.settings.bet * (solo ? 1.8 : 1));
     const winnerSeats = new Set<number>();
     for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
       winnerSeats.add(seat);
       const s = g.seats[seat];
-      // the boards credit the stake (a 50,000 game = 50,000 for each winner) so totals stay low and comparable; the coins a winner collects (90,000 partners) are paid by the wallet and are unchanged
-      if (s && !s.bot) { credit(s, g.settings.bet); noteWin(s.id, 'online', prize); }
+      if (s && !s.bot) { credit(s, boardWin); noteWin(s.id, 'online', prize); }
     }
-    // real players on the losing side(s) lose their bet from the weekly and all-time totals
-    // solo: 2nd place gets their bet back (their client refunds it): no board credit and no board debit
-    const second = g.settings.mode === 'solo' && g.placements?.length > 1 && !winnerSeats.has(g.placements[1]) ? g.placements[1] : -1;
+    // solo: 2nd place gets their bet back in coins (their client refunds it) and the stake on the board; third and fourth lose the stake from the board
+    const second = solo && g.placements?.length > 1 && !winnerSeats.has(g.placements[1]) ? g.placements[1] : -1;
+    const sec = second >= 0 ? g.seats[second] : null;
+    if (sec && !sec.bot) credit(sec, g.settings.bet);
     if (winnerSeats.size) g.seats.forEach((s, seat) => { if (s && !s.bot && !winnerSeats.has(seat) && seat !== second) debit(s, g.settings.bet); });
     walletPayout(room, winnerSeats, second);
     setTimeout(() => { if (room.clients.size === 0) closeRoom(room); }, 60_000);

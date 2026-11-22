@@ -442,7 +442,7 @@ const dict: Record<string, string> = {
  "Language": "भाषा",
  "The leaderboard could not be loaded right now. Your wins this week still count on this device.": "लीडरबोर्ड अभी लोड नहीं हो सका। इस सप्ताह की आपकी जीत इस डिवाइस पर अभी भी गिनी जाती है।",
  "Only games played at online tables count toward the rankings. Practice games against the computer don't.": "रैंकिंग में केवल ऑनलाइन टेबल पर खेले गए गेम गिने जाते हैं। कंप्यूटर के खिलाफ अभ्यास वाले गेम नहीं गिने जाते।",
- "Rankings are by stakes won: a win adds your table's stake, a loss takes it off. The coins you collect are paid separately.": "रैंकिंग जीती गई स्टेक के आधार पर होती है: जीत पर आपकी टेबल की स्टेक जुड़ती है और हार पर घटती है। आपके द्वारा जीते गए सिक्के अलग से दिए जाते हैं।",
+ "Rankings are by stakes won. Partners: a win adds your table's stake, a loss takes it off. Solo: 1st adds 1.8× the stake, 2nd adds the stake, 3rd and 4th lose it. The coins you collect are paid separately.": "रैंकिंग जीती गई स्टेक के आधार पर होती है। जोड़ी: जीत पर आपकी टेबल की स्टेक जुड़ती है और हार पर घटती है। अकेले: पहले स्थान पर 1.8× स्टेक जुड़ती है, दूसरे पर स्टेक जुड़ती है, तीसरे और चौथे की स्टेक घटती है। आपके द्वारा जीते गए सिक्के अलग से दिए जाते हैं।",
  "TABLE & CARDS": "टेबल और पत्ते",
   "Copy last rounds (to report a bad bot move)": "पिछले राउंड कॉपी करें (बॉट की गलत चाल बताने के लिए)",
 };

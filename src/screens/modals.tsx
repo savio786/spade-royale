@@ -101,7 +101,7 @@ export function LeaderboardModal({ onClose }: { onClose: () => void }) {
                     </li>
                   ))}
                 </ol>
-                <p className="lb-note">{tr("Only games played at online tables count toward the rankings. Practice games against the computer don't.")} {tr("Rankings are by stakes won: a win adds your table's stake, a loss takes it off. The coins you collect are paid separately.")}</p>
+                <p className="lb-note">{tr("Only games played at online tables count toward the rankings. Practice games against the computer don't.")} {tr("Rankings are by stakes won. Partners: a win adds your table's stake, a loss takes it off. Solo: 1st adds 1.8× the stake, 2nd adds the stake, 3rd and 4th lose it. The coins you collect are paid separately.")}</p>
               </>
             )
           ) : (
