@@ -200,7 +200,8 @@ function createRoom(settings: TableSettings, hostId: string, isPrivate: boolean)
     for (const side of g.winners) for (const seat of seatsOfSide(g.settings.mode, side)) {
       winnerSeats.add(seat);
       const s = g.seats[seat];
-      if (s && !s.bot) { credit(s, prize); noteWin(s.id, 'online', prize); }   // the boards show the full prize a winner collects (a 50,000 partners game = 90,000)
+      // the boards credit the stake (a 50,000 game = 50,000 for each winner) so totals stay low and comparable; the coins a winner collects (90,000 partners) are paid by the wallet and are unchanged
+      if (s && !s.bot) { credit(s, g.settings.bet); noteWin(s.id, 'online', prize); }
     }
     // real players on the losing side(s) lose their bet from the weekly and all-time totals
     // solo: 2nd place gets their bet back (their client refunds it): no board credit and no board debit

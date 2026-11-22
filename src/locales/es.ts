@@ -442,6 +442,7 @@ const dict: Record<string, string> = {
  "Language": "Idioma",
  "The leaderboard could not be loaded right now. Your wins this week still count on this device.": "La tabla de clasificación no se pudo cargar ahora. Tus victorias de esta semana siguen contando en este dispositivo.",
  "Only games played at online tables count toward the rankings. Practice games against the computer don't.": "Solo cuentan para la clasificación las partidas jugadas en mesas en línea. Las partidas de práctica contra la computadora no cuentan.",
+ "Rankings are by stakes won: a win adds your table's stake, a loss takes it off. The coins you collect are paid separately.": "Las clasificaciones son por apuestas ganadas: una victoria suma la apuesta de tu mesa y una derrota la resta. Las monedas que cobras se pagan por separado.",
  "TABLE & CARDS": "MESA Y CARTAS",
   "Copy last rounds (to report a bad bot move)": "Copiar las últimas rondas (para reportar una mala jugada del bot)",
 };
