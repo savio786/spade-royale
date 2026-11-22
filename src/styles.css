@@ -254,6 +254,15 @@ input { font: inherit; }
 .lb-title { margin: 0 0 12px; text-align: center; font: 400 52px var(--display); letter-spacing: 6px; text-shadow: 0 3px 0 #050a3a; }
 .lb-wrap { display: flex; gap: 22px; min-height: 0; flex: 1; }
 .lb-main { flex: 1; display: flex; flex-direction: column; min-height: 0; max-height: 520px; }
+/* tall desktop windows: the leaderboard fills the window so many more players show (the list scrolls inside; the note and your rank stay at the bottom) */
+@media (min-height: 760px) and (hover: hover) {
+  .modal.lb-modal { height: calc(100% - 24px); }
+  .modal.lb-modal .modal-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .lb-title { flex: none; }
+  .lb-main { max-height: none; }
+  .lb-main > .lb-list { flex: 1 1 auto; min-height: 0; }
+  .lb-side { min-height: 0; overflow-y: auto; }
+}
 .lb-head { display: grid; grid-template-columns: 140px 1fr 240px; font: 400 18px var(--display); letter-spacing: 2px; color: var(--ink-2); padding: 0 16px 6px; }
 .lb-list { list-style: none; margin: 0; padding: 0 6px 0 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
 .lb-row { display: flex; align-items: center; gap: 16px; padding: 6px 16px; border-radius: 10px; background: linear-gradient(180deg, #16207a, #0f1660); border: 2px solid #3b4ab8; }
