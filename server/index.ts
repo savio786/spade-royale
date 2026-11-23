@@ -105,6 +105,7 @@ function walletPayout(r: Room, winnerSeats: Set<number>, second: number) {
 /** verified = the connection proved it owns the account (key), which friends need; auth = that check in progress */
 interface Client { watching?: { room: Room; unsub: () => void }; ws: WebSocket; player: PlayerHello | null; room: Room | null; unsub: (() => void) | null; verified: boolean; auth: Promise<void> | null; fops: number[]; gifts: number[]; chats: number[]; seating?: boolean }
 
+const healthLogs = new WeakMap<object, number>();   // how many health lines a connection has logged (capped)
 const rooms = new Map<string, Room>();
 const clients = new Set<Client>();
 let roomSeq = 0;
@@ -386,6 +387,12 @@ function handle(c: Client, m: ClientMsg) {
       if (prevId && prevId !== p.id) void presenceChanged(prevId); // this connection switched to another player
       void walletHello(c).catch((e) => console.error('wallet hello', e));
       return send(c, { t: 'welcome', online: onlineCounts(), wallet: walletOn() });
+    }
+    case 'health': {
+      const n = (v: unknown) => { const x = Math.round(Number(v)); return Number.isFinite(x) ? x : -1; };
+      const cnt = (healthLogs.get(c) ?? 0) + 1; healthLogs.set(c, cnt);
+      if (cnt <= 40) console.log(`client health: open ${n(m.up)} min, on ${String(m.screen).slice(0, 8)}, slowest click ${n(m.ev)}ms (${String(m.evName).slice(0, 12)}), page blocked ${n(m.lt)} times / ${n(m.ltMs)}ms, memory ${n(m.heap)}MB, page items ${n(m.dom)}`);
+      return;
     }
     case 'perf': { const ms = Math.round(Number(m.ms)), j = Math.round(Number(m.waited)); if (ms >= 0 && ms < 120000) console.log(m.paint !== undefined ? `client timing: click to table drawn ${ms}ms (button to connect ${Math.round(Number(m.pre))}ms, connect to drawn ${Math.round(Number(m.paint))}ms)` : `client timing: connect to first table update ${ms}ms (joined after ${Number.isFinite(j) ? j : '?'}ms, connection already open: ${m.open ? 'yes' : 'no'})`); return; }
     case 'wallet': return void walletHello(c).catch((e) => console.error('wallet', e));

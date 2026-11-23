@@ -39,6 +39,7 @@ export type ClientMsg =
   | { t: 'createPrivate'; settings: TableSettings }
   | { t: 'joinPrivate'; code: string }
   | { t: 'fillBots' }
+  | { t: 'health'; up: number; lt: number; ltMs: number; ev: number; evName: string; heap: number; dom: number; screen: string }   // timing only
   | { t: 'perf'; ms: number; open: boolean; waited: number; pre?: number; paint?: number }   // how long the "Connecting to table" screen lasted (timing only)
   | { t: 'act'; action: Action }
   | { t: 'chat'; text: string }

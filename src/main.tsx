@@ -23,6 +23,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD && import.meta.env.VITE
   navigator.serviceWorker.register('./sw.js').catch(() => {}); // registered right away so app stores (PWABuilder) detect it
 }
 
+import { startHealth } from './lib/health';
+startHealth();
+
 // Auto-update: when a new version is deployed, reload so players get it — but never in the middle of a game.
 if (import.meta.env.PROD && location.protocol.startsWith('http')) {
   const bundle = (html: string) => html.match(/assets\/index-[\w-]+\.js/)?.[0];
